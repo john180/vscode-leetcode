@@ -1,6 +1,6 @@
 # vscode-leetcode Adaptation Plan: VS Code 1.142 + leetcode.cn
 
-<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:8a4189d00815 -->
+<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:f43af99c3cd5 -->
 
 > Status: Draft v3 (decisions settled, pending execution)
 > Baseline: `0.18.4` / `586b3e4` (same commit as upstream `LeetCode-OpenSource/vscode-leetcode`)
@@ -36,14 +36,14 @@
 
 1. **The LeetCode backend has not failed as a whole.** `userStatus`, `questionData`, and `problemsetQuestionList` all return 200; problem statements include Chinese `translatedContent` and `codeSnippets` for 20 languages. Submit/test endpoints return 403 `User is not authenticated`, meaning they are alive and only need authentication.
 2. **The real breakage is in the login path and aging integration.** `setCookieToCli` listens for only three stdout patterns and has no `close`/timeout; the `onUri` activation event is missing; the cookie is stored in plaintext in `globalState`; webviews still use `vscode-resource:` (1.142 rewrites it and reports a migration prompt).
-3. **The CLI is a time bomb, not dead.** It fetches problems from `GET /api/problems/algorithms/` (legacy JSON) and treats an empty `user_name` as `session expired`; whether it still works with a valid cookie is untested. Even if it works today, one field change empties the problem list.
+3. **The CLI is a time bomb, not dead.** P0 measured 3527 problems (unlocked) with a valid cookie; the current regex parses 3248 and **drops 280 special IDs** (`LCP`/`LCS`/interview). It still depends on legacy JSON and a text table, so one field change empties the list.
 4. **Recommended: route B, hybrid then in-house.** Move user/problems/statement to GraphQL first, keep the CLI for submit/test temporarily, and remove it after P4 is verified. With all features retained (D5), about **3.5 weeks / 16.5 person-days**; an MVP (browsing) takes about 5.5 days.
 
 ### 2.1 Corrections made during this review (vs. v1)
 
 | # | Correction | Impact |
 | --- | --- | --- |
-| 1 | The CLI problem list is not "dead"; it depends on a non-empty `user_name`. Behavior with a valid cookie is unverified | Avoid overstating the failure; P0 must reproduce the real logged-in state |
+| 1 | The CLI problem list is not "dead": P0 measured 3527 problems with a valid cookie, but the regex drops 280 special IDs | Login/parsing is the problem, not the backend; direct GraphQL covers all 4475 |
 | 2 | `problemsetQuestionList` currently returns `total = 4475`; `limit` caps at 100; about 45 pages | Size pagination/cache for 45 pages; do not hard-code 3900 |
 | 3 | IDs can be `LCP 06` / `LCS 02` (with a space); the current regex `\[(\d*)\]` drops them | Model and filenames must treat IDs as strings |
 | 4 | `difficulty` is uppercase in the list API (`EASY`) but may be mixed case in the detail API (`Easy`) | Normalize before comparison/coloring |
@@ -79,6 +79,7 @@
 | `POST https://leetcode.cn/graphql/` `userStatus` | 200, `isSignedIn:false` | Endpoint alive; usable for login validation | ✅ |
 | `questionData(two-sum)` | 200, `translatedTitle=两数之和`, `translatedContent` 1125 chars, 20 `codeSnippets` | Statements/templates can be fetched directly | ✅ |
 | `problemsetQuestionList(limit:100, skip:0)` | 200, `total=4475`; `skip=100` paginates correctly | Problem list can leave the CLI entirely | ✅ |
+| CLI `list -q L` (valid cookie) | 3527 lines; Chinese titles/difficulty/acceptance normal | CLI problem list still works | ✅ |
 | `searchKeywords` filter | 200 for `LCP`/`面试题`/`剑指` | Search can be direct | ✅ |
 | `GET /api/problems/algorithms/` | 200, legacy JSON body (`stat_status_pairs`); `user_name` empty when anonymous | Anonymous always looks expired; may work with a cookie | ✅ / ⏳ |
 | `POST /problems/two-sum/submit/` | 403 `User is not authenticated` | Endpoint alive | ✅ |
@@ -110,7 +111,7 @@ Key data shapes (measured):
 ### 3.4 Code-level breakages
 
 1. **Login** (`src/leetCodeManager.ts:166-199`): `setCookieToCli` uses an `else if` chain to match `login: ` and `cookie: `, with no `close` handler or timeout. Coalesced chunks or an early exit hang forever. The cookie is written to `globalState` (`src/globalState.ts:28-31`) in plaintext.
-2. **Problem list** (`src/commands/list.ts:20`): one regex parses the CLI table; IDs such as `LCP 06` are dropped by `\[(\d*)\]`, and any column-width change empties the list.
+2. **Problem list** (`src/commands/list.ts:20`): one regex parses the CLI table; P0 measured 3248 of 3527 lines matched and **280 special IDs (`LCP 82`/`LCS 02`/interview) dropped**; any column-width change empties the list.
 3. **Statement** (`src/webview/leetCodePreviewProvider.ts:138`): destructured by fixed line numbers; one extra CLI line shifts everything.
 4. **Submit/test** (`src/webview/leetCodeSubmissionProvider.ts:75`): parses `√/×` text; failure details are limited.
 5. **Telemetry** (`src/utils/trackingUtils.ts`): on by default; reports username and `uri.path`; nothing in the repo sets `NODE_ENV` 🟡; does not honor `env.isTelemetryEnabled`.
@@ -167,13 +168,21 @@ Milestones:
 - **Cookie safety (hard requirements)**:
   - The file lives **outside the repo**, default `D:\Codes\_scratch\lc-cookie\cookie.txt`; the script rejects any `realpath` inside the repo.
   - Logs, exceptions, and snapshots are redacted; only metadata such as "loaded, length N" may be printed.
-  - Add `cookie.txt` and `.secrets/` to `.gitignore` as defense in depth; delete the file when P0 ends and when the task ends.
+  - Add `cookie.txt` and `.secrets/` to `.gitignore` as defense in depth; keep it in `_scratch` during P0/P1, delete it when the task ends, and never copy it into the repo or logs.
 - Launch with `code --extensionDevelopmentPath` on 1.142 and record activation logs, login failure points, and webview errors.
 - Record real behavior for three states: signed out / valid cookie / expired cookie.
 
 **Deliverables**: `scripts/smoke.mjs`, a failure record appended to §10.
 
 **Exit**: the script reports HTTP status and errors per step; the extension activates on 1.142; `git status` contains no cookie file.
+
+**P0 results (2026-10-20)**
+
+- Valid cookie: `userStatus` signed in, `total=4475`, `two-sum` state `AC`.
+- Expired cookie: `signedIn=false`, exit code 1 with `cookie is not signed in`, no hang.
+- CLI `list -q L` (valid cookie): 3527 lines; current regex matches 3248; **280 special IDs lost**.
+- CLI `user -c`: succeeds in 2.25 s; still no `close`/timeout, so edge cases hang.
+- Real UI activation on VS Code 1.142 not run yet; listed as a P1 pre-check.
 
 ### P1 Login rework (2 d, CLI retained)
 
@@ -224,6 +233,8 @@ Milestones:
 - Offline/timeout produce readable errors; refresh does not re-fetch everything.
 
 **Note**: anonymous `status` is always `NOT_STARTED`; it reflects the user only when logged in. Verify with a real account.
+
+The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter with `paidOnly` to honor the "show locked" setting.
 
 ### P3 Statement and solutions (3 d)
 
@@ -362,7 +373,7 @@ Milestones:
 
 | Phase | Status | Completed | Evidence |
 | --- | --- | --- | --- |
-| P0 | ☐ Not started | | |
+| P0 | ◐ In progress (smoke passed; 1.142 activation pending) | 2026-10-20 | `scripts/smoke.mjs`; §10 |
 | P1 | ☐ Not started | | |
 | P2 | ☐ Not started | | |
 | P3 | ☐ Not started | | |
@@ -417,6 +428,23 @@ Milestones:
   ```text
   npm ci (after fixing 4 r2.cnpmjs.org URLs) → tsc → tslint → vsce package
   → vscode-leetcode-0.18.4.vsix, 4778 files, 6.4 MB
+  ```
+
+- P0 smoke (valid cookie):
+
+  ```text
+  userStatus: signedIn=true, premium=false
+  problemsetQuestionList: total=4475, 1 | 两数之和 | EASY | AC
+  questionData(two-sum): translatedTitle=两数之和, snippets=20
+  questionData(na-ying-bi): frontendId="LCP 06", internalId=1000056
+  ```
+
+- P0 comparison (expired cookie and CLI):
+
+  ```text
+  expired cookie: signedIn=false, exit=1
+  CLI list -q L: 3527 lines, regex matched 3248, special IDs 280
+  CLI user -c: success in 2.25s (per-chunk matching)
   ```
 
 > All of the above is a point-in-time snapshot. LeetCode APIs can change at any time; keep the P0 smoke script as a long-term regression tool.

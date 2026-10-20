@@ -34,14 +34,14 @@
 
 1. **力扣后端没有整体失效。** `userStatus`、`questionData`、`problemsetQuestionList` 均返回 200，题干含中文 `translatedContent` 与 20 种语言的 `codeSnippets`；提交/测试端点返回 403 `User is not authenticated`，说明端点仍在，只差鉴权。
 2. **真正的断点在登录链路与老旧集成。** `setCookieToCli` 只监听 stdout 的三种模式，没有 `close`/超时；`onUri` 激活事件缺失；cookie 明文进 `globalState`；webview 仍用 `vscode-resource:`（1.142 会重写并提示迁移）。
-3. **CLI 是"定时炸弹"而非"已死"。** 题库走 `GET /api/problems/algorithms/` 的旧 JSON，并且**只要 `user_name` 为空就判定 session 过期**；带有效 cookie 时是否仍可用尚未实测。即便现在可用，字段一变题库就空。
+3. **CLI 是"定时炸弹"而非"已死"。** P0 已实测：有效 cookie 下 CLI 仍能列出 **3527 条**（未锁定），现有正则解析 3248 条，**280 条 `LCP`/`LCS`/面试题被丢弃**。题库仍依赖旧 JSON 与文本表格，字段一变就空。
 4. **推荐路线 B：混合过渡 → 最终自研。** 先用 GraphQL 接管用户/题库/题干，CLI 暂管提交测试；P4 验证通过后删除 CLI。全部功能保留（D5）后预计约 **3.5 周 / 16.5 人日**，MVP（可浏览）约 5.5 天。
 
 ### 2.1 本次复核修正的点（相对 v1）
 
 | # | 修正 | 影响 |
 | --- | --- | --- |
-| 1 | CLI 题库并非"已死"，而是依赖 `user_name` 非空；带 cookie 的行为标为待验证 | 避免夸大故障；P0 必须先复现真实登录态 |
+| 1 | CLI 题库并非"已死"：P0 实测有效 cookie 下可列 3527 条；但现有正则丢弃 280 条特殊题号 | 故障在登录/解析，不在后端；直连 GraphQL 可覆盖全部 4475 条 |
 | 2 | `problemsetQuestionList` 当前 `total = 4475`，`limit` 上限 100，约 45 页 | 分页与缓存设计按 45 页估算，不写死 3900 |
 | 3 | 题号可能是 `LCP 06` / `LCS 02`（含空格），现有正则 `\[(\d*)\]` 会丢弃 | 数据模型与文件名必须按字符串处理 |
 | 4 | `difficulty` 在列表接口是大写（`EASY`），详情接口可能混合大小写（`Easy`） | 必须归一化后再比较/着色 |
@@ -77,6 +77,7 @@
 | `POST https://leetcode.cn/graphql/` `userStatus` | 200，`isSignedIn:false` | 端点可用，可做登录校验 | ✅ |
 | `questionData(two-sum)` | 200，`translatedTitle=两数之和`，`translatedContent` 1125 字符，`codeSnippets` 20 种 | 题干/模板可直连 | ✅ |
 | `problemsetQuestionList(limit:100, skip:0)` | 200，`total=4475`，翻页 `skip=100` 正常 | 题库可完全脱离 CLI | ✅ |
+| CLI `list -q L`（有效 cookie） | 3527 行，中文标题/难度/通过率正常 | CLI 题库仍可用 | ✅ |
 | `searchKeywords` 过滤 | 200，`LCP`/`面试题`/`剑指` 均返回结果 | 搜索功能可直连 | ✅ |
 | `GET /api/problems/algorithms/` | 200，body 为旧 JSON（`stat_status_pairs`）；未登录时 `user_name` 为空 | 未登录必判过期；有 cookie 时可能可用 | ✅ / ⏳ |
 | `POST /problems/two-sum/submit/` | 403 `User is not authenticated` | 端点仍在 | ✅ |
@@ -108,7 +109,7 @@
 ### 3.4 代码层断点
 
 1. **登录**（`src/leetCodeManager.ts:166-199`）：`setCookieToCli` 用 `else if` 串联匹配 `login: `、`cookie: `，无 `close`/超时；chunk 合并或进程异常退出都会永久挂起。cookie 写入 `globalState`（`src/globalState.ts:28-31`），明文落盘。
-2. **题库**（`src/commands/list.ts:20`）：一条正则解析 CLI 表格；`LCP 06` 这类题号因 `\[(\d*)\]` 被丢弃，表格列宽变化则整表为空。
+2. **题库**（`src/commands/list.ts:20`）：一条正则解析 CLI 表格；P0 实测 3527 行中 3248 行匹配、**280 行特殊题号（`LCP 82`/`LCS 02`/面试题）被丢弃**；表格列宽变化则整表为空。
 3. **题干**（`src/webview/leetCodePreviewProvider.ts:138`）：按固定行号解构，CLI 输出一行变化即错位。
 4. **提交/测试**（`src/webview/leetCodeSubmissionProvider.ts:75`）：解析 `√/×` 文本，失败详情表达力有限。
 5. **遥测**（`src/utils/trackingUtils.ts`）：默认开启；上报 username 与 `uri.path`；`NODE_ENV` 判断在仓库内无任何设置点🟡；未接入 `env.isTelemetryEnabled`。
@@ -165,13 +166,21 @@
 - **Cookie 安全流程（硬约束）**：
   - 文件只放在**仓库外**，默认 `D:\Codes\_scratch\lc-cookie\cookie.txt`；脚本校验 `realpath` 不在仓库目录内。
   - 日志、异常、快照一律脱敏；只允许输出"已加载，长度 N"这类元信息。
-  - `.gitignore` 增加 `cookie.txt`、`.secrets/` 兜底；P0 结束与任务结束各删除一次。
+  - `.gitignore` 增加 `cookie.txt`、`.secrets/` 兜底；P0/P1 验证期间保留在 `_scratch`，任务结束必须删除，期间不得复制到仓库或日志。
 - 用 `code --extensionDevelopmentPath` 在 1.142 上启动，记录激活日志、登录失败点、webview 报错。
 - 记录"未登录 / 有效 cookie / 过期 cookie"三种状态的真实表现。
 
 **产出**：`scripts/smoke.mjs`、一份失败点记录（附在本文档 §10）。
 
 **验收**：脚本能逐步输出 HTTP 状态与错误；扩展在 1.142 能激活；仓库内 `git status` 不含 cookie 文件。
+
+**P0 结果（2026-10-20）**
+
+- 有效 cookie：`userStatus` 已登录，题库 `total=4475`，`two-sum` 状态为 `AC`。
+- 过期 cookie：`signedIn=false`，脚本退出码 1 并提示 `cookie is not signed in`，无挂起。
+- CLI `list -q L`（有效 cookie）：3527 行；现有正则匹配 3248 行，**280 行特殊题号丢失**。
+- CLI `user -c`：正常流程 2.25s 成功；仍无 `close`/超时，异常场景会挂起。
+- VS Code 1.142 的真实 UI 激活尚未执行，列为 P1 前置检查。
 
 ### P1 登录重做（2 d，保留 CLI 过渡）
 
@@ -222,6 +231,8 @@
 - 断网/超时有可读错误；刷新不重复拉全量。
 
 **注意**：GraphQL 匿名 `status` 恒为 `NOT_STARTED`，登录后才反映真实状态；必须用真账号验证。
+
+**注意**：CLI 的 3527 是 `-q L` 过滤后的未锁定集合；直连后要用 `paidOnly` 显式过滤，保持与"是否显示锁题"设置一致。
 
 ### P3 题干与题解（3 d）
 
@@ -360,7 +371,7 @@
 
 | 阶段 | 状态 | 完成日期 | 证据 |
 | --- | --- | --- | --- |
-| P0 | ☐ 未开始 | | |
+| P0 | ◐ 进行中（冒烟通过，1.142 激活待测） | 2026-10-20 | `scripts/smoke.mjs`；§10 |
 | P1 | ☐ 未开始 | | |
 | P2 | ☐ 未开始 | | |
 | P3 | ☐ 未开始 | | |
@@ -415,6 +426,23 @@
   ```text
   npm ci（需先修正 4 条 r2.cnpmjs.org）→ tsc → tslint → vsce package
   → vscode-leetcode-0.18.4.vsix, 4778 files, 6.4 MB
+  ```
+
+- P0 冒烟（有效 cookie）：
+
+  ```text
+  userStatus: signedIn=true, premium=false
+  problemsetQuestionList: total=4475, 1 | 两数之和 | EASY | AC
+  questionData(two-sum): translatedTitle=两数之和, snippets=20
+  questionData(na-ying-bi): frontendId="LCP 06", internalId=1000056
+  ```
+
+- P0 对照（过期 cookie 与 CLI）：
+
+  ```text
+  expired cookie: signedIn=false, exit=1
+  CLI list -q L: 3527 lines, regex matched 3248, special IDs 280
+  CLI user -c: success in 2.25s (per-chunk matching)
   ```
 
 > 以上均为时间点快照；力扣接口随时可能变化，P0 的冒烟脚本应作为长期回归工具保留。
