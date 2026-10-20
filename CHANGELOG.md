@@ -3,6 +3,12 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.19.3] - 2026-10-21
+### Changed
+- Removed the last `url` module import; `URLSearchParams` is now the Node global.
+- Documented that the DEP0169 `url.parse()` warning during `code --install-extension` comes from the VS Code CLI, not the extension.
+- Marketplace README now matches 0.19.3.
+
 ## [0.19.2] - 2026-10-21
 ### Changed
 - Marketplace listing now uses the Simplified Chinese `README.md`; the English version moved to `README.en.md`.

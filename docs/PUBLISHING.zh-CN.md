@@ -37,7 +37,7 @@ CI：把 token 配成仓库 secret `VSCE_PAT`，然后手动运行 **Release** �
 ## 4. 验证
 
 ```powershell
-code --install-extension .\vscode-leetcode-community-0.19.2.vsix --force
+code --install-extension .\vscode-leetcode-community-0.19.3.vsix --force
 ```
 
 安装前请禁用官方 `LeetCode.vscode-leetcode`：两者命令、视图与设置 ID 相同。

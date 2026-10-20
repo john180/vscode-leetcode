@@ -20,7 +20,7 @@
 - 离线安装：从 [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases) 下载 `.vsix`，然后：
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.19.2.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.19.3.vsix --force
   ```
 
 > 本项目是 [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) 的社区分支，不是 LeetCode 官方发布。扩展 ID 为 `yanxijian.vscode-leetcode-community`；命令、视图与设置 ID 与官方版相同，安装前请先禁用官方 `LeetCode.vscode-leetcode`。
@@ -100,6 +100,10 @@ Cookie 只保存在 VS Code 的 `SecretStorage` 中，不会写入明文设置�
 **和官方版冲突**
 
 两个扩展使用相同的 `leetcode.*` 命令/设置 ID，安装前禁用官方版即可。
+
+**命令行安装出现 DEP0169 `url.parse()` 警告**
+
+这是 VS Code 1.142 自带 CLI 在查询 Marketplace 元数据时的 Node 弃用提示，栈在 `resources/app/out/vs/code/node/cliProcessMain.js`，不是本扩展代码。可在扩展视图安装，或忽略；临时隐藏可用 `NODE_OPTIONS=--no-deprecation`（只隐藏提示）。
 
 ## 开发
 

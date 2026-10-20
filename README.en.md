@@ -20,7 +20,7 @@
 - Offline: download the `.vsix` from [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases), then:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.19.2.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.19.3.vsix --force
   ```
 
 > Community fork of [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode). It is not an official LeetCode release. The extension ID is `yanxijian.vscode-leetcode-community`; command, view, and setting IDs are shared with the official extension, so disable the official `LeetCode.vscode-leetcode` before installing this one.
@@ -100,6 +100,10 @@ The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The
 **Conflict with the official extension**
 
 Both extensions use the same `leetcode.*` command and setting IDs. Disable the official extension first.
+
+**DEP0169 `url.parse()` warning during CLI install**
+
+This is a Node deprecation notice from the VS Code 1.142 CLI while it queries Marketplace metadata; the stack is in `resources/app/out/vs/code/node/cliProcessMain.js`, not in this extension. Install from the Extensions view or ignore it; `NODE_OPTIONS=--no-deprecation` hides the notice.
 
 ## Development
 
