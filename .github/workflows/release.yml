@@ -12,6 +12,8 @@ permissions:
   contents: read
 
 jobs:
+  # Global PAT publishing is supported until 2026-12-01; after that use Entra ID
+  # with `vsce publish --azure-credential`.
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 30

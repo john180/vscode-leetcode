@@ -4,7 +4,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-> Community fork of [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode). It is not an official LeetCode release. The extension ID is `yanxijian.vscode-leetcode`; command, view, and setting IDs are shared with the official extension, so disable the official extension before installing this one.
+> Community fork of [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode). It is not an official LeetCode release. The extension ID is `yanxijian.vscode-leetcode-community`; command, view, and setting IDs are shared with the official extension, so disable the official extension before installing this one.
 
 ## Requirements
 

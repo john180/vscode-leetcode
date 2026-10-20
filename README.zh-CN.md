@@ -4,7 +4,7 @@
 
 **简体中文** · [English](README.md)
 
-> 本项目是 [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) 的社区分支，不是 LeetCode 官方发布。扩展 ID 为 `yanxijian.vscode-leetcode`；命令、视图与设置 ID 与官方版相同，安装前请先禁用官方版。
+> 本项目是 [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) 的社区分支，不是 LeetCode 官方发布。扩展 ID 为 `yanxijian.vscode-leetcode-community`；命令、视图与设置 ID 与官方版相同，安装前请先禁用官方版。
 
 ## 运行条件
 

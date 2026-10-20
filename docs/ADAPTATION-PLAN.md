@@ -339,26 +339,27 @@
 - CI：Node 20/22、`actions/checkout@v4`；`@vscode/test-cli`（Linux 需 xvfb，或直接在 Windows runner 跑）。
 - tslint → eslint；补单测：映射函数、cookie 解析、结果归一。
 - **发布身份（D3）**：
-  - `publisher: "yanxijian"`；`name` 暂保留 `vscode-leetcode` → 新扩展 ID **`yanxijian.vscode-leetcode`**。
+  - `publisher: "yanxijian"`；`name` 改为 `vscode-leetcode-community` → 新扩展 ID **`yanxijian.vscode-leetcode-community`**（Marketplace 的 `vscode-leetcode` 名称已被官方占用）。
   - `displayName` 改为 **`LeetCode Community`**，避免冒充官方；`repository`/`homepage`/`bugs` 指向 fork。
-  - 若 Marketplace 审核要求改名，回退 `name: "vscode-leetcode-cn"`（ID 同步变化）。
+  - 若 Marketplace 审核要求改名，回退 `name: "vscode-leetcode-community-alt"`（ID 同步变化）。
   - 版本从 `0.19.0` 起；README 写明"与官方版命令/视图/设置冲突，安装前禁用官方版"。
 - **文档语言（D6）**：只维护 `README.md`（English）+ `README.zh-CN.md`（简体中文）；不新增日/韩版本，并在 README 注明这是对工作区四语言约定的明确例外。
 - 若纳入工作区长期维护：补 `codes-workspace/workspace.json`、RepoRules；`markdown.languages` 只配置 en + zh-CN，或把该例外写入 ignore。
 
 **验收**：`npm ci && npm run package` 一键可复现；CI 绿；VSIX 以新 ID 安装可用且 < 1.5 MB。
 
-**P6 结果（2026-10-20）**
+**P6 结果（2026-10-21）**
 
 - esbuild 打包 `dist/extension.js`（2.41 MB，未压缩）；VSIX **563.59 KB / 22 files**（原 6.4 MB / 4778 files），`node_modules` 不再进包。
 - `main` 指向 `./dist/extension.js`；`npm run package` 串起 typecheck → eslint → 单测 → bundle → vsce。
 - tslint 替换为 ESLint 8 + `@typescript-eslint`；新增 6 个 Node 单测（cookie / 文件生成）。
 - CI 改为 Node 20 + `actions/checkout@v4` + `setup-node@v4`，Linux/Windows 矩阵跑 typecheck/lint/test/package。
-- 发布元数据：`publisher: yanxijian`、ID `yanxijian.vscode-leetcode`、`displayName: LeetCode Community`、`version: 0.19.0`，仓库/主页/bugs 指向 fork。
+- 发布元数据：`publisher: yanxijian`、ID `yanxijian.vscode-leetcode-community`、`displayName: LeetCode Community`、`version: 0.19.0`，仓库/主页/bugs 指向 fork。
 - README 改为英文 + 简体中文两版，CHANGELOG 增加 0.19.0；锁文件里的 4 条 `r2.cnpmjs.org` 已清除。
 - 发布自动化：`.github/workflows/release.yml`（手动指定版本，使用 `VSCE_PAT` secret）与 `scripts/publish.ps1`（读取 `VSCE_PAT` 或外部 PAT 文件）；说明见 `docs/PUBLISHING.md`。
-- 在隔离扩展目录实际安装 VSIX：`yanxijian.vscode-leetcode@0.19.0` 安装成功。
-- 未做：Marketplace 实际发布——publisher `yanxijian` 页面仍为 404，且当前环境没有 `VSCE_PAT`；需要先创建 publisher 并提供 PAT。
+- 在隔离扩展目录实际安装 VSIX：`yanxijian.vscode-leetcode-community@0.19.0` 安装成功。
+- Marketplace 已发布 **0.19.0**：`vsce` 返回 DONE，`vsce show` 确认版本与发布时间（2026-10-21 00:20）；URL `https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community`。首次以 `vscode-leetcode` 名称发布被全局重名拒绝，改为 `vscode-leetcode-community` 后成功；检查时条目页仍在索引（404 属传播延迟）。
+- **PAT 截止日期**：Global PAT 于 **2026-12-01** 退役；当前 `release.yml` / `publish.ps1` 的 PAT 流程只在此之前有效，之后需切换到 Microsoft Entra ID + `vsce publish --azure-credential`。
 
 ---
 
@@ -385,7 +386,7 @@
 | 17 | 中文界面 | `zh-cn` 下命令/设置/提示均为中文 | P5 |
 | 18 | 关闭遥测 | 无外发请求 | P5 |
 | 19 | 1.142 激活 | 无弃用告警、无未处理异常 | P5 |
-| 20 | 新 ID 安装 | `yanxijian.vscode-leetcode` 可装；与官方版冲突有说明 | P6 |
+| 20 | 新 ID 安装 | `yanxijian.vscode-leetcode-community` 可装；与官方版冲突有说明 | P6 |
 
 ---
 
@@ -398,7 +399,7 @@
 | R3 | 题解接口需会员 | 高 | 低 | P3 先展示公开题解/跳转；会员内容明确提示 |
 | R4 | 收藏夹 hash 获取方式变化 | 中 | 中 | P2 先用 REST `/list/api/questions`，失败降级为本地标记 |
 | R5 | 公司标签数据不全 | 高 | 低 | 保留分类，用 `topCompanyTags`，UI 标注范围（D5） |
-| R6 | 发布身份/品牌审核 | 中 | 中 | `displayName` 去官方化；备用 name `vscode-leetcode-cn`（D3） |
+| R6 | 发布身份/品牌审核 | 中 | 中 | `displayName` 去官方化；备用 name `vscode-leetcode-community-alt`（D3） |
 | R7 | cookie 泄露 | 低 | 高 | 仓库外文件、脱敏、SecretStorage、不日志、用完删除 |
 | R8 | 删除 CLI 后回归遗漏 | 中 | 中 | P4 保留 feature flag，一个版本后移除 |
 | R9 | 多账号重建引入串号 | 中 | 高 | profile 与 cookie 一一绑定；切换后强制刷新题库与用户信息 |
@@ -412,7 +413,7 @@
 | --- | --- | --- | --- |
 | D1 | `.cn` 一等公民，`.com` 保留但不验收 | 已定 | 降低范围与风险 |
 | D2 | 最终删除 `vsc-leetcode-cli` | 已定（P4 门控） | 若题解必须依赖 CLI，则降级为"仅题解保留 CLI" |
-| D3 | 自有 publisher 发布，改扩展 ID 与显示名 | **已定** | `publisher: yanxijian`，ID `yanxijian.vscode-leetcode`，`displayName: LeetCode Community`；审核不通则改 `name: vscode-leetcode-cn` |
+| D3 | 自有 publisher 发布，改扩展 ID 与显示名 | **已定** | `publisher: yanxijian`，ID `yanxijian.vscode-leetcode-community`，`displayName: LeetCode Community`；审核不通则改 `name: vscode-leetcode-community-alt` |
 | D4 | 登录以 Cookie 粘贴为主，Web 授权兜底，不做密码登录 | 已定 | 规避验证码/2FA |
 | D5 | Company、Session 多账号、题解全部保留 | **已定** | P2 保 Company；P3 保题解；P4 重建本地多账号 |
 | D6 | 只做简体中文 + English | **已定** | UI 走 l10n；README 两语言；不做日/韩 |
@@ -433,7 +434,7 @@
 | P3 | ✅ 完成（题干/文件/题解数据层；UI 视觉验收待补） | 2026-10-20 | `src/api/question.ts`、`src/api/problemFile.ts`、`src/api/solution.ts`；§10 |
 | P4 | ✅ 完成（正式 submit / 收藏写操作已授权并验证） | 2026-10-20 | `src/api/submission.ts`、`src/api/favorite.ts`、`src/commands/session.ts`；§10 |
 | P5 | ✅ 完成（核心 UI/设置中英；Webview 视觉与语言包实测待人工） | 2026-10-20 | `package.nls*.json`、`l10n/*`；§10 |
-| P6 | ✅ 完成（打包/CI/元数据/安装验证；Marketplace 发布待 PAT） | 2026-10-20 | `esbuild.js`、`.github/workflows/build.yml`、`README.md`；§10 |
+| P6 | ✅ 完成（已发布 0.19.0） | 2026-10-21 | `esbuild.js`、`.github/workflows/build.yml`、`README.md`；§10 |
 
 ---
 
@@ -548,8 +549,9 @@
 
   ```text
   npm run build: typecheck + eslint + 6 tests + esbuild pass
-  vsce package: vscode-leetcode-0.19.0.vsix, 563.59 KB, 22 files
-  isolated install: yanxijian.vscode-leetcode@0.19.0
+  vsce package: vscode-leetcode-community-0.19.0.vsix, 563.59 KB, 22 files
+  isolated install: yanxijian.vscode-leetcode-community@0.19.0
+  marketplace publish: v0.19.0 (vsce DONE; vsce show 0.19.0)
   bundled activation on VS Code 1.142: 1 passing
   ```
 

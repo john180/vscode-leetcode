@@ -1,13 +1,17 @@
 # Publishing
 
-The extension is published as **`yanxijian.vscode-leetcode`**. The publisher and the
+The extension is published as **`yanxijian.vscode-leetcode-community`**. The publisher and the
 `Marketplace > Manage` token are the only steps that require account access.
+
+> Global PATs are retired on **December 1, 2026**. The PAT flow below only works
+> before that date; afterwards use Microsoft Entra ID publishing
+> (`vsce publish --azure-credential`) as described in the VS Code docs.
 
 ## 1. Create the publisher
 
 1. Open <https://marketplace.visualstudio.com/manage>.
 2. Create the publisher **`yanxijian`** if it does not exist.
-3. Confirm that `yanxijian.vscode-leetcode` is still available.
+3. Confirm that `yanxijian.vscode-leetcode-community` is still available.
 
 ## 2. Create a PAT
 
@@ -34,7 +38,7 @@ CI: add the token as the repository secret `VSCE_PAT`, then run the
 ## 4. Verify
 
 ```powershell
-code --install-extension .\vscode-leetcode-0.19.0.vsix --force
+code --install-extension .\vscode-leetcode-community-0.19.0.vsix --force
 ```
 
 Disable the official `LeetCode.vscode-leetcode` extension first: both use the
