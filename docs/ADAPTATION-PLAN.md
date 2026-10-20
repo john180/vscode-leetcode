@@ -343,7 +343,7 @@
   - `displayName` 改为 **`LeetCode Community`**，避免冒充官方；`repository`/`homepage`/`bugs` 指向 fork。
   - 若 Marketplace 审核要求改名，回退 `name: "vscode-leetcode-community-alt"`（ID 同步变化）。
   - 版本从 `0.19.0` 起；README 写明"与官方版命令/视图/设置冲突，安装前禁用官方版"。
-- **文档语言（D6）**：只维护 `README.md`（English）+ `README.zh-CN.md`（简体中文）；不新增日/韩版本，并在 README 注明这是对工作区四语言约定的明确例外。
+- **文档语言（D6）**：默认 `README.md` 使用简体中文，英文版为 `README.en.md`；不新增日/韩版本，并在 README 注明这是对工作区四语言约定的明确例外。
 - 若纳入工作区长期维护：补 `codes-workspace/workspace.json`、RepoRules；`markdown.languages` 只配置 en + zh-CN，或把该例外写入 ignore。
 
 **验收**：`npm ci && npm run package` 一键可复现；CI 绿；VSIX 以新 ID 安装可用且 < 1.5 MB。
@@ -359,6 +359,7 @@
 - 发布自动化：`.github/workflows/release.yml`（手动指定版本，使用 `VSCE_PAT` secret）与 `scripts/publish.ps1`（读取 `VSCE_PAT` 或外部 PAT 文件）；说明见 `docs/PUBLISHING.md`。
 - 在隔离扩展目录实际安装 VSIX：`yanxijian.vscode-leetcode-community@0.19.0` 安装成功。
 - Marketplace 已发布 **0.19.0**：`vsce` 返回 DONE，`vsce show` 确认版本与发布时间（2026-10-21 00:20）；URL `https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community`。首次以 `vscode-leetcode` 名称发布被全局重名拒绝，改为 `vscode-leetcode-community` 后成功；检查时条目页仍在索引（404 属传播延迟）。
+- **0.19.1 补丁**：默认 endpoint 改为 `leetcode-cn`，登录错误带 endpoint 与 `signedIn`；tag `v0.19.1`、GitHub Release 与 Marketplace 0.19.1 已发布。
 - **PAT 截止日期**：Global PAT 于 **2026-12-01** 退役；当前 `release.yml` / `publish.ps1` 的 PAT 流程只在此之前有效，之后需切换到 Microsoft Entra ID + `vsce publish --azure-credential`。
 
 ---
@@ -434,7 +435,7 @@
 | P3 | ✅ 完成（题干/文件/题解数据层；UI 视觉验收待补） | 2026-10-20 | `src/api/question.ts`、`src/api/problemFile.ts`、`src/api/solution.ts`；§10 |
 | P4 | ✅ 完成（正式 submit / 收藏写操作已授权并验证） | 2026-10-20 | `src/api/submission.ts`、`src/api/favorite.ts`、`src/commands/session.ts`；§10 |
 | P5 | ✅ 完成（核心 UI/设置中英；Webview 视觉与语言包实测待人工） | 2026-10-20 | `package.nls*.json`、`l10n/*`；§10 |
-| P6 | ✅ 完成（已发布 0.19.0） | 2026-10-21 | `esbuild.js`、`.github/workflows/build.yml`、`README.md`；§10 |
+| P6 | ✅ 完成（已发布 0.19.1） | 2026-10-21 | `esbuild.js`、`.github/workflows/build.yml`、`README.md`；§10 |
 
 ---
 

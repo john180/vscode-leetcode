@@ -1,6 +1,6 @@
 # vscode-leetcode Adaptation Plan: VS Code 1.142 + leetcode.cn
 
-<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:1a8de98cdb2d -->
+<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:89354ff67540 -->
 
 > Status: Draft v3 (decisions settled, pending execution)
 > Baseline: `0.18.4` / `586b3e4` (same commit as upstream `LeetCode-OpenSource/vscode-leetcode`)
@@ -345,7 +345,7 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
   - Change `displayName` to **`LeetCode Community`** to avoid impersonating the official extension; point `repository`/`homepage`/`bugs` at the fork.
   - If Marketplace review requires a rename, fall back to `name: "vscode-leetcode-community-alt"` (the ID changes accordingly).
   - Start at version `0.19.0`; the README must state that command/view/settings IDs collide with the official extension and it must be disabled first.
-- **Documentation languages (D6)**: maintain only `README.md` (English) + `README.zh-CN.md` (Simplified Chinese); do not add Japanese/Korean, and note in the README that this is an explicit exception to the workspace four-language convention.
+- **Documentation languages (D6)**: `README.md` is the Simplified Chinese default, with English in `README.en.md`; do not add Japanese/Korean, and note in the README that this is an explicit exception to the workspace four-language convention.
 - If maintained in this workspace long-term: add `codes-workspace/workspace.json`, RepoRules; configure `markdown.languages` with en + zh-CN only, or record the exception in ignore.
 
 **Exit**: `npm ci && npm run package` reproduces the VSIX; CI green; the VSIX installs under the new ID and works, under 1.5 MB.
@@ -361,6 +361,7 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 - Release automation: `.github/workflows/release.yml` (manual version input, `VSCE_PAT` secret) and `scripts/publish.ps1` (reads `VSCE_PAT` or an external PAT file); see `docs/PUBLISHING.md`.
 - Installed the VSIX into an isolated extensions directory: `yanxijian.vscode-leetcode-community@0.19.0`.
 - Published **0.19.0** to the Marketplace: `vsce` returned DONE and `vsce show` confirms the version and timestamp (2026-10-21 00:20); URL `https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community`. The first attempt with the name `vscode-leetcode` was rejected as globally taken; renaming to `vscode-leetcode-community` succeeded. The item page was still 404 while indexing.
+- **0.19.1 patch**: default endpoint is `leetcode-cn`, and sign-in errors include the endpoint and `signedIn`; tag `v0.19.1`, the GitHub Release, and Marketplace 0.19.1 are published.
 - **PAT deadline**: global PATs retire on **2026-12-01**. The PAT flow in `release.yml` / `publish.ps1` only works until then; afterwards switch to Microsoft Entra ID with `vsce publish --azure-credential`.
 
 ---
@@ -436,7 +437,7 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 | P3 | ✅ Done (statement/file/solution data layer; UI visual acceptance pending) | 2026-10-20 | `src/api/question.ts`, `src/api/problemFile.ts`, `src/api/solution.ts`; §10 |
 | P4 | ✅ Done (formal submit and favorite writes authorized and verified) | 2026-10-20 | `src/api/submission.ts`, `src/api/favorite.ts`, `src/commands/session.ts`; §10 |
 | P5 | ✅ Done (core UI/settings zh/en; webview visuals and language-pack runtime need manual checks) | 2026-10-20 | `package.nls*.json`, `l10n/*`; §10 |
-| P6 | ✅ Done (0.19.0 published) | 2026-10-21 | `esbuild.js`, `.github/workflows/build.yml`, `README.md`; §10 |
+| P6 | ✅ Done (0.19.1 published) | 2026-10-21 | `esbuild.js`, `.github/workflows/build.yml`, `README.md`; §10 |
 
 ---
 
