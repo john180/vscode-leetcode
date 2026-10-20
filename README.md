@@ -56,7 +56,7 @@ npm test
 npm run package
 ```
 
-`npm run package` builds `dist/extension.js` with esbuild and produces a `.vsix`. Launch with `F5` for an Extension Development Host.
+`npm run package` builds `dist/extension.js` with esbuild and produces a `.vsix`. Launch with `F5` for an Extension Development Host. See [docs/PUBLISHING.md](docs/PUBLISHING.md) for release steps.
 
 ## License
 

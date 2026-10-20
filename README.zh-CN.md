@@ -56,7 +56,7 @@ npm test
 npm run package
 ```
 
-`npm run package` 使用 esbuild 生成 `dist/extension.js` 并打包 `.vsix`。按 `F5` 启动扩展开发宿主。
+`npm run package` 使用 esbuild 生成 `dist/extension.js` 并打包 `.vsix`。按 `F5` 启动扩展开发宿主。发布步骤见 [docs/PUBLISHING.zh-CN.md](docs/PUBLISHING.zh-CN.md)。
 
 ## 许可证
 

@@ -1,6 +1,6 @@
 # vscode-leetcode Adaptation Plan: VS Code 1.142 + leetcode.cn
 
-<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:1ce12eefecb1 -->
+<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:2f187e9201e9 -->
 
 > Status: Draft v3 (decisions settled, pending execution)
 > Baseline: `0.18.4` / `586b3e4` (same commit as upstream `LeetCode-OpenSource/vscode-leetcode`)
@@ -358,8 +358,9 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 - CI uses Node 20, `actions/checkout@v4`, `setup-node@v4`, and a Linux/Windows matrix running typecheck/lint/test/package.
 - Release metadata: `publisher: yanxijian`, ID `yanxijian.vscode-leetcode`, `displayName: LeetCode Community`, `version: 0.19.0`; repository/homepage/bugs point to the fork.
 - README is English + Simplified Chinese; CHANGELOG has 0.19.0; the four `r2.cnpmjs.org` lockfile URLs are gone.
+- Release automation: `.github/workflows/release.yml` (manual version input, `VSCE_PAT` secret) and `scripts/publish.ps1` (reads `VSCE_PAT` or an external PAT file); see `docs/PUBLISHING.md`.
 - Installed the VSIX into an isolated extensions directory: `yanxijian.vscode-leetcode@0.19.0`.
-- Not done: actual Marketplace publish (needs a PAT), `codes-workspace`/RepoRules integration (optional).
+- Not done: actual Marketplace publish — the publisher page for `yanxijian` is still 404 and this environment has no `VSCE_PAT`; create the publisher and provide a PAT first.
 
 ---
 

@@ -356,8 +356,9 @@
 - CI 改为 Node 20 + `actions/checkout@v4` + `setup-node@v4`，Linux/Windows 矩阵跑 typecheck/lint/test/package。
 - 发布元数据：`publisher: yanxijian`、ID `yanxijian.vscode-leetcode`、`displayName: LeetCode Community`、`version: 0.19.0`，仓库/主页/bugs 指向 fork。
 - README 改为英文 + 简体中文两版，CHANGELOG 增加 0.19.0；锁文件里的 4 条 `r2.cnpmjs.org` 已清除。
+- 发布自动化：`.github/workflows/release.yml`（手动指定版本，使用 `VSCE_PAT` secret）与 `scripts/publish.ps1`（读取 `VSCE_PAT` 或外部 PAT 文件）；说明见 `docs/PUBLISHING.md`。
 - 在隔离扩展目录实际安装 VSIX：`yanxijian.vscode-leetcode@0.19.0` 安装成功。
-- 未做：Marketplace 实际发布（需要 PAT）、`codes-workspace`/RepoRules 接入（可选）。
+- 未做：Marketplace 实际发布——publisher `yanxijian` 页面仍为 404，且当前环境没有 `VSCE_PAT`；需要先创建 publisher 并提供 PAT。
 
 ---
 
