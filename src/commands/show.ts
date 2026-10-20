@@ -5,16 +5,16 @@ import * as fse from "fs-extra";
 import * as _ from "lodash";
 import * as path from "path";
 import * as vscode from "vscode";
-import type { IGraphQLRequest } from "../api/client";
 import { buildProblemFile } from "../api/problemFile";
 import { fetchQuestionDetail } from "../api/question";
 import type { IQuestionDetail } from "../api/question";
+import { getLeetCodeRequest } from "../api/request";
 import { fetchTopSolution } from "../api/solution";
 import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { leetCodeManager } from "../leetCodeManager";
-import { Endpoint, getUrl, IProblem, IQuickItemEx, languages, PREMIUM_URL_CN, PREMIUM_URL_GLOBAL, ProblemState } from "../shared";
+import { Endpoint, IProblem, IQuickItemEx, languages, PREMIUM_URL_CN, PREMIUM_URL_GLOBAL, ProblemState } from "../shared";
 import { genFileExt, genFileName, getNodeIdFromFile } from "../utils/problemUtils";
 import * as settingUtils from "../utils/settingUtils";
 import { IDescriptionConfiguration } from "../utils/settingUtils";
@@ -28,21 +28,11 @@ import {
     promptHintMessage,
 } from "../utils/uiUtils";
 import { getActiveFilePath, selectWorkspaceFolder } from "../utils/workspaceUtils";
-import * as wsl from "../utils/wslUtils";
 import { leetCodePreviewProvider } from "../webview/leetCodePreviewProvider";
 import { leetCodeSolutionProvider } from "../webview/leetCodeSolutionProvider";
 import * as list from "./list";
 import { getLeetCodeEndpoint } from "./plugin";
 import { globalState } from "../globalState";
-
-function getGraphQLRequest(): IGraphQLRequest {
-    const endpoint: string = getUrl("graphql");
-    return {
-        endpoint,
-        origin: endpoint.replace(/\/graphql\/?$/, ""),
-        cookie: globalState.getCookie() || "",
-    };
-}
 
 async function findProblemById(id: string): Promise<IProblem | undefined> {
     const cached: IProblem | undefined = explorerNodeManager.getNodeById(id);
@@ -84,7 +74,7 @@ export async function previewProblem(input: IProblem | vscode.Uri, isSideMode: b
     const needTranslation: boolean = settingUtils.shouldUseEndpointTranslation();
     let detail: IQuestionDetail;
     try {
-        detail = await fetchQuestionDetail(getGraphQLRequest(), node.slug);
+        detail = await fetchQuestionDetail(getLeetCodeRequest(), node.slug);
     } catch (error) {
         leetCodeChannel.appendLine(`[ERROR] Failed to fetch the problem description: ${error}`);
         await promptForOpenOutputChannel("Failed to fetch the problem description. Please open the output channel for details.", DialogType.error);
@@ -146,7 +136,7 @@ export async function showSolution(input: LeetCodeNode | vscode.Uri): Promise<vo
     }
 
     try {
-        const solution = await fetchTopSolution(getGraphQLRequest(), node.slug);
+        const solution = await fetchTopSolution(getLeetCodeRequest(), node.slug);
         leetCodeSolutionProvider.show(solution.title || node.name, solution.content);
     } catch (error) {
         leetCodeChannel.appendLine(error.toString());
@@ -215,11 +205,9 @@ async function showProblemInternal(node: IProblem): Promise<void> {
             }
         }
 
-        finalPath = wsl.useWsl() ? await wsl.toWinPath(finalPath) : finalPath;
-
         const descriptionConfig: IDescriptionConfiguration = settingUtils.getDescriptionConfiguration();
         const needTranslation: boolean = settingUtils.shouldUseEndpointTranslation();
-        const detail: IQuestionDetail = await fetchQuestionDetail(getGraphQLRequest(), node.slug);
+        const detail: IQuestionDetail = await fetchQuestionDetail(getLeetCodeRequest(), node.slug);
 
         if (!await fse.pathExists(finalPath)) {
             const endpointName: string = getLeetCodeEndpoint() === Endpoint.LeetCodeCN ? "leetcode.cn" : "leetcode.com";

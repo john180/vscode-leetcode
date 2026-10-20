@@ -1,6 +1,6 @@
 # vscode-leetcode Adaptation Plan: VS Code 1.142 + leetcode.cn
 
-<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:d222237bb688 -->
+<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:176bffdbe8aa -->
 
 > Status: Draft v3 (decisions settled, pending execution)
 > Baseline: `0.18.4` / `586b3e4` (same commit as upstream `LeetCode-OpenSource/vscode-leetcode`)
@@ -115,7 +115,7 @@ Key data shapes (measured):
 3. **Statement (replaced in P3)**: the old preview destructured CLI output by fixed line numbers, so one extra line shifted everything; it now uses structured `questionData` fields.
 4. **Submit/test** (`src/webview/leetCodeSubmissionProvider.ts:75`): parses `√/×` text; failure details are limited.
 5. **Telemetry** (`src/utils/trackingUtils.ts`): on by default; reports username and `uri.path`; nothing in the repo sets `NODE_ENV` 🟡; does not honor `env.isTelemetryEnabled`.
-6. **Dependencies**: `vsc-leetcode-cli@2.8.1` (MIT, 195 packages, `request` + `cheerio 0.20`); VSIX is 6.4 MB / 4778 files.
+6. **Dependencies (CLI removed in P4)**: the old `vsc-leetcode-cli@2.8.1` (MIT, 195 packages, `request` + `cheerio 0.20`) is gone; `npm ci` dropped from 233 to 68 packages. VSIX size will be confirmed in P6.
 
 ### 3.5 Diagnosis
 
@@ -300,6 +300,14 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 
 **Risk**: submission may trigger risk control/captcha; stay low-frequency, back off, no batch submission.
 
+**P4 results (2026-10-20)**
+
+- Submit/test: JSON body (`lang`, `question_id`, `test_mode`, `typed_code` plus `data_input`/`judge_type`), `x-csrftoken`, polling `submissions/detail/{id}/check/`; `interpret_solution` on `two-sum` returned **Accepted**, 8.2 MB, 1/1.
+- Favorites: REST `/list/api/questions` yields the `Favorite` hash; GraphQL `addQuestionToFavorite`/`removeQuestionFromFavorite` implemented. The read path is verified (hash length 6).
+- Multi-account: local profiles (cookies in SecretStorage, names/usernames/active state in globalState) with create/switch/delete; the profile unit test passes.
+- CLI removal: deleted `leetCodeExecutor`, `cliSession`, `wslUtils`, `cpUtils`; removed the `nodePath`/`useWsl` settings and dependency; activation on 1.142 passed in **412 ms**.
+- Pending authorization: a formal `submit` creates a submission record, and the favorite mutation changes account state. Both wait for explicit confirmation to avoid polluting the account.
+
 ### P5 VS Code modernization + zh/en UI (2 d)
 
 **Tasks**
@@ -402,7 +410,7 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 | P1 | ✅ Done (component-level verification; UI manual acceptance pending) | 2026-10-20 | `src/auth/*`; §10 |
 | P2 | ✅ Done (data layer; favorite/multi-account positive cases need a fresh cookie) | 2026-10-20 | `src/api/*`; §10 |
 | P3 | ✅ Done (statement/file/solution data layer; UI visual acceptance pending) | 2026-10-20 | `src/api/question.ts`, `src/api/problemFile.ts`, `src/api/solution.ts`; §10 |
-| P4 | ☐ Not started | | |
+| P4 | ◐ In progress (test/favorite wrappers, multi-account, CLI removal done; formal submit and favorite mutation await authorization) | 2026-10-20 | `src/api/submission.ts`, `src/api/favorite.ts`, `src/commands/session.ts`; §10 |
 | P5 | ☐ Not started | | |
 | P6 | ☐ Not started | | |
 
@@ -495,6 +503,15 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
   file builder: @lc header + begin/end, cpp/python, LCP 06 id preserved
   solution: questionSolutionArticles content, 4972 chars
   VS Code 1.142 activation: 1 passing
+  ```
+
+- P4 verification:
+
+  ```text
+  interpret_solution(two-sum, cpp): SUCCESS / Accepted / 8.2 MB / 1 of 1
+  favorite API read: favorite "Favorite", hash length 6
+  profile store: create/switch/delete/persist passed
+  CLI removed: npm ci 233 -> 68 packages; activation 412ms, 1 passing
   ```
 
 > All of the above is a point-in-time snapshot. LeetCode APIs can change at any time; keep the P0 smoke script as a long-term regression tool.

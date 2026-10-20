@@ -113,7 +113,7 @@
 3. **题干（P3 已替换）**：原预览按固定行号解构 CLI 输出，一行变化即错位；现改用 `questionData` 的结构化字段。
 4. **提交/测试**（`src/webview/leetCodeSubmissionProvider.ts:75`）：解析 `√/×` 文本，失败详情表达力有限。
 5. **遥测**（`src/utils/trackingUtils.ts`）：默认开启；上报 username 与 `uri.path`；`NODE_ENV` 判断在仓库内无任何设置点🟡；未接入 `env.isTelemetryEnabled`。
-6. **依赖**：`vsc-leetcode-cli@2.8.1`（MIT，195 个包，`request` + `cheerio 0.20`），VSIX 6.4 MB / 4778 文件。
+6. **依赖（P4 已移除 CLI）**：原 `vsc-leetcode-cli@2.8.1`（MIT，195 个包，`request` + `cheerio 0.20`）已删除；`npm ci` 从 233 个包降到 68 个，VSIX 体积待 P6 重新打包确认。
 
 ### 3.5 诊断结论
 
@@ -298,6 +298,14 @@
 
 **风险**：提交触发风控/验证码；需低频 + 退避，不提供批量提交。
 
+**P4 结果（2026-10-20）**
+
+- 提交/测试：JSON body（`lang`、`question_id`、`test_mode`、`typed_code`，外加 `data_input`/`judge_type`）、`x-csrftoken`、轮询 `submissions/detail/{id}/check/`；`interpret_solution` 实测 `two-sum` **Accepted**，8.2 MB，1/1。
+- 收藏：REST `/list/api/questions` 取 `Favorite` hash，GraphQL `addQuestionToFavorite`/`removeQuestionFromFavorite`；读接口已验证（hash 长度 6）。
+- 多账号：本地 profile（SecretStorage 存 cookie，globalState 存名称/用户名/激活态），支持创建/切换/删除；profile 单测通过。
+- 去 CLI：删除 `leetCodeExecutor`、`cliSession`、`wslUtils`、`cpUtils`，移除 `nodePath`/`useWsl` 设置与依赖；1.142 激活 **412ms** 通过。
+- 待授权：正式 `submit` 会写入提交记录；收藏 mutation 会改账号状态。需确认后再跑，避免污染账号。
+
 ### P5 VS Code 现代化 + 中英界面（2 d）
 
 **任务**
@@ -400,7 +408,7 @@
 | P1 | ✅ 完成（组件级验证；UI 手工验收待补） | 2026-10-20 | `src/auth/*`；§10 |
 | P2 | ✅ 完成（数据层；收藏/多账号正向用例待新 cookie） | 2026-10-20 | `src/api/*`；§10 |
 | P3 | ✅ 完成（题干/文件/题解数据层；UI 视觉验收待补） | 2026-10-20 | `src/api/question.ts`、`src/api/problemFile.ts`、`src/api/solution.ts`；§10 |
-| P4 | ☐ 未开始 | | |
+| P4 | ◐ 进行中（测试/收藏封装/多账号/去 CLI 已完成；正式 submit 与收藏 mutation 待授权） | 2026-10-20 | `src/api/submission.ts`、`src/api/favorite.ts`、`src/commands/session.ts`；§10 |
 | P5 | ☐ 未开始 | | |
 | P6 | ☐ 未开始 | | |
 
@@ -493,6 +501,15 @@
   file builder: @lc header + begin/end, cpp/python, LCP 06 id preserved
   solution: questionSolutionArticles content, 4972 chars
   VS Code 1.142 activation: 1 passing
+  ```
+
+- P4 验证：
+
+  ```text
+  interpret_solution(two-sum, cpp): SUCCESS / Accepted / 8.2 MB / 1 of 1
+  favorite API read: favorite "Favorite", hash length 6
+  profile store: create/switch/delete/persist passed
+  CLI removed: npm ci 233 -> 68 packages; activation 412ms, 1 passing
   ```
 
 > 以上均为时间点快照；力扣接口随时可能变化，P0 的冒烟脚本应作为长期回归工具保留。

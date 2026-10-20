@@ -4,20 +4,14 @@
 import { EventEmitter } from "events";
 import * as vscode from "vscode";
 import { invalidateProblemCache } from "./api/problems";
-import { loginCliWithCookie } from "./auth/cliSession";
 import { normalizeCookie, validateCookie } from "./auth/cookie";
 import { leetCodeChannel } from "./leetCodeChannel";
-import { leetCodeExecutor } from "./leetCodeExecutor";
 import { Endpoint, IQuickItemEx, urls, urlsCn, UserStatus } from "./shared";
-import { createEnvOption } from "./utils/cpUtils";
 import { DialogType, openUrl, promptForOpenOutputChannel } from "./utils/uiUtils";
-import * as wsl from "./utils/wslUtils";
 import { getLeetCodeEndpoint } from "./commands/plugin";
 import { globalState } from "./globalState";
 import { queryUserData } from "./request/query-user-data";
 import { parseQuery } from "./utils/toolUtils";
-
-const COOKIE_LOGIN_TIMEOUT_MS = 15000;
 
 class LeetCodeManager extends EventEmitter {
     private currentUser: string | undefined;
@@ -41,6 +35,7 @@ class LeetCodeManager extends EventEmitter {
                         this.currentUser = data.username;
                         this.userStatus = UserStatus.SignedIn;
                         await globalState.setUserStatus(data);
+                        await globalState.saveProfile(globalState.getActiveProfile() || data.username, data.username, storedCookie);
                         return;
                     }
                 } catch (error) {
@@ -69,27 +64,13 @@ class LeetCodeManager extends EventEmitter {
         }
 
         invalidateProblemCache();
-        await globalState.setCookie(normalizedCookie);
+        await globalState.saveProfile(data.username, data.username, normalizedCookie);
         await globalState.setUserStatus(data);
         this.currentUser = data.username;
         this.userStatus = UserStatus.SignedIn;
 
-        let cliError: Error | undefined;
-        try {
-            await this.setCookieToCli(normalizedCookie, data.username);
-        } catch (error) {
-            cliError = error instanceof Error ? error : new Error(String(error));
-            leetCodeChannel.appendLine(`[WARN] ${cliError.message}`);
-        }
-
         this.emit("statusChanged");
-        if (cliError) {
-            vscode.window.showWarningMessage(
-                `Signed in as ${data.username}, but the bundled CLI session could not be updated. Problem lists may be empty until the API migration lands.`,
-            );
-        } else {
-            vscode.window.showInformationMessage(`Successfully signed in as ${data.username}.`);
-        }
+        vscode.window.showInformationMessage(`Successfully signed in as ${data.username}.`);
     }
 
     public async handleUriSignIn(uri: vscode.Uri): Promise<void> {
@@ -177,18 +158,56 @@ class LeetCodeManager extends EventEmitter {
     }
 
     public async signOut(): Promise<void> {
-        try {
-            await leetCodeExecutor.signOut();
-        } catch (error) {
-            leetCodeChannel.appendLine(`[WARN] Failed to sign out from the bundled CLI: ${error}`);
-        }
-
         this.currentUser = undefined;
         this.userStatus = UserStatus.SignedOut;
         await globalState.removeAll();
         invalidateProblemCache();
         this.emit("statusChanged");
         vscode.window.showInformationMessage("Successfully signed out.");
+    }
+
+    public async switchProfile(name: string): Promise<void> {
+        const cookie: string = await globalState.activateProfile(name);
+        const data = await queryUserData(cookie);
+        if (!data.isSignedIn || !data.username) {
+            throw new Error("The selected session is no longer signed in.");
+        }
+        invalidateProblemCache();
+        await globalState.setUserStatus(data);
+        this.currentUser = data.username;
+        this.userStatus = UserStatus.SignedIn;
+        this.emit("statusChanged");
+        vscode.window.showInformationMessage(`Switched to session "${name}".`);
+    }
+
+    public async createProfile(name: string, cookie: string): Promise<void> {
+        const validationError: string | undefined = validateCookie(cookie);
+        if (validationError) {
+            throw new Error(validationError);
+        }
+        const normalizedCookie: string = normalizeCookie(cookie);
+        const data = await queryUserData(normalizedCookie);
+        if (!data.isSignedIn || !data.username) {
+            throw new Error("The cookie is not signed in. Please sign in on leetcode.cn and copy a fresh cookie.");
+        }
+        invalidateProblemCache();
+        await globalState.saveProfile(name, data.username, normalizedCookie);
+        await globalState.setUserStatus(data);
+        this.currentUser = data.username;
+        this.userStatus = UserStatus.SignedIn;
+        this.emit("statusChanged");
+        vscode.window.showInformationMessage(`Session "${name}" is ready.`);
+    }
+
+    public async deleteProfile(name: string): Promise<void> {
+        await globalState.deleteProfile(name);
+        invalidateProblemCache();
+        if (!globalState.getCookie()) {
+            this.currentUser = undefined;
+            this.userStatus = UserStatus.SignedOut;
+        }
+        this.emit("statusChanged");
+        vscode.window.showInformationMessage(`Session "${name}" deleted.`);
     }
 
     public getStatus(): UserStatus {
@@ -207,19 +226,6 @@ class LeetCodeManager extends EventEmitter {
             default:
                 return urls.authLoginUrl;
         }
-    }
-
-    public async setCookieToCli(cookie: string, name: string): Promise<void> {
-        await loginCliWithCookie({
-            nodePath: leetCodeExecutor.node,
-            binaryPath: await leetCodeExecutor.getLeetCodeBinaryPath(),
-            cookie,
-            name,
-            useWsl: wsl.useWsl(),
-            env: createEnvOption() as NodeJS.ProcessEnv,
-            timeoutMs: COOKIE_LOGIN_TIMEOUT_MS,
-            appendOutput: (text: string): void => leetCodeChannel.append(text),
-        });
     }
 }
 
