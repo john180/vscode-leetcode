@@ -1,6 +1,6 @@
 # vscode-leetcode Adaptation Plan: VS Code 1.142 + leetcode.cn
 
-<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:f43af99c3cd5 -->
+<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:06e0efcefb00 -->
 
 > Status: Draft v3 (decisions settled, pending execution)
 > Baseline: `0.18.4` / `586b3e4` (same commit as upstream `LeetCode-OpenSource/vscode-leetcode`)
@@ -110,7 +110,7 @@ Key data shapes (measured):
 
 ### 3.4 Code-level breakages
 
-1. **Login** (`src/leetCodeManager.ts:166-199`): `setCookieToCli` uses an `else if` chain to match `login: ` and `cookie: `, with no `close` handler or timeout. Coalesced chunks or an early exit hang forever. The cookie is written to `globalState` (`src/globalState.ts:28-31`) in plaintext.
+1. **Login (fixed in P1)**: the old `setCookieToCli` used an `else if` chain to match `login: ` and `cookie: `, with no `close` handler or timeout. Coalesced chunks or an early exit hung forever. The cookie was written to `globalState` (`src/globalState.ts:28-31`) in plaintext; it now uses SecretStorage plus a dedicated CLI session module.
 2. **Problem list** (`src/commands/list.ts:20`): one regex parses the CLI table; P0 measured 3248 of 3527 lines matched and **280 special IDs (`LCP 82`/`LCS 02`/interview) dropped**; any column-width change empties the list.
 3. **Statement** (`src/webview/leetCodePreviewProvider.ts:138`): destructured by fixed line numbers; one extra CLI line shifts everything.
 4. **Submit/test** (`src/webview/leetCodeSubmissionProvider.ts:75`): parses `√/×` text; failure details are limited.
@@ -204,6 +204,15 @@ Milestones:
 - Until P2 lands, the CLI session still works (the problem list can be listed), avoiding a regressed intermediate state.
 
 **Risk**: cookie field names change (`LEETCODE_SESSION`/`csrftoken`); report "cookie format not recognized".
+
+**P1 results (2026-10-20)**
+
+- Cookies now live in `SecretStorage`; the legacy `globalState` cookie is migrated automatically. Only `LEETCODE_SESSION` + `csrftoken` are kept; other browser cookies are dropped.
+- Added the `onUri` activation event; the URI handler is registered in `subscriptions`.
+- `setCookieToCli` moved to `src/auth/cliSession.ts`: no shell, `close`/`error`/stdin error handling, 15 s timeout, redacted output.
+- Login validates through GraphQL first; a CLI session update failure degrades to a warning and does not block sign-in.
+- Verified: `tsc`/`tslint` pass; cookie / globalState / cliSession unit tests pass (real CLI 1.49 s); VS Code 1.142 extension host activation test: 1 passing.
+- Not covered: real UI cookie paste and browser redirect (need one manual click); left as P1 manual acceptance.
 
 ### P2 Problem data layer (3 d)
 
@@ -373,8 +382,8 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 
 | Phase | Status | Completed | Evidence |
 | --- | --- | --- | --- |
-| P0 | ◐ In progress (smoke passed; 1.142 activation pending) | 2026-10-20 | `scripts/smoke.mjs`; §10 |
-| P1 | ☐ Not started | | |
+| P0 | ✅ Done (smoke and CLI comparison passed; 1.142 activation verified in P1) | 2026-10-20 | `scripts/smoke.mjs`; §10 |
+| P1 | ✅ Done (component-level verification; UI manual acceptance pending) | 2026-10-20 | `src/auth/*`; §10 |
 | P2 | ☐ Not started | | |
 | P3 | ☐ Not started | | |
 | P4 | ☐ Not started | | |
@@ -445,6 +454,14 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
   expired cookie: signedIn=false, exit=1
   CLI list -q L: 3527 lines, regex matched 3248, special IDs 280
   CLI user -c: success in 2.25s (per-chunk matching)
+  ```
+
+- P1 verification:
+
+  ```text
+  tsc/tslint: pass
+  unit tests: cookie, globalState, cliSession (real CLI 1.49s)
+  VS Code 1.142 extension host: 1 passing (activation + commands + onUri)
   ```
 
 > All of the above is a point-in-time snapshot. LeetCode APIs can change at any time; keep the P0 smoke script as a long-term regression tool.

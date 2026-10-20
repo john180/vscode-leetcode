@@ -108,7 +108,7 @@
 
 ### 3.4 代码层断点
 
-1. **登录**（`src/leetCodeManager.ts:166-199`）：`setCookieToCli` 用 `else if` 串联匹配 `login: `、`cookie: `，无 `close`/超时；chunk 合并或进程异常退出都会永久挂起。cookie 写入 `globalState`（`src/globalState.ts:28-31`），明文落盘。
+1. **登录（P1 已修）**：原 `setCookieToCli` 用 `else if` 串联匹配 `login: `、`cookie: `，无 `close`/超时；chunk 合并或进程异常退出都会永久挂起。cookie 原先写入 `globalState`（`src/globalState.ts:28-31`），明文落盘；现改为 SecretStorage + 独立 CLI 会话模块。
 2. **题库**（`src/commands/list.ts:20`）：一条正则解析 CLI 表格；P0 实测 3527 行中 3248 行匹配、**280 行特殊题号（`LCP 82`/`LCS 02`/面试题）被丢弃**；表格列宽变化则整表为空。
 3. **题干**（`src/webview/leetCodePreviewProvider.ts:138`）：按固定行号解构，CLI 输出一行变化即错位。
 4. **提交/测试**（`src/webview/leetCodeSubmissionProvider.ts:75`）：解析 `√/×` 文本，失败详情表达力有限。
@@ -202,6 +202,15 @@
 - 在 P2 完成前，CLI 会话仍可用（题库能正常列出），避免中间态退化。
 
 **风险**：cookie 字段名变化（`LEETCODE_SESSION`/`csrftoken`）→ 解析失败要报"cookie 格式不符"。
+
+**P1 结果（2026-10-20）**
+
+- cookie 改存 `SecretStorage`，旧 `globalState` cookie 自动迁移；只保留 `LEETCODE_SESSION` + `csrftoken`，其余浏览器 cookie 丢弃。
+- 补 `onUri` 激活事件，URI handler 纳入 `subscriptions`。
+- `setCookieToCli` 抽到 `src/auth/cliSession.ts`：无 shell、监听 `close`/`error`/stdin error、15s 超时、输出脱敏。
+- 登录先用 GraphQL 校验；CLI 会话更新失败降级为警告，不阻断登录。
+- 验证：`tsc`/`tslint` 通过；cookie / globalState / cliSession 单测通过（真实 CLI 1.49s）；VS Code 1.142 扩展宿主激活测试 1 passing。
+- 未覆盖：真实 UI 中的 Cookie 粘贴与浏览器回跳（需人工点一次），留作 P1 手工验收。
 
 ### P2 题库数据层（3 d）
 
@@ -371,8 +380,8 @@
 
 | 阶段 | 状态 | 完成日期 | 证据 |
 | --- | --- | --- | --- |
-| P0 | ◐ 进行中（冒烟通过，1.142 激活待测） | 2026-10-20 | `scripts/smoke.mjs`；§10 |
-| P1 | ☐ 未开始 | | |
+| P0 | ✅ 完成（冒烟与 CLI 对照通过；1.142 激活在 P1 验证） | 2026-10-20 | `scripts/smoke.mjs`；§10 |
+| P1 | ✅ 完成（组件级验证；UI 手工验收待补） | 2026-10-20 | `src/auth/*`；§10 |
 | P2 | ☐ 未开始 | | |
 | P3 | ☐ 未开始 | | |
 | P4 | ☐ 未开始 | | |
@@ -443,6 +452,14 @@
   expired cookie: signedIn=false, exit=1
   CLI list -q L: 3527 lines, regex matched 3248, special IDs 280
   CLI user -c: success in 2.25s (per-chunk matching)
+  ```
+
+- P1 验证：
+
+  ```text
+  tsc/tslint: pass
+  unit tests: cookie, globalState, cliSession (real CLI 1.49s)
+  VS Code 1.142 extension host: 1 passing (activation + commands + onUri)
   ```
 
 > 以上均为时间点快照；力扣接口随时可能变化，P0 的冒烟脚本应作为长期回归工具保留。
