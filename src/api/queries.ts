@@ -20,3 +20,44 @@ query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $fi
     }
   }
 }`;
+
+export const QUESTION_DETAIL_QUERY: string = `
+query questionData($titleSlug: String!) {
+  question(titleSlug: $titleSlug) {
+    questionId
+    questionFrontendId
+    title
+    translatedTitle
+    titleSlug
+    difficulty
+    isPaidOnly
+    content
+    translatedContent
+    sampleTestCase
+    metaData
+    codeSnippets { lang langSlug code }
+    topicTags { name translatedName slug }
+  }
+}`;
+
+export const QUESTION_SOLUTION_QUERY: string = `
+query questionSolutionArticles($questionSlug: String!, $first: Int) {
+  questionSolutionArticles(questionSlug: $questionSlug, first: $first) {
+    edges {
+      node {
+        title
+        slug
+        content
+      }
+    }
+  }
+}`;
+
+export const QUESTION_OFFICIAL_SOLUTION_QUERY: string = `
+query questionSolution($titleSlug: String!) {
+  question(titleSlug: $titleSlug) {
+    solution {
+      content
+    }
+  }
+}`;

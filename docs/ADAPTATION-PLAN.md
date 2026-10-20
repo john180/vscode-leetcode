@@ -110,7 +110,7 @@
 
 1. **登录（P1 已修）**：原 `setCookieToCli` 用 `else if` 串联匹配 `login: `、`cookie: `，无 `close`/超时；chunk 合并或进程异常退出都会永久挂起。cookie 原先写入 `globalState`（`src/globalState.ts:28-31`），明文落盘；现改为 SecretStorage + 独立 CLI 会话模块。
 2. **题库（P2 已替换）**：原实现用一条正则解析 CLI 表格，P0 实测 3527 行中 3248 行匹配、**280 行特殊题号（`LCP 82`/`LCS 02`/面试题）被丢弃**；P2 改为 GraphQL 全量分页，特殊题号全部保留。
-3. **题干**（`src/webview/leetCodePreviewProvider.ts:138`）：按固定行号解构，CLI 输出一行变化即错位。
+3. **题干（P3 已替换）**：原预览按固定行号解构 CLI 输出，一行变化即错位；现改用 `questionData` 的结构化字段。
 4. **提交/测试**（`src/webview/leetCodeSubmissionProvider.ts:75`）：解析 `√/×` 文本，失败详情表达力有限。
 5. **遥测**（`src/utils/trackingUtils.ts`）：默认开启；上报 username 与 `uri.path`；`NODE_ENV` 判断在仓库内无任何设置点🟡；未接入 `env.isTelemetryEnabled`。
 6. **依赖**：`vsc-leetcode-cli@2.8.1`（MIT，195 个包，`request` + `cheerio 0.20`），VSIX 6.4 MB / 4778 文件。
@@ -269,6 +269,14 @@
 - 题解入口可用：至少能列出/打开公开题解；会员内容有明确提示。
 - CodeLens（Submit/Test/Star/Solution/Description）全部出现且命令可用。
 
+**P3 结果（2026-10-20）**
+
+- `questionData` 直连：中文标题/题干、20 种代码模板、`sampleTestCase`/`metaData` 均可取。
+- 文件生成：保留 `@lc app=... id=... lang=...` 与 `@lc code=begin/end`；C++ 用 `//`、Python 用 `#`；中文题干可选写入注释；`LCP 06` 这类题号正确。
+- 题解：`questionSolutionArticles` 返回 top 文章 `content`（`two-sum` 4972 字符），官方 `question.solution` 兜底；不再按语言弹 QuickPick。
+- 验证：`tsc`/`tslint`、cpp/python/LCP 文件生成、题解、1.142 激活（1 passing）通过。
+- 未覆盖：真实编辑器打开与 Webview 视觉验收（需 UI 手工）；"最高赞"取决于接口默认排序。
+
 ### P4 提交/测试 + 多账号（4 d）
 
 **任务**
@@ -391,7 +399,7 @@
 | P0 | ✅ 完成（冒烟与 CLI 对照通过；1.142 激活在 P1 验证） | 2026-10-20 | `scripts/smoke.mjs`；§10 |
 | P1 | ✅ 完成（组件级验证；UI 手工验收待补） | 2026-10-20 | `src/auth/*`；§10 |
 | P2 | ✅ 完成（数据层；收藏/多账号正向用例待新 cookie） | 2026-10-20 | `src/api/*`；§10 |
-| P3 | ☐ 未开始 | | |
+| P3 | ✅ 完成（题干/文件/题解数据层；UI 视觉验收待补） | 2026-10-20 | `src/api/question.ts`、`src/api/problemFile.ts`、`src/api/solution.ts`；§10 |
 | P4 | ☐ 未开始 | | |
 | P5 | ☐ 未开始 | | |
 | P6 | ☐ 未开始 | | |
@@ -476,6 +484,15 @@
   GraphQL: total=4475, pages=45, mapped=4475, cold=8.2-11.2s, cache=0ms
   two-sum: 两数之和 / Easy / AC; LCP 06: 拿硬币
   locked=787; companies sample=google,amazon,bytedance
+  ```
+
+- P3 验证：
+
+  ```text
+  questionData(two-sum): translatedTitle=两数之和, snippets=20
+  file builder: @lc header + begin/end, cpp/python, LCP 06 id preserved
+  solution: questionSolutionArticles content, 4972 chars
+  VS Code 1.142 activation: 1 passing
   ```
 
 > 以上均为时间点快照；力扣接口随时可能变化，P0 的冒烟脚本应作为长期回归工具保留。

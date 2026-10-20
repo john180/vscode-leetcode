@@ -2,6 +2,8 @@
 // Licensed under the MIT license.
 
 import { ViewColumn } from "vscode";
+import { getLeetCodeEndpoint } from "../commands/plugin";
+import { Endpoint } from "../shared";
 import { leetCodePreviewProvider } from "./leetCodePreviewProvider";
 import { ILeetCodeWebviewOption, LeetCodeWebview } from "./LeetCodeWebview";
 import { markdownEngine } from "./markdownEngine";
@@ -9,11 +11,12 @@ import { markdownEngine } from "./markdownEngine";
 class LeetCodeSolutionProvider extends LeetCodeWebview {
 
     protected readonly viewType: string = "leetcode.solution";
-    private problemName: string;
-    private solution: Solution;
+    private title: string = "";
+    private content: string = "";
 
-    public show(solutionString: string): void {
-        this.solution = this.parseSolution(solutionString);
+    public show(title: string, content: string): void {
+        this.title = title;
+        this.content = content;
         this.showWebviewInternal();
     }
 
@@ -26,7 +29,7 @@ class LeetCodeSolutionProvider extends LeetCodeWebview {
             };
         } else {
             return {
-                title: `Solution: ${this.problemName}`,
+                title: `Solution: ${this.title}`,
                 viewColumn: ViewColumn.One,
             };
         }
@@ -34,17 +37,10 @@ class LeetCodeSolutionProvider extends LeetCodeWebview {
 
     protected getWebviewContent(): string {
         const styles: string = markdownEngine.getStyles();
-        const { title, url, lang, author, votes } = this.solution;
-        const head: string = markdownEngine.render(`# [${title}](${url})`);
-        const auth: string = `[${author}](https://leetcode.com/${author}/)`;
-        const info: string = markdownEngine.render([
-            `| Language |  Author  |  Votes   |`,
-            `| :------: | :------: | :------: |`,
-            `| ${lang}  | ${auth}  | ${votes} |`,
-        ].join("\n"));
-        const body: string = markdownEngine.render(this.solution.body, {
-            lang: this.solution.lang,
-            host: "https://discuss.leetcode.com/",
+        const head: string = this.title ? markdownEngine.render(`# ${this.title}`) : "";
+        const body: string = markdownEngine.render(this.content, {
+            lang: "",
+            host: this.getHost(),
         });
         return `
             <!DOCTYPE html>
@@ -55,40 +51,17 @@ class LeetCodeSolutionProvider extends LeetCodeWebview {
             </head>
             <body class="vscode-body 'scrollBeyondLastLine' 'wordWrap' 'showEditorSelection'" style="tab-size:4">
                 ${head}
-                ${info}
                 ${body}
             </body>
             </html>
         `;
     }
 
-    protected onDidDisposeWebview(): void {
-        super.onDidDisposeWebview();
+    private getHost(): string {
+        return getLeetCodeEndpoint() === Endpoint.LeetCodeCN
+            ? "https://leetcode.cn/"
+            : "https://leetcode.com/";
     }
-
-    private parseSolution(raw: string): Solution {
-        raw = raw.slice(1); // skip first empty line
-        [this.problemName, raw] = raw.split(/\n\n([^]+)/); // parse problem name and skip one line
-        const solution: Solution = new Solution();
-        // [^] matches everything including \n, yet can be replaced by . in ES2018's `m` flag
-        [solution.title, raw] = raw.split(/\n\n([^]+)/);
-        [solution.url, raw] = raw.split(/\n\n([^]+)/);
-        [solution.lang, raw] = raw.match(/\* Lang:\s+(.+)\n([^]+)/)!.slice(1);
-        [solution.author, raw] = raw.match(/\* Author:\s+(.+)\n([^]+)/)!.slice(1);
-        [solution.votes, raw] = raw.match(/\* Votes:\s+(\d+)\n\n([^]+)/)!.slice(1);
-        solution.body = raw;
-        return solution;
-    }
-}
-
-// tslint:disable-next-line:max-classes-per-file
-class Solution {
-    public title: string = "";
-    public url: string = "";
-    public lang: string = "";
-    public author: string = "";
-    public votes: string = "";
-    public body: string = ""; // Markdown supported
 }
 
 export const leetCodeSolutionProvider: LeetCodeSolutionProvider = new LeetCodeSolutionProvider();

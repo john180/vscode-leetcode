@@ -6,7 +6,7 @@ import axios from "axios";
 export interface IGraphQLRequest {
     endpoint: string;
     origin: string;
-    cookie: string;
+    cookie?: string;
 }
 
 interface IGraphQLResponse<T> {
@@ -24,8 +24,8 @@ export async function graphql<T>(
     query: string,
     variables: { [key: string]: unknown } = {},
 ): Promise<T> {
-    if (!request.cookie) {
-        throw new Error("Not signed in. Please sign in to LeetCode first.");
+    if (!request.endpoint) {
+        throw new Error("LeetCode endpoint is not configured.");
     }
 
     const response = await axios.post<IGraphQLResponse<T>>(
@@ -34,7 +34,7 @@ export async function graphql<T>(
         {
             timeout: 20000,
             headers: {
-                "cookie": request.cookie,
+                ...(request.cookie ? { cookie: request.cookie } : {}),
                 "origin": request.origin,
                 "referer": `${request.origin}/problemset/`,
                 "content-type": "application/json",

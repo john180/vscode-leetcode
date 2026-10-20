@@ -1,6 +1,6 @@
 # vscode-leetcode Adaptation Plan: VS Code 1.142 + leetcode.cn
 
-<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:d20e8715528a -->
+<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:d222237bb688 -->
 
 > Status: Draft v3 (decisions settled, pending execution)
 > Baseline: `0.18.4` / `586b3e4` (same commit as upstream `LeetCode-OpenSource/vscode-leetcode`)
@@ -112,7 +112,7 @@ Key data shapes (measured):
 
 1. **Login (fixed in P1)**: the old `setCookieToCli` used an `else if` chain to match `login: ` and `cookie: `, with no `close` handler or timeout. Coalesced chunks or an early exit hung forever. The cookie was written to `globalState` (`src/globalState.ts:28-31`) in plaintext; it now uses SecretStorage plus a dedicated CLI session module.
 2. **Problem list (replaced in P2)**: the old implementation parsed the CLI table with one regex; P0 measured 3248 of 3527 lines matched and **280 special IDs (`LCP 82`/`LCS 02`/interview) dropped**. P2 now pages through GraphQL and keeps every special ID.
-3. **Statement** (`src/webview/leetCodePreviewProvider.ts:138`): destructured by fixed line numbers; one extra CLI line shifts everything.
+3. **Statement (replaced in P3)**: the old preview destructured CLI output by fixed line numbers, so one extra line shifted everything; it now uses structured `questionData` fields.
 4. **Submit/test** (`src/webview/leetCodeSubmissionProvider.ts:75`): parses `√/×` text; failure details are limited.
 5. **Telemetry** (`src/utils/trackingUtils.ts`): on by default; reports username and `uri.path`; nothing in the repo sets `NODE_ENV` 🟡; does not honor `env.isTelemetryEnabled`.
 6. **Dependencies**: `vsc-leetcode-cli@2.8.1` (MIT, 195 packages, `request` + `cheerio 0.20`); VSIX is 6.4 MB / 4778 files.
@@ -271,6 +271,14 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 - Solutions entry works: at least public solutions can be listed/opened; member-only content is clearly labeled.
 - All five CodeLens entries (Submit/Test/Star/Solution/Description) appear and work.
 
+**P3 results (2026-10-20)**
+
+- `questionData` directly provides Chinese titles/statements, 20 code templates, `sampleTestCase`/`metaData`.
+- File generation keeps `@lc app=... id=... lang=...` and `@lc code=begin/end`; `//` for C++, `#` for Python; Chinese statement can be written into comments; IDs such as `LCP 06` are preserved.
+- Solutions: `questionSolutionArticles` returns the top article `content` (`two-sum`, 4972 chars), with official `question.solution` as fallback; the language QuickPick is gone.
+- Verified: `tsc`/`tslint`, cpp/python/LCP file generation, solution fetch, and 1.142 activation (1 passing).
+- Not covered: real editor open and webview visual acceptance (manual UI); "top voted" depends on the API's default ordering.
+
 ### P4 Submit/test + multi-account (4 d)
 
 **Tasks**
@@ -393,7 +401,7 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 | P0 | ✅ Done (smoke and CLI comparison passed; 1.142 activation verified in P1) | 2026-10-20 | `scripts/smoke.mjs`; §10 |
 | P1 | ✅ Done (component-level verification; UI manual acceptance pending) | 2026-10-20 | `src/auth/*`; §10 |
 | P2 | ✅ Done (data layer; favorite/multi-account positive cases need a fresh cookie) | 2026-10-20 | `src/api/*`; §10 |
-| P3 | ☐ Not started | | |
+| P3 | ✅ Done (statement/file/solution data layer; UI visual acceptance pending) | 2026-10-20 | `src/api/question.ts`, `src/api/problemFile.ts`, `src/api/solution.ts`; §10 |
 | P4 | ☐ Not started | | |
 | P5 | ☐ Not started | | |
 | P6 | ☐ Not started | | |
@@ -478,6 +486,15 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
   GraphQL: total=4475, pages=45, mapped=4475, cold=8.2-11.2s, cache=0ms
   two-sum: 两数之和 / Easy / AC; LCP 06: 拿硬币
   locked=787; companies sample=google,amazon,bytedance
+  ```
+
+- P3 verification:
+
+  ```text
+  questionData(two-sum): translatedTitle=两数之和, snippets=20
+  file builder: @lc header + begin/end, cpp/python, LCP 06 id preserved
+  solution: questionSolutionArticles content, 4972 chars
+  VS Code 1.142 activation: 1 passing
   ```
 
 > All of the above is a point-in-time snapshot. LeetCode APIs can change at any time; keep the P0 smoke script as a long-term regression tool.
