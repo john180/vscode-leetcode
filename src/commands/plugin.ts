@@ -49,7 +49,7 @@ export async function switchEndpoint(): Promise<void> {
 
 export function getLeetCodeEndpoint(): string {
     const leetCodeConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration("leetcode");
-    return leetCodeConfig.get<string>("endpoint", Endpoint.LeetCode);
+    return leetCodeConfig.get<string>("endpoint", Endpoint.LeetCodeCN);
 }
 
 const SORT_ORDER: SortingStrategy[] = [

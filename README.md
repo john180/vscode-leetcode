@@ -32,7 +32,7 @@ The cookie is stored in VS Code `SecretStorage`, not in plain text settings.
 
 | Setting | Description | Default |
 | --- | --- | --- |
-| `leetcode.endpoint` | Active endpoint: `leetcode` or `leetcode-cn` | `leetcode` |
+| `leetcode.endpoint` | Active endpoint: `leetcode` or `leetcode-cn` | `leetcode-cn` |
 | `leetcode.defaultLanguage` | Default language for new files | unset |
 | `leetcode.workspaceFolder` | Folder used to store problem files | `$HOME/.leetcode` |
 | `leetcode.filePath` | Relative folder and filename template | `${id}.${kebab-case-name}.${ext}` |

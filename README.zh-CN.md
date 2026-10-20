@@ -32,7 +32,7 @@ Cookie 保存在 VS Code 的 `SecretStorage` 中，不会以明文写入设置�
 
 | 设置 | 说明 | 默认值 |
 | --- | --- | --- |
-| `leetcode.endpoint` | 当前站点：`leetcode` 或 `leetcode-cn` | `leetcode` |
+| `leetcode.endpoint` | 当前站点：`leetcode` 或 `leetcode-cn` | `leetcode-cn` |
 | `leetcode.defaultLanguage` | 新文件的默认语言 | 未设置 |
 | `leetcode.workspaceFolder` | 题目文件保存目录 | `$HOME/.leetcode` |
 | `leetcode.filePath` | 相对目录与文件名模板 | `${id}.${kebab-case-name}.${ext}` |

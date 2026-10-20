@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 import { invalidateProblemCache } from "./api/problems";
 import { normalizeCookie, validateCookie } from "./auth/cookie";
 import { leetCodeChannel } from "./leetCodeChannel";
-import { Endpoint, IQuickItemEx, urls, urlsCn, UserStatus } from "./shared";
+import { Endpoint, getUrl, IQuickItemEx, urls, urlsCn, UserStatus } from "./shared";
 import { DialogType, openUrl, promptForOpenOutputChannel } from "./utils/uiUtils";
 import { getLeetCodeEndpoint } from "./commands/plugin";
 import { globalState } from "./globalState";
@@ -57,10 +57,13 @@ class LeetCodeManager extends EventEmitter {
             throw new Error(validationError);
         }
         const normalizedCookie: string = normalizeCookie(cookie);
+        const endpoint: string = getUrl("userGraphql");
+        leetCodeChannel.appendLine(`[INFO] Validating cookie against ${endpoint}`);
 
         const data = await queryUserData(normalizedCookie);
+        leetCodeChannel.appendLine(`[INFO] Sign-in result: signedIn=${data.isSignedIn}, username=${data.username ? "present" : "missing"}`);
         if (!data.isSignedIn || !data.username) {
-            throw new Error("The cookie is not signed in. Please sign in on leetcode.cn and copy a fresh cookie.");
+            throw new Error(`The cookie is not signed in for ${endpoint}. Check that leetcode.endpoint matches the cookie's site, then copy a fresh cookie.`);
         }
 
         invalidateProblemCache();
@@ -100,7 +103,8 @@ class LeetCodeManager extends EventEmitter {
             );
         } catch (error) {
             leetCodeChannel.appendLine(`[ERROR] URI sign-in failed: ${error}`);
-            await promptForOpenOutputChannel("Failed to log in. Please open the output channel for details.", DialogType.error);
+            const detail: string = error instanceof Error ? error.message : String(error);
+            await promptForOpenOutputChannel(`Failed to log in: ${detail}`, DialogType.error);
         }
     }
 
@@ -153,7 +157,8 @@ class LeetCodeManager extends EventEmitter {
             );
         } catch (error) {
             leetCodeChannel.appendLine(`[ERROR] Cookie sign-in failed: ${error}`);
-            await promptForOpenOutputChannel("Failed to log in. Please open the output channel for details.", DialogType.error);
+            const detail: string = error instanceof Error ? error.message : String(error);
+            await promptForOpenOutputChannel(`Failed to log in: ${detail}`, DialogType.error);
         }
     }
 

@@ -144,7 +144,7 @@ export const urlsCn = {
 
 export const getUrl = (key: string) => {
     const leetCodeConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration("leetcode");
-    const point = leetCodeConfig.get<string>("endpoint", Endpoint.LeetCode);
+    const point = leetCodeConfig.get<string>("endpoint", Endpoint.LeetCodeCN);
     switch (point) {
         case Endpoint.LeetCodeCN:
             return urlsCn[key];

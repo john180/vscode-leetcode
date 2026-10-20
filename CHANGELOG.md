@@ -3,6 +3,11 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.19.1] - 2026-10-21
+### Fixed
+- Default `leetcode.endpoint` is now `leetcode-cn`, so a leetcode.cn cookie is not sent to leetcode.com.
+- Sign-in failures now show and log the endpoint being validated plus the `isSignedIn` result (never the cookie).
+
 ## [0.19.0] - 2026-10-20
 ### Changed
 - Community fork published as `yanxijian.vscode-leetcode-community` (display name `LeetCode Community`).

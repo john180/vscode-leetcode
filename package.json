@@ -2,7 +2,7 @@
     "name": "vscode-leetcode-community",
     "displayName": "LeetCode Community",
     "description": "Solve LeetCode problems in VS Code",
-    "version": "0.19.0",
+    "version": "0.19.1",
     "author": "yanxijian",
     "publisher": "yanxijian",
     "license": "MIT",
@@ -384,7 +384,7 @@
                     },
                     "leetcode.endpoint": {
                         "type": "string",
-                        "default": "leetcode",
+                        "default": "leetcode-cn",
                         "scope": "application",
                         "enum": [
                             "leetcode",
