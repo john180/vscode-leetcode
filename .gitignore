@@ -59,6 +59,8 @@ typings/
 
 # Output
 out
+out-test
+dist
 *.vsix
 .vscode-test
 

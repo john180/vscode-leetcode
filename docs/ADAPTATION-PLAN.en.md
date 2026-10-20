@@ -1,6 +1,6 @@
 # vscode-leetcode Adaptation Plan: VS Code 1.142 + leetcode.cn
 
-<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:0b14bd3ccbf6 -->
+<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:1ce12eefecb1 -->
 
 > Status: Draft v3 (decisions settled, pending execution)
 > Baseline: `0.18.4` / `586b3e4` (same commit as upstream `LeetCode-OpenSource/vscode-leetcode`)
@@ -350,6 +350,17 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 
 **Exit**: `npm ci && npm run package` reproduces the VSIX; CI green; the VSIX installs under the new ID and works, under 1.5 MB.
 
+**P6 results (2026-10-20)**
+
+- esbuild bundles `dist/extension.js` (2.41 MB uncompressed); VSIX is **563.59 KB / 22 files** (was 6.4 MB / 4778); `node_modules` is no longer packaged.
+- `main` points to `./dist/extension.js`; `npm run package` chains typecheck → eslint → unit tests → bundle → vsce.
+- tslint replaced by ESLint 8 + `@typescript-eslint`; added 6 Node unit tests (cookie / file generation).
+- CI uses Node 20, `actions/checkout@v4`, `setup-node@v4`, and a Linux/Windows matrix running typecheck/lint/test/package.
+- Release metadata: `publisher: yanxijian`, ID `yanxijian.vscode-leetcode`, `displayName: LeetCode Community`, `version: 0.19.0`; repository/homepage/bugs point to the fork.
+- README is English + Simplified Chinese; CHANGELOG has 0.19.0; the four `r2.cnpmjs.org` lockfile URLs are gone.
+- Installed the VSIX into an isolated extensions directory: `yanxijian.vscode-leetcode@0.19.0`.
+- Not done: actual Marketplace publish (needs a PAT), `codes-workspace`/RepoRules integration (optional).
+
 ---
 
 ## 6. Acceptance Matrix
@@ -423,7 +434,7 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 | P3 | ✅ Done (statement/file/solution data layer; UI visual acceptance pending) | 2026-10-20 | `src/api/question.ts`, `src/api/problemFile.ts`, `src/api/solution.ts`; §10 |
 | P4 | ✅ Done (formal submit and favorite writes authorized and verified) | 2026-10-20 | `src/api/submission.ts`, `src/api/favorite.ts`, `src/commands/session.ts`; §10 |
 | P5 | ✅ Done (core UI/settings zh/en; webview visuals and language-pack runtime need manual checks) | 2026-10-20 | `package.nls*.json`, `l10n/*`; §10 |
-| P6 | ☐ Not started | | |
+| P6 | ✅ Done (packaging/CI/metadata/install verified; Marketplace publish awaits a PAT) | 2026-10-20 | `esbuild.js`, `.github/workflows/build.yml`, `README.md`; §10 |
 
 ---
 
@@ -532,6 +543,15 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
   favorite: add=true, remove=true (restored)
   activation 1.142: 303ms, l10n assets present
   vsce package: 2.0 MB / 1847 files
+  ```
+
+- P6 verification:
+
+  ```text
+  npm run build: typecheck + eslint + 6 tests + esbuild pass
+  vsce package: vscode-leetcode-0.19.0.vsix, 563.59 KB, 22 files
+  isolated install: yanxijian.vscode-leetcode@0.19.0
+  bundled activation on VS Code 1.142: 1 passing
   ```
 
 > All of the above is a point-in-time snapshot. LeetCode APIs can change at any time; keep the P0 smoke script as a long-term regression tool.

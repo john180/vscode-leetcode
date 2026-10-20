@@ -348,6 +348,17 @@
 
 **验收**：`npm ci && npm run package` 一键可复现；CI 绿；VSIX 以新 ID 安装可用且 < 1.5 MB。
 
+**P6 结果（2026-10-20）**
+
+- esbuild 打包 `dist/extension.js`（2.41 MB，未压缩）；VSIX **563.59 KB / 22 files**（原 6.4 MB / 4778 files），`node_modules` 不再进包。
+- `main` 指向 `./dist/extension.js`；`npm run package` 串起 typecheck → eslint → 单测 → bundle → vsce。
+- tslint 替换为 ESLint 8 + `@typescript-eslint`；新增 6 个 Node 单测（cookie / 文件生成）。
+- CI 改为 Node 20 + `actions/checkout@v4` + `setup-node@v4`，Linux/Windows 矩阵跑 typecheck/lint/test/package。
+- 发布元数据：`publisher: yanxijian`、ID `yanxijian.vscode-leetcode`、`displayName: LeetCode Community`、`version: 0.19.0`，仓库/主页/bugs 指向 fork。
+- README 改为英文 + 简体中文两版，CHANGELOG 增加 0.19.0；锁文件里的 4 条 `r2.cnpmjs.org` 已清除。
+- 在隔离扩展目录实际安装 VSIX：`yanxijian.vscode-leetcode@0.19.0` 安装成功。
+- 未做：Marketplace 实际发布（需要 PAT）、`codes-workspace`/RepoRules 接入（可选）。
+
 ---
 
 ## 6. 验收矩阵
@@ -421,7 +432,7 @@
 | P3 | ✅ 完成（题干/文件/题解数据层；UI 视觉验收待补） | 2026-10-20 | `src/api/question.ts`、`src/api/problemFile.ts`、`src/api/solution.ts`；§10 |
 | P4 | ✅ 完成（正式 submit / 收藏写操作已授权并验证） | 2026-10-20 | `src/api/submission.ts`、`src/api/favorite.ts`、`src/commands/session.ts`；§10 |
 | P5 | ✅ 完成（核心 UI/设置中英；Webview 视觉与语言包实测待人工） | 2026-10-20 | `package.nls*.json`、`l10n/*`；§10 |
-| P6 | ☐ 未开始 | | |
+| P6 | ✅ 完成（打包/CI/元数据/安装验证；Marketplace 发布待 PAT） | 2026-10-20 | `esbuild.js`、`.github/workflows/build.yml`、`README.md`；§10 |
 
 ---
 
@@ -530,6 +541,15 @@
   favorite: add=true, remove=true (restored)
   activation 1.142: 303ms, l10n assets present
   vsce package: 2.0 MB / 1847 files
+  ```
+
+- P6 验证：
+
+  ```text
+  npm run build: typecheck + eslint + 6 tests + esbuild pass
+  vsce package: vscode-leetcode-0.19.0.vsix, 563.59 KB, 22 files
+  isolated install: yanxijian.vscode-leetcode@0.19.0
+  bundled activation on VS Code 1.142: 1 passing
   ```
 
 > 以上均为时间点快照；力扣接口随时可能变化，P0 的冒烟脚本应作为长期回归工具保留。

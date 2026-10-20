@@ -93,7 +93,7 @@ class LeetCodeManager extends EventEmitter {
         try {
             await vscode.window.withProgress(
                 { location: vscode.ProgressLocation.Notification, title: "Signing in to LeetCode..." },
-                async (progress: vscode.Progress<{}>) => {
+                async (progress) => {
                     progress.report({ message: "Validating cookie..." });
                     await this.updateUserStatusWithCookie(cookie);
                 },

@@ -3,6 +3,15 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.19.0] - 2026-10-20
+### Changed
+- Community fork published as `yanxijian.vscode-leetcode` (display name `LeetCode Community`).
+- Replaced the bundled `vsc-leetcode-cli` with direct GraphQL/REST calls: problem list, statements, solutions, submissions, tests, and favorites.
+- Cookies now live in VS Code `SecretStorage`; multi-account sessions are stored locally.
+- Requires VS Code 1.90+ and no longer requires Node.js, `leetcode.nodePath`, or `leetcode.useWsl`.
+- Webviews use `asWebviewUri` with a nonce-based CSP; telemetry is opt-in and respects VS Code telemetry.
+- Added English and Simplified Chinese UI/README resources.
+
 ## [0.18.4]
 ### Added
 - change graphql path
