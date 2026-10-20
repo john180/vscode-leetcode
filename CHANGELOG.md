@@ -3,6 +3,10 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.19.2] - 2026-10-21
+### Changed
+- Marketplace listing now uses the Simplified Chinese `README.md`; the English version moved to `README.en.md`.
+
 ## [0.19.1] - 2026-10-21
 ### Fixed
 - Default `leetcode.endpoint` is now `leetcode-cn`, so a leetcode.cn cookie is not sent to leetcode.com.
