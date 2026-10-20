@@ -52,8 +52,8 @@ export async function manageSessions(): Promise<void> {
 function parseSessionsToPicks(includeOperations: boolean = false): Array<IQuickItemEx<ISession | string>> {
     const picks: Array<IQuickItemEx<ISession | string>> = getSessionList().map((session: ISession) => ({
         label: `${session.active ? "$(check) " : ""}${session.name}`,
-        description: session.active ? "Active" : "",
-        detail: `User: ${session.username}`,
+        description: session.active ? vscode.l10n.t("Active") : "",
+        detail: vscode.l10n.t("User: {0}", session.username),
         value: session,
     }));
 
@@ -79,15 +79,15 @@ function parseSessionManagementOperations(): Array<IQuickItemEx<string>> {
 
 async function createSession(): Promise<void> {
     const name: string | undefined = await vscode.window.showInputBox({
-        prompt: "Enter the new session name.",
-        validateInput: (value: string): string | undefined => value && value.trim() ? undefined : "Session name must not be empty",
+        prompt: vscode.l10n.t("Enter the new session name."),
+        validateInput: (value: string): string | undefined => value && value.trim() ? undefined : vscode.l10n.t("Session name must not be empty"),
     });
     if (!name) {
         return;
     }
 
     const cookie: string | undefined = await vscode.window.showInputBox({
-        prompt: "Paste the Cookie header for this session.",
+        prompt: vscode.l10n.t("Paste the Cookie header for this session."),
         placeHolder: "LEETCODE_SESSION=...; csrftoken=...",
         password: true,
         ignoreFocusOut: true,
@@ -116,12 +116,12 @@ async function deleteSession(): Promise<void> {
 
     const selectedSession: ISession = choice.value as ISession;
     if (selectedSession.active) {
-        vscode.window.showInformationMessage("Cannot delete an active session.");
+        vscode.window.showInformationMessage(vscode.l10n.t("Cannot delete an active session."));
         return;
     }
 
     const action: vscode.MessageItem | undefined = await vscode.window.showWarningMessage(
-        `This operation cannot be reverted. Are you sure to delete the session: ${selectedSession.name}?`,
+        vscode.l10n.t("This operation cannot be reverted. Are you sure to delete the session: {0}?", selectedSession.name),
         DialogOptions.yes,
         DialogOptions.no,
     );

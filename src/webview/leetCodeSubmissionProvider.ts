@@ -63,12 +63,13 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
         }
 
         const body: string = markdownEngine.render(lines.join("\n"));
-        const styles: string = markdownEngine.getStyles();
+        const webview = this.webview!;
+        const styles: string = markdownEngine.getStyles(webview);
         return `
             <!DOCTYPE html>
             <html>
             <head>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https:; script-src vscode-resource:; style-src vscode-resource:;"/>
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline';"/>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 ${styles}

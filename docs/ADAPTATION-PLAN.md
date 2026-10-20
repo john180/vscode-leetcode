@@ -303,8 +303,9 @@
 - 提交/测试：JSON body（`lang`、`question_id`、`test_mode`、`typed_code`，外加 `data_input`/`judge_type`）、`x-csrftoken`、轮询 `submissions/detail/{id}/check/`；`interpret_solution` 实测 `two-sum` **Accepted**，8.2 MB，1/1。
 - 收藏：REST `/list/api/questions` 取 `Favorite` hash，GraphQL `addQuestionToFavorite`/`removeQuestionFromFavorite`；读接口已验证（hash 长度 6）。
 - 多账号：本地 profile（SecretStorage 存 cookie，globalState 存名称/用户名/激活态），支持创建/切换/删除；profile 单测通过。
+- 正式 submit：`two-sum` / C++ → **Accepted**，65/65，14.3 MB（已授权执行）。
+- 收藏：add 后可见、remove 后恢复，已核对为 `true → false`。
 - 去 CLI：删除 `leetCodeExecutor`、`cliSession`、`wslUtils`、`cpUtils`，移除 `nodePath`/`useWsl` 设置与依赖；1.142 激活 **412ms** 通过。
-- 待授权：正式 `submit` 会写入提交记录；收藏 mutation 会改账号状态。需确认后再跑，避免污染账号。
 
 ### P5 VS Code 现代化 + 中英界面（2 d）
 
@@ -318,6 +319,16 @@
 - 可选：`ThemeIcon` 替代 PNG；`workspace.fs` 支持 remote/WSL。
 
 **验收**：1.142 上无弃用告警；`"locale": "zh-cn"` 下界面为简体中文、英文环境为英文；预览/提交页样式正常；关闭遥测后无外发请求。
+
+**P5 结果（2026-10-20）**
+
+- `engines.vscode` 抬到 `^1.90`，`@types/vscode` 对齐，TypeScript 5.4，`@types/node` 20；`tsc`/`tslint` 通过。
+- 遥测改为默认关闭，且必须同时满足 VS Code 全局遥测；删除本地路径上报与测试域名，去掉 `withCredentials` 全局副作用。
+- Webview 改用 `asWebviewUri` + `cspSource` + nonce；移除 `vscode-resource:`、`enableCommandUris`、`retainContextWhenHidden`。
+- 未登录时用 `viewsWelcome` + `leetcode.signedIn` 上下文替代伪"Sign in"节点。
+- 中英：`package.nls.json` / `.zh-cn.json` 覆盖 17 个命令、视图名、Welcome 与 18 项设置描述；`l10n/bundle.l10n.zh-cn.json` 覆盖登录/会话核心文案。
+- 打包验证：VSIX **2.0 MB / 1847 files**（原 6.4 MB / 4778）。
+- 未覆盖：本机无中文语言包，`--locale=zh-cn` 会回退英文，因此中文运行时只校验了资源完整性；Webview 样式需人工看一眼。
 
 ### P6 工程化与发布（2 d）
 
@@ -408,8 +419,8 @@
 | P1 | ✅ 完成（组件级验证；UI 手工验收待补） | 2026-10-20 | `src/auth/*`；§10 |
 | P2 | ✅ 完成（数据层；收藏/多账号正向用例待新 cookie） | 2026-10-20 | `src/api/*`；§10 |
 | P3 | ✅ 完成（题干/文件/题解数据层；UI 视觉验收待补） | 2026-10-20 | `src/api/question.ts`、`src/api/problemFile.ts`、`src/api/solution.ts`；§10 |
-| P4 | ◐ 进行中（测试/收藏封装/多账号/去 CLI 已完成；正式 submit 与收藏 mutation 待授权） | 2026-10-20 | `src/api/submission.ts`、`src/api/favorite.ts`、`src/commands/session.ts`；§10 |
-| P5 | ☐ 未开始 | | |
+| P4 | ✅ 完成（正式 submit / 收藏写操作已授权并验证） | 2026-10-20 | `src/api/submission.ts`、`src/api/favorite.ts`、`src/commands/session.ts`；§10 |
+| P5 | ✅ 完成（核心 UI/设置中英；Webview 视觉与语言包实测待人工） | 2026-10-20 | `package.nls*.json`、`l10n/*`；§10 |
 | P6 | ☐ 未开始 | | |
 
 ---
@@ -510,6 +521,15 @@
   favorite API read: favorite "Favorite", hash length 6
   profile store: create/switch/delete/persist passed
   CLI removed: npm ci 233 -> 68 packages; activation 412ms, 1 passing
+  ```
+
+- P4/P5 验证：
+
+  ```text
+  submit(two-sum, cpp): Accepted, 65/65, 14.3 MB
+  favorite: add=true, remove=true (restored)
+  activation 1.142: 303ms, l10n assets present
+  vsce package: 2.0 MB / 1847 files
   ```
 
 > 以上均为时间点快照；力扣接口随时可能变化，P0 的冒烟脚本应作为长期回归工具保留。

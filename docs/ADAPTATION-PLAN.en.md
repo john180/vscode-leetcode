@@ -1,6 +1,6 @@
 # vscode-leetcode Adaptation Plan: VS Code 1.142 + leetcode.cn
 
-<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:176bffdbe8aa -->
+<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:0b14bd3ccbf6 -->
 
 > Status: Draft v3 (decisions settled, pending execution)
 > Baseline: `0.18.4` / `586b3e4` (same commit as upstream `LeetCode-OpenSource/vscode-leetcode`)
@@ -305,8 +305,9 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 - Submit/test: JSON body (`lang`, `question_id`, `test_mode`, `typed_code` plus `data_input`/`judge_type`), `x-csrftoken`, polling `submissions/detail/{id}/check/`; `interpret_solution` on `two-sum` returned **Accepted**, 8.2 MB, 1/1.
 - Favorites: REST `/list/api/questions` yields the `Favorite` hash; GraphQL `addQuestionToFavorite`/`removeQuestionFromFavorite` implemented. The read path is verified (hash length 6).
 - Multi-account: local profiles (cookies in SecretStorage, names/usernames/active state in globalState) with create/switch/delete; the profile unit test passes.
+- Formal submit: `two-sum` / C++ → **Accepted**, 65/65, 14.3 MB (authorized and executed).
+- Favorite: became visible after add and disappeared after remove, verified `true → false`.
 - CLI removal: deleted `leetCodeExecutor`, `cliSession`, `wslUtils`, `cpUtils`; removed the `nodePath`/`useWsl` settings and dependency; activation on 1.142 passed in **412 ms**.
-- Pending authorization: a formal `submit` creates a submission record, and the favorite mutation changes account state. Both wait for explicit confirmation to avoid polluting the account.
 
 ### P5 VS Code modernization + zh/en UI (2 d)
 
@@ -320,6 +321,16 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 - Optional: `ThemeIcon` instead of PNGs; `workspace.fs` for remote/WSL.
 
 **Exit**: no deprecation warnings on 1.142; `"locale": "zh-cn"` shows Simplified Chinese and English locale shows English; preview/submission views styled correctly; no outbound requests when telemetry is off.
+
+**P5 results (2026-10-20)**
+
+- Raised `engines.vscode` to `^1.90`, aligned `@types/vscode`, TypeScript 5.4 and `@types/node` 20; `tsc`/`tslint` pass.
+- Telemetry now defaults to off and also requires VS Code global telemetry; local paths and the test domain are gone, as is the global `withCredentials` side effect.
+- Webviews use `asWebviewUri` + `cspSource` + nonce; removed `vscode-resource:`, `enableCommandUris`, and `retainContextWhenHidden`.
+- The fake "Sign in" node was replaced by `viewsWelcome` plus the `leetcode.signedIn` context key.
+- zh/en: `package.nls.json` / `.zh-cn.json` cover 17 commands, the view name, the welcome text, and 18 setting descriptions; `l10n/bundle.l10n.zh-cn.json` covers core login/session strings.
+- Packaging: VSIX is **2.0 MB / 1847 files** (was 6.4 MB / 4778).
+- Not covered: this machine has no Chinese language pack, so `--locale=zh-cn` falls back to English; only resource integrity was checked. The webview styling still needs a human look.
 
 ### P6 Engineering and release (2 d)
 
@@ -410,8 +421,8 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 | P1 | ✅ Done (component-level verification; UI manual acceptance pending) | 2026-10-20 | `src/auth/*`; §10 |
 | P2 | ✅ Done (data layer; favorite/multi-account positive cases need a fresh cookie) | 2026-10-20 | `src/api/*`; §10 |
 | P3 | ✅ Done (statement/file/solution data layer; UI visual acceptance pending) | 2026-10-20 | `src/api/question.ts`, `src/api/problemFile.ts`, `src/api/solution.ts`; §10 |
-| P4 | ◐ In progress (test/favorite wrappers, multi-account, CLI removal done; formal submit and favorite mutation await authorization) | 2026-10-20 | `src/api/submission.ts`, `src/api/favorite.ts`, `src/commands/session.ts`; §10 |
-| P5 | ☐ Not started | | |
+| P4 | ✅ Done (formal submit and favorite writes authorized and verified) | 2026-10-20 | `src/api/submission.ts`, `src/api/favorite.ts`, `src/commands/session.ts`; §10 |
+| P5 | ✅ Done (core UI/settings zh/en; webview visuals and language-pack runtime need manual checks) | 2026-10-20 | `package.nls*.json`, `l10n/*`; §10 |
 | P6 | ☐ Not started | | |
 
 ---
@@ -512,6 +523,15 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
   favorite API read: favorite "Favorite", hash length 6
   profile store: create/switch/delete/persist passed
   CLI removed: npm ci 233 -> 68 packages; activation 412ms, 1 passing
+  ```
+
+- P4/P5 verification:
+
+  ```text
+  submit(two-sum, cpp): Accepted, 65/65, 14.3 MB
+  favorite: add=true, remove=true (restored)
+  activation 1.142: 303ms, l10n assets present
+  vsce package: 2.0 MB / 1847 files
   ```
 
 > All of the above is a point-in-time snapshot. LeetCode APIs can change at any time; keep the P0 smoke script as a long-term regression tool.

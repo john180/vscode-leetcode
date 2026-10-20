@@ -70,7 +70,7 @@ class LeetCodeManager extends EventEmitter {
         this.userStatus = UserStatus.SignedIn;
 
         this.emit("statusChanged");
-        vscode.window.showInformationMessage(`Successfully signed in as ${data.username}.`);
+        vscode.window.showInformationMessage(vscode.l10n.t("Successfully signed in as {0}.", data.username));
     }
 
     public async handleUriSignIn(uri: vscode.Uri): Promise<void> {
@@ -106,7 +106,7 @@ class LeetCodeManager extends EventEmitter {
 
     public async handleInputCookieSignIn(): Promise<void> {
         const cookie: string | undefined = await vscode.window.showInputBox({
-            prompt: "Paste the Cookie header copied from leetcode.cn",
+            prompt: vscode.l10n.t("Paste the Cookie header copied from leetcode.cn"),
             placeHolder: "LEETCODE_SESSION=...; csrftoken=...",
             password: true,
             ignoreFocusOut: true,
@@ -122,14 +122,14 @@ class LeetCodeManager extends EventEmitter {
     public async signIn(): Promise<void> {
         const picks: Array<IQuickItemEx<string>> = [
             {
-                label: "LeetCode Cookie",
-                detail: "Paste the Cookie header copied from browser DevTools",
+                label: vscode.l10n.t("LeetCode Cookie"),
+                detail: vscode.l10n.t("Paste the Cookie header copied from browser DevTools"),
                 value: "Cookie",
                 description: "[Recommended]",
             },
             {
-                label: "Web Authorization",
-                detail: "Open the browser to authorize login on the website",
+                label: vscode.l10n.t("Web Authorization"),
+                detail: vscode.l10n.t("Open the browser to authorize login on the website"),
                 value: "WebAuth",
             },
         ];
@@ -163,7 +163,7 @@ class LeetCodeManager extends EventEmitter {
         await globalState.removeAll();
         invalidateProblemCache();
         this.emit("statusChanged");
-        vscode.window.showInformationMessage("Successfully signed out.");
+        vscode.window.showInformationMessage(vscode.l10n.t("Successfully signed out."));
     }
 
     public async switchProfile(name: string): Promise<void> {
@@ -177,7 +177,7 @@ class LeetCodeManager extends EventEmitter {
         this.currentUser = data.username;
         this.userStatus = UserStatus.SignedIn;
         this.emit("statusChanged");
-        vscode.window.showInformationMessage(`Switched to session "${name}".`);
+        vscode.window.showInformationMessage(vscode.l10n.t("Switched to session \"{0}\".", name));
     }
 
     public async createProfile(name: string, cookie: string): Promise<void> {
@@ -196,7 +196,7 @@ class LeetCodeManager extends EventEmitter {
         this.currentUser = data.username;
         this.userStatus = UserStatus.SignedIn;
         this.emit("statusChanged");
-        vscode.window.showInformationMessage(`Session "${name}" is ready.`);
+        vscode.window.showInformationMessage(vscode.l10n.t("Session \"{0}\" is ready.", name));
     }
 
     public async deleteProfile(name: string): Promise<void> {
@@ -207,7 +207,7 @@ class LeetCodeManager extends EventEmitter {
             this.userStatus = UserStatus.SignedOut;
         }
         this.emit("statusChanged");
-        vscode.window.showInformationMessage(`Session "${name}" deleted.`);
+        vscode.window.showInformationMessage(vscode.l10n.t("Session \"{0}\" deleted.", name));
     }
 
     public getStatus(): UserStatus {

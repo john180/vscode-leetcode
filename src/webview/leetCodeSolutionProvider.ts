@@ -36,7 +36,8 @@ class LeetCodeSolutionProvider extends LeetCodeWebview {
     }
 
     protected getWebviewContent(): string {
-        const styles: string = markdownEngine.getStyles();
+        const webview = this.webview!;
+        const styles: string = markdownEngine.getStyles(webview);
         const head: string = this.title ? markdownEngine.render(`# ${this.title}`) : "";
         const body: string = markdownEngine.render(this.content, {
             lang: "",
@@ -46,7 +47,7 @@ class LeetCodeSolutionProvider extends LeetCodeWebview {
             <!DOCTYPE html>
             <html>
             <head>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https:; script-src vscode-resource:; style-src vscode-resource:;"/>
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline';"/>
                 ${styles}
             </head>
             <body class="vscode-body 'scrollBeyondLastLine' 'wordWrap' 'showEditorSelection'" style="tab-size:4">

@@ -107,12 +107,14 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
             ].join("\n")
             : "";
         const links: string = markdownEngine.render(`[Submissions](${this.getSubmissionsLink(url)}) | [Solution](${this.getSolutionsLink(url)})`);
+        const webview = this.webview!;
+        const nonce: string = this.getNonce();
         return `
             <!DOCTYPE html>
             <html>
             <head>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https:; script-src vscode-resource: 'unsafe-inline'; style-src vscode-resource: 'unsafe-inline';"/>
-                ${markdownEngine.getStyles()}
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"/>
+                ${markdownEngine.getStyles(webview)}
                 ${!this.sideMode ? button.style : ""}
                 <style>
                     code { white-space: pre-wrap; }
@@ -127,7 +129,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
                 <hr />
                 ${links}
                 ${!this.sideMode ? button.element : ""}
-                <script>
+                <script nonce="${nonce}">
                     const vscode = acquireVsCodeApi();
                     ${!this.sideMode ? button.script : ""}
                 </script>

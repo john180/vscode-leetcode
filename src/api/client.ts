@@ -28,6 +28,10 @@ export async function graphql<T>(
         throw new Error("LeetCode endpoint is not configured.");
     }
 
+    const csrfMatch: RegExpMatchArray | null = request.cookie
+        ? request.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)
+        : null;
+
     const response = await axios.post<IGraphQLResponse<T>>(
         request.endpoint,
         { query, variables },
@@ -35,6 +39,7 @@ export async function graphql<T>(
             timeout: 20000,
             headers: {
                 ...(request.cookie ? { cookie: request.cookie } : {}),
+                ...(csrfMatch ? { "x-csrftoken": csrfMatch[1], "x-requested-with": "XMLHttpRequest" } : {}),
                 "origin": request.origin,
                 "referer": `${request.origin}/problemset/`,
                 "content-type": "application/json",

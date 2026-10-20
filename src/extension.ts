@@ -18,6 +18,7 @@ import { leetCodeTreeItemDecorationProvider } from "./explorer/LeetCodeTreeItemD
 import { leetCodeChannel } from "./leetCodeChannel";
 import { leetCodeManager } from "./leetCodeManager";
 import { leetCodeStatusBarController } from "./statusbar/leetCodeStatusBarController";
+import { UserStatus } from "./shared";
 import { DialogType, promptForOpenOutputChannel } from "./utils/uiUtils";
 import { leetCodePreviewProvider } from "./webview/leetCodePreviewProvider";
 import { leetCodeSolutionProvider } from "./webview/leetCodeSolutionProvider";
@@ -29,12 +30,15 @@ import { globalState } from "./globalState";
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     try {
         leetCodeManager.on("statusChanged", () => {
+            const signedIn: boolean = leetCodeManager.getStatus() === UserStatus.SignedIn;
+            vscode.commands.executeCommand("setContext", "leetcode.signedIn", signedIn);
             leetCodeStatusBarController.updateStatusBar(leetCodeManager.getStatus(), leetCodeManager.getUser());
             leetCodeTreeDataProvider.refresh();
         });
 
         leetCodeTreeDataProvider.initialize(context);
         await globalState.initialize(context);
+        await vscode.commands.executeCommand("setContext", "leetcode.signedIn", false);
 
         context.subscriptions.push(
             leetCodeStatusBarController,
@@ -72,9 +76,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 TrackData.report({
                     event_key: `vscode_runCode`,
                     type: "click",
-                    extra: JSON.stringify({
-                        path: uri?.path,
-                    }),
                 });
                 return test.testSolution(uri);
             }),
@@ -82,9 +83,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 TrackData.report({
                     event_key: `vscode_submit`,
                     type: "click",
-                    extra: JSON.stringify({
-                        path: uri?.path,
-                    }),
                 });
                 return submit.submitSolution(uri);
             }),
