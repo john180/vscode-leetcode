@@ -1,0 +1,34 @@
+name: hygiene
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hygiene-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repo-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check repository rules
+        run: python3 scripts/repo_rules.py check --config repo-rules.json
+
+      - name: Checkout RepoRules
+        uses: actions/checkout@v4
+        with:
+          repository: yanxijian/RepoRules
+          ref: 3c0ab027302b373d9c0b3be00466287c29fc9b7f
+          path: .repo-rules
+
+      - name: Check vendored checker is current
+        run: python3 .repo-rules/repo_rules.py sync --root . --hook --check

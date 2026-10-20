@@ -42,6 +42,17 @@ code --install-extension .\vscode-leetcode-community-0.19.2.vsix --force
 
 安装前请禁用官方 `LeetCode.vscode-leetcode`：两者命令、视图与设置 ID 相同。
 
+## 5. 发布检查清单
+
+1. 同步修改 `package.json`、`package-lock.json`、`CHANGELOG.md`、`README.md`
+   与 `README.en.md` 里的版本号（含离线 VSIX 文件名）；不一致时仓库规则会失败。
+2. 运行 `python scripts/repo_rules.py check --config repo-rules.json`。
+3. **先改 README/版本，再打包**：`npm run package`。VSIX 会嵌入当时的
+   `README.md`，提前打包会把旧文案发到商店页。
+4. 先提交全部改动，再在最终提交上创建 tag `vX.Y.Z`；不要在 README/版本修正前打 tag。
+5. 发布后等 `vsce show` / Marketplace API 显示新版本再对外宣布；
+   索引通常需要约 10 分钟。
+
 ## 说明
 
 - `npm run package` 会依次执行 typecheck、ESLint、单测、esbuild 与 vsce。

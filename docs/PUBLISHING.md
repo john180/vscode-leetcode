@@ -44,6 +44,19 @@ code --install-extension .\vscode-leetcode-community-0.19.2.vsix --force
 Disable the official `LeetCode.vscode-leetcode` extension first: both use the
 same command, view, and setting IDs.
 
+## 5. Release checklist
+
+1. Bump the version in `package.json`, `package-lock.json`, `CHANGELOG.md`,
+   `README.md`, and `README.en.md` (the offline VSIX filename). Repository rules
+   fail if these disagree.
+2. Run `python scripts/repo_rules.py check --config repo-rules.json`.
+3. Build **after** the README/version edits: `npm run package`. The VSIX embeds
+   the current `README.md`, so building earlier publishes stale text.
+4. Commit everything first, then create the tag `vX.Y.Z` on that final commit.
+   Do not tag before the README/version fix.
+5. Publish, then wait until `vsce show` / the Marketplace API reports the new
+   version before announcing it. Indexing can take around 10 minutes.
+
 ## Notes
 
 - `npm run package` runs typecheck, ESLint, unit tests, esbuild, and vsce.

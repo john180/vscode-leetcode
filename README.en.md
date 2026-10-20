@@ -1,8 +1,10 @@
 # LeetCode Community
 
+**English** · [简体中文](README.md)
+
 > Solve LeetCode problems in VS Code: problems, solutions, tests, and submissions, with leetcode.cn as the default endpoint.
 
-**English** · [简体中文](README.md)
+> This repository intentionally maintains only Simplified Chinese and English, as an explicit exception to the workspace four-language convention.
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/yanxijian.vscode-leetcode-community?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 
@@ -107,6 +109,7 @@ npm run typecheck
 npm run lint
 npm test
 npm run package
+python scripts/repo_rules.py check --config repo-rules.json
 ```
 
 `npm run package` bundles `dist/extension.js` with esbuild and produces a `.vsix`. Press `F5` for an Extension Development Host. Release steps: [docs/PUBLISHING.md](docs/PUBLISHING.md).
