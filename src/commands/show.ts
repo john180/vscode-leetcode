@@ -268,7 +268,7 @@ async function resolveRelativePath(relativePath: string, node: IProblem, selecte
                 return _.upperFirst(_.camelCase(node.name));
             case "kebabcasename":
             case "kebab-case-name":
-                return _.kebabCase(node.name);
+                return _.kebabCase(node.name) || node.slug;
             case "snakecasename":
             case "snake_case_name":
                 return _.snakeCase(node.name);

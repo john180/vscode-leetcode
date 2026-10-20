@@ -76,6 +76,8 @@ export interface IProblem {
     locked: boolean;
     state: ProblemState;
     id: string;
+    slug: string;
+    questionId?: string;
     name: string;
     difficulty: string;
     passRate: string;
@@ -88,6 +90,8 @@ export const defaultProblem: IProblem = {
     locked: false,
     state: ProblemState.Unknown,
     id: "",
+    slug: "",
+    questionId: undefined,
     name: "",
     difficulty: "",
     passRate: "",

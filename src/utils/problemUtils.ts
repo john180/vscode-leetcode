@@ -15,7 +15,7 @@ export function genFileExt(language: string): string {
 }
 
 export function genFileName(node: IProblem, language: string): string {
-    const slug: string = _.kebabCase(node.name);
+    const slug: string = _.kebabCase(node.name) || node.slug;
     const ext: string = genFileExt(language);
     return `${node.id}.${slug}.${ext}`;
 }
@@ -23,9 +23,9 @@ export function genFileName(node: IProblem, language: string): string {
 export async function getNodeIdFromFile(fsPath: string): Promise<string> {
     const fileContent: string = await fse.readFile(fsPath, "utf8");
     let id: string = "";
-    const matchResults: RegExpMatchArray | null = fileContent.match(/@lc.+id=(.+?) /);
+    const matchResults: RegExpMatchArray | null = fileContent.match(/@lc.+id=(.+?) lang=/);
     if (matchResults && matchResults.length === 2) {
-        id = matchResults[1];
+        id = matchResults[1].trim();
     }
     // Try to get id from file name if getting from comments failed
     if (!id) {

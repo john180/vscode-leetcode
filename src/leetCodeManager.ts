@@ -3,6 +3,7 @@
 
 import { EventEmitter } from "events";
 import * as vscode from "vscode";
+import { invalidateProblemCache } from "./api/problems";
 import { loginCliWithCookie } from "./auth/cliSession";
 import { normalizeCookie, validateCookie } from "./auth/cookie";
 import { leetCodeChannel } from "./leetCodeChannel";
@@ -30,6 +31,7 @@ class LeetCodeManager extends EventEmitter {
     }
 
     public async getLoginStatus(): Promise<void> {
+        invalidateProblemCache();
         try {
             const storedCookie: string | undefined = globalState.getCookie();
             if (storedCookie) {
@@ -44,18 +46,11 @@ class LeetCodeManager extends EventEmitter {
                 } catch (error) {
                     leetCodeChannel.appendLine(`[WARN] Failed to validate the stored cookie: ${error}`);
                 }
-                await globalState.removeAll();
             }
 
-            try {
-                const result: string = await leetCodeExecutor.getUserInfo();
-                this.currentUser = this.tryParseUserName(result);
-                this.userStatus = UserStatus.SignedIn;
-            } catch (error) {
-                this.currentUser = undefined;
-                this.userStatus = UserStatus.SignedOut;
-                await globalState.removeAll();
-            }
+            this.currentUser = undefined;
+            this.userStatus = UserStatus.SignedOut;
+            await globalState.removeAll();
         } finally {
             this.emit("statusChanged");
         }
@@ -73,6 +68,7 @@ class LeetCodeManager extends EventEmitter {
             throw new Error("The cookie is not signed in. Please sign in on leetcode.cn and copy a fresh cookie.");
         }
 
+        invalidateProblemCache();
         await globalState.setCookie(normalizedCookie);
         await globalState.setUserStatus(data);
         this.currentUser = data.username;
@@ -190,6 +186,7 @@ class LeetCodeManager extends EventEmitter {
         this.currentUser = undefined;
         this.userStatus = UserStatus.SignedOut;
         await globalState.removeAll();
+        invalidateProblemCache();
         this.emit("statusChanged");
         vscode.window.showInformationMessage("Successfully signed out.");
     }
@@ -200,16 +197,6 @@ class LeetCodeManager extends EventEmitter {
 
     public getUser(): string | undefined {
         return this.currentUser;
-    }
-
-    private tryParseUserName(output: string): string {
-        const reg: RegExp = /^\s*.\s*(.+?)\s*https:\/\/leetcode/m;
-        const match: RegExpMatchArray | null = output.match(reg);
-        if (match && match.length === 2) {
-            return match[1].trim();
-        }
-
-        return "Unknown";
     }
 
     public getAuthLoginUrl(): string {

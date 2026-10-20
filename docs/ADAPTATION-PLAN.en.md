@@ -1,6 +1,6 @@
 # vscode-leetcode Adaptation Plan: VS Code 1.142 + leetcode.cn
 
-<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:06e0efcefb00 -->
+<!-- translated-from: docs/ADAPTATION-PLAN.md sha256:d20e8715528a -->
 
 > Status: Draft v3 (decisions settled, pending execution)
 > Baseline: `0.18.4` / `586b3e4` (same commit as upstream `LeetCode-OpenSource/vscode-leetcode`)
@@ -111,7 +111,7 @@ Key data shapes (measured):
 ### 3.4 Code-level breakages
 
 1. **Login (fixed in P1)**: the old `setCookieToCli` used an `else if` chain to match `login: ` and `cookie: `, with no `close` handler or timeout. Coalesced chunks or an early exit hung forever. The cookie was written to `globalState` (`src/globalState.ts:28-31`) in plaintext; it now uses SecretStorage plus a dedicated CLI session module.
-2. **Problem list** (`src/commands/list.ts:20`): one regex parses the CLI table; P0 measured 3248 of 3527 lines matched and **280 special IDs (`LCP 82`/`LCS 02`/interview) dropped**; any column-width change empties the list.
+2. **Problem list (replaced in P2)**: the old implementation parsed the CLI table with one regex; P0 measured 3248 of 3527 lines matched and **280 special IDs (`LCP 82`/`LCS 02`/interview) dropped**. P2 now pages through GraphQL and keeps every special ID.
 3. **Statement** (`src/webview/leetCodePreviewProvider.ts:138`): destructured by fixed line numbers; one extra CLI line shifts everything.
 4. **Submit/test** (`src/webview/leetCodeSubmissionProvider.ts:75`): parses `√/×` text; failure details are limited.
 5. **Telemetry** (`src/utils/trackingUtils.ts`): on by default; reports username and `uri.path`; nothing in the repo sets `NODE_ENV` 🟡; does not honor `env.isTelemetryEnabled`.
@@ -244,6 +244,14 @@ Milestones:
 **Note**: anonymous `status` is always `NOT_STARTED`; it reflects the user only when logged in. Verify with a real account.
 
 The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter with `paidOnly` to honor the "show locked" setting.
+
+**P2 results (2026-10-20)**
+
+- GraphQL: **4475 problems / 45 pages**; cold load 8.2–11.2 s (concurrency 4), cache hit 0 ms, reload after invalidation 9.2 s.
+- `two-sum` → 两数之和 / Easy / **AC**; `LCP 06` → 拿硬币; `locked=787`; company sample `google/amazon/bytedance`.
+- Every special ID is retained; none are dropped by `\[(\d*)\]` anymore.
+- Favorites: `isFavor` exists, but the test account has no favorites, so the positive case needs a fresh cookie; `updateCachedFavorite` is implemented.
+- The LeetCode session expired late in verification (`userStatus` became `false`), so the final UI acceptance for "refresh after favorite" and "switch account" needs a fresh cookie.
 
 ### P3 Statement and solutions (3 d)
 
@@ -384,7 +392,7 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 | --- | --- | --- | --- |
 | P0 | ✅ Done (smoke and CLI comparison passed; 1.142 activation verified in P1) | 2026-10-20 | `scripts/smoke.mjs`; §10 |
 | P1 | ✅ Done (component-level verification; UI manual acceptance pending) | 2026-10-20 | `src/auth/*`; §10 |
-| P2 | ☐ Not started | | |
+| P2 | ✅ Done (data layer; favorite/multi-account positive cases need a fresh cookie) | 2026-10-20 | `src/api/*`; §10 |
 | P3 | ☐ Not started | | |
 | P4 | ☐ Not started | | |
 | P5 | ☐ Not started | | |
@@ -462,6 +470,14 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
   tsc/tslint: pass
   unit tests: cookie, globalState, cliSession (real CLI 1.49s)
   VS Code 1.142 extension host: 1 passing (activation + commands + onUri)
+  ```
+
+- P2 verification:
+
+  ```text
+  GraphQL: total=4475, pages=45, mapped=4475, cold=8.2-11.2s, cache=0ms
+  two-sum: 两数之和 / Easy / AC; LCP 06: 拿硬币
+  locked=787; companies sample=google,amazon,bytedance
   ```
 
 > All of the above is a point-in-time snapshot. LeetCode APIs can change at any time; keep the P0 smoke script as a long-term regression tool.

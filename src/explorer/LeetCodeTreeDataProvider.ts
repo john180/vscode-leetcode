@@ -23,8 +23,8 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
         this.context = context;
     }
 
-    public async refresh(): Promise<void> {
-        await explorerNodeManager.refreshCache();
+    public async refresh(forceRefresh: boolean = false): Promise<void> {
+        await explorerNodeManager.refreshCache(forceRefresh);
         this.onDidChangeTreeDataEvent.fire(null);
     }
 

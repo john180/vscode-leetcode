@@ -28,5 +28,5 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
         return;
     }
 
-    leetCodeTreeDataProvider.refresh();
+    leetCodeTreeDataProvider.refresh(true);
 }

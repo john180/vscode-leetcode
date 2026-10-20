@@ -109,7 +109,7 @@
 ### 3.4 代码层断点
 
 1. **登录（P1 已修）**：原 `setCookieToCli` 用 `else if` 串联匹配 `login: `、`cookie: `，无 `close`/超时；chunk 合并或进程异常退出都会永久挂起。cookie 原先写入 `globalState`（`src/globalState.ts:28-31`），明文落盘；现改为 SecretStorage + 独立 CLI 会话模块。
-2. **题库**（`src/commands/list.ts:20`）：一条正则解析 CLI 表格；P0 实测 3527 行中 3248 行匹配、**280 行特殊题号（`LCP 82`/`LCS 02`/面试题）被丢弃**；表格列宽变化则整表为空。
+2. **题库（P2 已替换）**：原实现用一条正则解析 CLI 表格，P0 实测 3527 行中 3248 行匹配、**280 行特殊题号（`LCP 82`/`LCS 02`/面试题）被丢弃**；P2 改为 GraphQL 全量分页，特殊题号全部保留。
 3. **题干**（`src/webview/leetCodePreviewProvider.ts:138`）：按固定行号解构，CLI 输出一行变化即错位。
 4. **提交/测试**（`src/webview/leetCodeSubmissionProvider.ts:75`）：解析 `√/×` 文本，失败详情表达力有限。
 5. **遥测**（`src/utils/trackingUtils.ts`）：默认开启；上报 username 与 `uri.path`；`NODE_ENV` 判断在仓库内无任何设置点🟡；未接入 `env.isTelemetryEnabled`。
@@ -242,6 +242,14 @@
 **注意**：GraphQL 匿名 `status` 恒为 `NOT_STARTED`，登录后才反映真实状态；必须用真账号验证。
 
 **注意**：CLI 的 3527 是 `-q L` 过滤后的未锁定集合；直连后要用 `paidOnly` 显式过滤，保持与"是否显示锁题"设置一致。
+
+**P2 结果（2026-10-20）**
+
+- GraphQL 全量 **4475 条 / 45 页**；冷加载 8.2–11.2s（并发 4），缓存命中 0ms，手动失效后重载 9.2s。
+- `two-sum` → 两数之和 / Easy / **AC**；`LCP 06` → 拿硬币；`locked=787`；Company 样例 `google/amazon/bytedance`。
+- 特殊题号全部保留，不再被 `\[(\d*)\]` 丢弃。
+- 收藏：`isFavor` 字段存在，但测试账号无收藏，正向用例待新 cookie；`updateCachedFavorite` 已实现。
+- 验证后期力扣会话过期（`userStatus` 变 `false`），因此"收藏后刷新/换账号"的最终 UI 验收待新 cookie。
 
 ### P3 题干与题解（3 d）
 
@@ -382,7 +390,7 @@
 | --- | --- | --- | --- |
 | P0 | ✅ 完成（冒烟与 CLI 对照通过；1.142 激活在 P1 验证） | 2026-10-20 | `scripts/smoke.mjs`；§10 |
 | P1 | ✅ 完成（组件级验证；UI 手工验收待补） | 2026-10-20 | `src/auth/*`；§10 |
-| P2 | ☐ 未开始 | | |
+| P2 | ✅ 完成（数据层；收藏/多账号正向用例待新 cookie） | 2026-10-20 | `src/api/*`；§10 |
 | P3 | ☐ 未开始 | | |
 | P4 | ☐ 未开始 | | |
 | P5 | ☐ 未开始 | | |
@@ -460,6 +468,14 @@
   tsc/tslint: pass
   unit tests: cookie, globalState, cliSession (real CLI 1.49s)
   VS Code 1.142 extension host: 1 passing (activation + commands + onUri)
+  ```
+
+- P2 验证：
+
+  ```text
+  GraphQL: total=4475, pages=45, mapped=4475, cold=8.2-11.2s, cache=0ms
+  two-sum: 两数之和 / Easy / AC; LCP 06: 拿硬币
+  locked=787; companies sample=google,amazon,bytedance
   ```
 
 > 以上均为时间点快照；力扣接口随时可能变化，P0 的冒烟脚本应作为长期回归工具保留。
