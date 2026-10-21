@@ -81,6 +81,8 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
             switch (element.id) {
                 case Category.All:
                     return explorerNodeManager.getAllNodes();
+                case Category.Hot100:
+                    return explorerNodeManager.getHot100Nodes();
                 case Category.Favorite:
                     return explorerNodeManager.getFavoriteListNodes();
                 case Category.Difficulty:

@@ -95,6 +95,7 @@ export const defaultProblem: IProblem = {
 
 export enum Category {
     Daily = "Daily",
+    Hot100 = "Hot100",
     All = "All",
     Difficulty = "Difficulty",
     Tag = "Tag",

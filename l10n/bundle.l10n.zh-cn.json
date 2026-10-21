@@ -136,5 +136,6 @@
     "Select a submission to open on LeetCode": "选择一条提交记录在 LeetCode 中打开",
     "Failed to load submissions. Please open the output channel for details.": "加载提交记录失败，请打开输出面板查看详情。",
     "Daily Challenge": "每日一题",
-    "Diff": "差异"
+    "Diff": "差异",
+    "Hot 100": "热题 100"
 }

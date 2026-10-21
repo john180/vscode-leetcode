@@ -32,6 +32,7 @@ interface IFavoriteListResponse {
     favorites?: {
         private_favorites?: IRawFavoriteList[];
         public_favorites?: IRawFavoriteList[];
+        leetcode_favorites?: IRawFavoriteList[];
     };
 }
 
@@ -56,10 +57,18 @@ export function mapFavoriteLists(data: unknown): IFavoriteList[] {
         }));
 }
 
-export async function fetchFavoriteLists(request: IGraphQLRequest): Promise<IFavoriteList[]> {
-    if (!request.cookie) {
-        return [];
+export function mapHot100List(data: unknown): IFavoriteList | undefined {
+    const lists: IRawFavoriteList[] = (data as IFavoriteListResponse | undefined)?.favorites?.leetcode_favorites || [];
+    const hot100: IRawFavoriteList | undefined = lists.find(
+        (list: IRawFavoriteList) => /HOT\s*100|热题\s*100/i.test(list.name || ""),
+    );
+    if (!hot100) {
+        return undefined;
     }
+    return mapFavoriteLists({ favorites: { private_favorites: [hot100] } })[0];
+}
+
+async function fetchFavoritePayload(request: IGraphQLRequest): Promise<IFavoriteListResponse> {
     const response = await axios.get<IFavoriteListResponse>(`${request.origin}/list/api/questions`, {
         timeout: 20000,
         headers: {
@@ -70,5 +79,19 @@ export async function fetchFavoriteLists(request: IGraphQLRequest): Promise<IFav
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) vscode-leetcode/0.20",
         },
     });
-    return mapFavoriteLists(response.data);
+    return response.data;
+}
+
+export async function fetchFavoriteLists(request: IGraphQLRequest): Promise<IFavoriteList[]> {
+    if (!request.cookie) {
+        return [];
+    }
+    return mapFavoriteLists(await fetchFavoritePayload(request));
+}
+
+export async function fetchHot100List(request: IGraphQLRequest): Promise<IFavoriteList | undefined> {
+    if (!request.cookie) {
+        return undefined;
+    }
+    return mapHot100List(await fetchFavoritePayload(request));
 }
