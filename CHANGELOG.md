@@ -62,6 +62,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Show a problem's submission history from the tree context menu or command palette, with status, language, date, runtime, and memory; selecting an entry opens the submission on LeetCode.
 
 ## [Unreleased]
+### Added
+- Tests for problem cache/endpoint isolation and authentication state transitions.
+
 ### Changed
 - Upgrade TypeScript to 5.9, ESLint to 9 flat config, and typescript-eslint to 8.
 
