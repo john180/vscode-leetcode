@@ -47,15 +47,32 @@ same command, view, and setting IDs.
 ## 5. Release checklist
 
 1. Bump the version in `package.json`, `package-lock.json`, `CHANGELOG.md`,
-   `README.md`, and `README.en.md` (the offline VSIX filename). Repository rules
-   fail if these disagree.
+   `README.md`, and every `README.*` variant (the offline VSIX filename).
+   Repository rules fail if these disagree.
 2. Run `python scripts/repo_rules.py check --config repo-rules.json`.
 3. Build **after** the README/version edits: `npm run package`. The VSIX embeds
    the current `README.md`, so building earlier publishes stale text.
-4. Commit everything first, then create the tag `vX.Y.Z` on that final commit.
-   Do not tag before the README/version fix.
+4. Make one dedicated commit whose subject is exactly `release: X.Y.Z`, then
+   create the annotated tag `vX.Y.Z` on **that same commit**. Do not tag a later
+   test/docs commit.
 5. Publish, then wait until `vsce show` / the Marketplace API reports the new
    version before announcing it. Indexing can take around 10 minutes.
+
+## Release invariant
+
+A publishable commit must satisfy all of the following:
+
+1. The version is already `X.Y.Z` in the package and documentation files.
+2. `HEAD` subject is exactly `release: X.Y.Z`.
+3. `vX.Y.Z` points to `HEAD`.
+4. The working tree is clean.
+5. No runtime or version changes are committed after the tag.
+
+`node scripts/check-release.mjs` enforces this before publishing;
+`scripts/publish.ps1` and the Release workflow call it.
+
+Historical exception: `v0.24.0` was tagged after a test commit. Do not repeat
+that pattern.
 
 ## Version policy
 

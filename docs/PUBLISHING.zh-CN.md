@@ -45,13 +45,29 @@ code --install-extension .\vscode-leetcode-community-0.19.4.vsix --force
 ## 5. 发布检查清单
 
 1. 同步修改 `package.json`、`package-lock.json`、`CHANGELOG.md`、`README.md`
-   与 `README.en.md` 里的版本号（含离线 VSIX 文件名）；不一致时仓库规则会失败。
+   与所有 `README.*` 版本（含离线 VSIX 文件名）；不一致时仓库规则会失败。
 2. 运行 `python scripts/repo_rules.py check --config repo-rules.json`。
 3. **先改 README/版本，再打包**：`npm run package`。VSIX 会嵌入当时的
    `README.md`，提前打包会把旧文案发到商店页。
-4. 先提交全部改动，再在最终提交上创建 tag `vX.Y.Z`；不要在 README/版本修正前打 tag。
+4. 创建一个独立的 release commit，subject 必须是 `release: X.Y.Z`，然后在这个
+   **同一个提交**上创建 annotated tag `vX.Y.Z`；不要在后来的测试/文档提交上打 tag。
 5. 发布后等 `vsce show` / Marketplace API 显示新版本再对外宣布；
    索引通常需要约 10 分钟。
+
+## 发布不变量
+
+可发布的提交必须同时满足：
+
+1. 各 package/文档文件里的版本已经是 `X.Y.Z`；
+2. `HEAD` 的 subject 正好是 `release: X.Y.Z`；
+3. `vX.Y.Z` 指向 `HEAD`；
+4. 工作区干净；
+5. tag 之后没有运行时代码或版本变更。
+
+`node scripts/check-release.mjs` 会在发布前强制检查；
+`scripts/publish.ps1` 和 Release 工作流都会调用它。
+
+历史例外：`v0.24.0` 的 tag 曾落在测试提交上，以后不得重复该模式。
 
 ## 版本策略
 

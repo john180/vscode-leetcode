@@ -22,5 +22,11 @@ if (-not $Vsix -or -not (Test-Path $Vsix)) {
     throw "VSIX not found. Run 'npm run package' first."
 }
 
+Write-Host "Checking release invariant"
+node scripts/check-release.mjs
+if ($LASTEXITCODE -ne 0) {
+    throw "Release invariant check failed. Create a 'release: <version>' commit and tag that same commit before publishing."
+}
+
 Write-Host "Publishing $Vsix"
 npx vsce publish --packagePath "$Vsix"
