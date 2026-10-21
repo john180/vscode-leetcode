@@ -61,3 +61,14 @@ query questionSolution($titleSlug: String!) {
     }
   }
 }`;
+
+export const COMPANY_TAGS_QUERY: string = `
+query companyTagsV2($offset: Int) {
+  companyTagsV2(offset: $offset) {
+    companyTagInfoNodes {
+      name
+      slug
+    }
+    hasMore
+  }
+}`;

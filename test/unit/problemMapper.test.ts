@@ -40,3 +40,12 @@ test("mapQuestion uses the localized company name when translation is on", () =>
 test("mapQuestion uses the canonical company slug when translation is off", () => {
     assert.deepEqual(mapQuestion(question, false).companies, ["google"]);
 });
+
+test("mapQuestion resolves list slugs through the company name map", () => {
+    const listQuestion = {
+        ...question,
+        extra: { topCompanyTags: [{ slug: "google" }] },
+    };
+    const names: Map<string, string> = new Map([["google", "谷歌 Google"]]);
+    assert.deepEqual(mapQuestion(listQuestion, true, names).companies, ["谷歌 Google"]);
+});

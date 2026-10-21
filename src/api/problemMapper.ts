@@ -71,9 +71,15 @@ function formatPassRate(acRate: number | undefined): string {
     return `${(rate * 100).toFixed(1)} %`;
 }
 
-export function mapQuestion(question: IQuestionNode, useTranslation: boolean): IProblem {
+export function mapQuestion(question: IQuestionNode, useTranslation: boolean, companyNames: Map<string, string> = new Map<string, string>()): IProblem {
     const companies: string[] = (question.extra?.topCompanyTags || [])
-        .map((tag: ICompanyTag) => useTranslation ? (tag.name || tag.slug || "") : (tag.slug || tag.name || ""))
+        .map((tag: ICompanyTag) => {
+            const slug: string = tag.slug || "";
+            if (useTranslation) {
+                return companyNames.get(slug) || tag.name || slug;
+            }
+            return slug || tag.name || "";
+        })
         .filter((value: string) => Boolean(value));
     const tags: string[] = (question.topicTags || [])
         .map((tag: ITopicTag) => useTranslation ? (tag.nameTranslated || tag.name) : tag.name)

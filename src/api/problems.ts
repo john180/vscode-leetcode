@@ -5,6 +5,7 @@ import { globalState } from "../globalState";
 import { getUrl, IProblem } from "../shared";
 import { shouldUseEndpointTranslation } from "../utils/settingUtils";
 import { graphql, IGraphQLRequest } from "./client";
+import { fetchCompanyTagNames } from "./companyTags";
 import { IQuestionListPage, IQuestionNode, mapQuestion } from "./problemMapper";
 import { PROBLEM_LIST_QUERY } from "./queries";
 
@@ -31,16 +32,18 @@ function delay(ms: number): Promise<void> {
     });
 }
 
-async function fetchPage(skip: number, attempt: number = 0): Promise<IQuestionListPage> {
+function getRequest(): IGraphQLRequest {
     const endpoint: string = getUrl("graphql");
-    const request: IGraphQLRequest = {
+    return {
         endpoint,
         origin: endpoint.replace(/\/graphql\/?$/, ""),
         cookie: globalState.getCookie() || "",
     };
+}
 
+async function fetchPage(skip: number, attempt: number = 0): Promise<IQuestionListPage> {
     try {
-        const data = await graphql<IProblemListResponse>(request, PROBLEM_LIST_QUERY, {
+        const data = await graphql<IProblemListResponse>(getRequest(), PROBLEM_LIST_QUERY, {
             categorySlug: "",
             limit: PAGE_SIZE,
             skip,
@@ -60,6 +63,9 @@ async function loadAllProblems(): Promise<IProblem[]> {
     const useTranslation: boolean = shouldUseEndpointTranslation();
     const firstPage: IQuestionListPage = await fetchPage(0);
     const pages: IQuestionListPage[] = [firstPage];
+    const companyNamesPromise: Promise<Map<string, string>> = useTranslation
+        ? fetchCompanyTagNames(getRequest()).catch((): Map<string, string> => new Map<string, string>())
+        : Promise.resolve(new Map<string, string>());
 
     const skips: number[] = [];
     for (let skip: number = PAGE_SIZE; skip < firstPage.total; skip += PAGE_SIZE) {
@@ -74,11 +80,12 @@ async function loadAllProblems(): Promise<IProblem[]> {
         pages.push(...results);
     }
 
+    const companyNames: Map<string, string> = await companyNamesPromise;
     const seen: Set<string> = new Set<string>();
     const problems: IProblem[] = [];
     for (const page of pages) {
         for (const question of page.questions) {
-            const problem: IProblem = mapQuestion(question as IQuestionNode, useTranslation);
+            const problem: IProblem = mapQuestion(question as IQuestionNode, useTranslation, companyNames);
             if (!problem.id || seen.has(problem.id)) {
                 continue;
             }
