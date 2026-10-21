@@ -29,3 +29,14 @@ test("parseAuthCallback exposes an OAuth error", () => {
     assert.equal(callback.cookie, undefined);
     assert.equal(callback.error, "User cancelled");
 });
+
+test("parseAuthCallback prefers error_description and trims values", () => {
+    const callback = parseAuthCallback("error=access_denied&error_description=%20Cancelled%20&cookie=%20LEETCODE_SESSION%3Da%3B%20csrftoken%3Db%20");
+    assert.equal(callback.error, "Cancelled");
+    assert.equal(callback.cookie, "LEETCODE_SESSION=a; csrftoken=b");
+});
+
+test("parseAuthCallback treats a blank cookie as missing", () => {
+    assert.deepEqual(parseAuthCallback("cookie=%20%20"), { cookie: undefined, error: undefined });
+    assert.deepEqual(parseAuthCallback(""), { cookie: undefined, error: undefined });
+});

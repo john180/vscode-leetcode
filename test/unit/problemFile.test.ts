@@ -65,3 +65,58 @@ test("buildProblemFile uses comment syntax per language", () => {
 test("htmlToPlainText decodes entities", () => {
     assert.equal(htmlToPlainText("<p>a &amp; b</p>"), "a & b");
 });
+
+test("buildProblemFile uses hash comments for shell-like languages", () => {
+    const bash = buildProblemFile({
+        detail: { ...detail, codeSnippets: [{ lang: "Bash", langSlug: "bash", code: "echo hi" }] },
+        problem,
+        language: "bash",
+        includeDescription: false,
+        useTranslation: true,
+        endpoint: "leetcode.cn",
+    });
+    assert.match(bash, /^# @lc app=leetcode\.cn id=1 lang=bash/m);
+    assert.match(bash, /^# @lc code=begin$/m);
+    assert.match(bash, /^echo hi$/m);
+});
+
+test("buildProblemFile uses SQL comments for mysql", () => {
+    const mysql = buildProblemFile({
+        detail: { ...detail, codeSnippets: [{ lang: "MySQL", langSlug: "mysql", code: "SELECT 1;" }] },
+        problem,
+        language: "mysql",
+        includeDescription: false,
+        useTranslation: true,
+        endpoint: "leetcode.com",
+    });
+    assert.match(mysql, /^-- @lc app=leetcode\.com id=1 lang=mysql/m);
+    assert.match(mysql, /^-- @lc code=begin$/m);
+    assert.match(mysql, /^SELECT 1;$/m);
+});
+
+test("buildProblemFile falls back to C-style comments for unknown languages", () => {
+    const java = buildProblemFile({
+        detail: { ...detail, codeSnippets: [] },
+        problem,
+        language: "java",
+        includeDescription: false,
+        useTranslation: true,
+        endpoint: "leetcode.com",
+    });
+    assert.match(java, /^\/\/ @lc app=leetcode\.com id=1 lang=java/m);
+    assert.match(java, /^\/\/ @lc code=begin$/m);
+    assert.match(java, /^\/\/ @lc code=end$/m);
+    assert.doesNotMatch(java, /class Solution/);
+});
+
+test("buildProblemFile falls back to the problem id when detail has no frontend id", () => {
+    const file = buildProblemFile({
+        detail: { ...detail, questionFrontendId: "", codeSnippets: [] },
+        problem,
+        language: "cpp",
+        includeDescription: false,
+        useTranslation: true,
+        endpoint: "leetcode.com",
+    });
+    assert.match(file, /^\/\/ @lc app=leetcode\.com id=1 lang=cpp/m);
+});

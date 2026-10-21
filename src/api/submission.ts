@@ -200,7 +200,7 @@ export async function submitSolution(
     code: string,
     options: ISubmissionOptions = {},
 ): Promise<ISubmissionResult> {
-    const data = await postJson(request, target.slug, `/problems/${target.slug}/submit/`, {
+    const data = await postJson(request, target.slug, `/problems/${encodeURIComponent(target.slug)}/submit/`, {
         lang: language,
         question_id: Number(target.questionId),
         test_mode: false,
@@ -222,7 +222,7 @@ export async function testSolution(
     testInput: string,
     options: ISubmissionOptions = {},
 ): Promise<ISubmissionResult> {
-    const data = await postJson(request, target.slug, `/problems/${target.slug}/interpret_solution/`, {
+    const data = await postJson(request, target.slug, `/problems/${encodeURIComponent(target.slug)}/interpret_solution/`, {
         lang: language,
         question_id: Number(target.questionId),
         test_mode: false,

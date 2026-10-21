@@ -216,3 +216,72 @@ test("submitSolution joins array output fields", async () => {
         axios.defaults.adapter = originalAdapter;
     }
 });
+
+test("submitSolution encodes the slug in the submit URL", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let postedUrl: string = "";
+    axios.defaults.adapter = async (config: any) => {
+        if (config.method === "post") {
+            postedUrl = config.url;
+            return response({ submission_id: 2 }, config);
+        }
+        return response({ state: "SUCCESS", status_msg: "Accepted" }, config);
+    };
+    try {
+        await submitSolution(
+            { ...request, origin: "https://leetcode.com" },
+            { slug: "two sum/?", questionId: "1" },
+            "cpp",
+            "code",
+            { pollIntervalMs: 0, pollTimeoutMs: 1000 },
+        );
+        assert.equal(postedUrl, "https://leetcode.com/problems/two%20sum%2F%3F/submit/");
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("testSolution rejects a response without an interpret id", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async (config: any) => response({}, config);
+    try {
+        await assert.rejects(
+            testSolution(request, target, "cpp", "code", "input"),
+            /did not return an interpret id/,
+        );
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("submitSolution surfaces an exhausted rate-limit response", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let posts: number = 0;
+    axios.defaults.adapter = async (config: any) => {
+        posts += 1;
+        return response({ error: "too soon" }, config);
+    };
+    try {
+        await assert.rejects(
+            submitSolution(request, target, "cpp", "code", { rateLimitDelayMs: 0 }),
+            /rate limiting/,
+        );
+        assert.equal(posts, 3);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("submitSolution propagates a server error", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async () => {
+        const error: any = new Error("server error");
+        error.response = { status: 500, data: { error: "server error" } };
+        throw error;
+    };
+    try {
+        await assert.rejects(submitSolution(request, target, "cpp", "code"), /server error/);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
