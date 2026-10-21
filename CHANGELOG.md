@@ -3,7 +3,7 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.20.1] - 2026-10-21
 ### Fixed
 - Retry transient GraphQL/network failures with exponential backoff and honor `Retry-After`; all requests now have a 20-second timeout.
 - Cover retry/backoff and unauthorized-response behavior with unit tests.
