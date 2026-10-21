@@ -11,6 +11,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Group the Favorite category by favorite list and show each list's questions.
 - Show a problem's submission history from the tree context menu or command palette, with status, language, date, runtime, and memory; selecting an entry opens the submission on LeetCode.
 
+## [Unreleased]
+### Changed
+- Upgrade TypeScript to 5.9, ESLint to 9 flat config, and typescript-eslint to 8.
+
 ## [0.20.1] - 2026-10-21
 ### Fixed
 - Retry transient GraphQL/network failures with exponential backoff and honor `Retry-After`; all requests now have a 20-second timeout.

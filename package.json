@@ -726,7 +726,7 @@
         "compile": "node esbuild.js",
         "watch": "node esbuild.js --watch",
         "typecheck": "tsc -p ./ --noEmit",
-        "lint": "eslint src --ext .ts",
+        "lint": "eslint src",
         "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/client.test.js out-test/test/unit/cookie.test.js out-test/test/unit/dailyChallenge.test.js out-test/test/unit/diffUtils.test.js out-test/test/unit/favoriteLists.test.js out-test/test/unit/l10n.test.js out-test/test/unit/login.test.js out-test/test/unit/markdown.test.js out-test/test/unit/problemFile.test.js out-test/test/unit/problemMapper.test.js out-test/test/unit/retry.test.js out-test/test/unit/session.test.js out-test/test/unit/submissionHistory.test.js",
         "build": "npm run typecheck && npm run lint && npm run test && npm run compile",
         "package": "npm run build && vsce package",
@@ -739,12 +739,11 @@
         "@types/mocha": "^2.2.42",
         "@types/node": "^20.11.30",
         "@types/vscode": "^1.90.0",
-        "@typescript-eslint/eslint-plugin": "^7.18.0",
-        "@typescript-eslint/parser": "^7.18.0",
         "@vscode/vsce": "^3.2.1",
         "esbuild": "^0.25.0",
-        "eslint": "^8.57.1",
-        "typescript": "^5.4.5"
+        "eslint": "^9.39.5",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.72.0"
     },
     "dependencies": {
         "axios": "^1.20.0",
