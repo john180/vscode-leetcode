@@ -5,7 +5,9 @@ import * as _ from "lodash";
 import { Disposable, l10n } from "vscode";
 import * as list from "../commands/list";
 import { getSortingStrategy } from "../commands/plugin";
-import { Category, defaultProblem, ProblemState, SortingStrategy } from "../shared";
+import { getLeetCodeRequest } from "../api/request";
+import { fetchDailyChallenge } from "../api/dailyChallenge";
+import { Category, defaultProblem, IProblem, ProblemState, SortingStrategy } from "../shared";
 import { shouldHideSolvedProblem } from "../utils/settingUtils";
 import { LeetCodeNode } from "./LeetCodeNode";
 
@@ -13,9 +15,12 @@ class ExplorerNodeManager implements Disposable {
     private explorerNodeMap: Map<string, LeetCodeNode> = new Map<string, LeetCodeNode>();
     private companySet: Set<string> = new Set<string>();
     private tagSet: Set<string> = new Set<string>();
+    private dailyProblem: IProblem | undefined;
 
     public async refreshCache(forceRefresh: boolean = false): Promise<void> {
         this.dispose();
+        const dailyPromise: Promise<IProblem | undefined> = fetchDailyChallenge(getLeetCodeRequest())
+            .catch((): IProblem | undefined => undefined);
         const shouldHideSolved: boolean = shouldHideSolvedProblem();
         for (const problem of await list.listProblems(forceRefresh)) {
             if (shouldHideSolved && problem.state === ProblemState.AC) {
@@ -29,10 +34,18 @@ class ExplorerNodeManager implements Disposable {
                 this.tagSet.add(tag);
             }
         }
+        this.dailyProblem = await dailyPromise;
     }
 
     public getRootNodes(): LeetCodeNode[] {
-        return [
+        const roots: LeetCodeNode[] = [];
+        if (this.dailyProblem) {
+            roots.push(new LeetCodeNode(Object.assign({}, defaultProblem, {
+                id: Category.Daily,
+                name: l10n.t("Daily Challenge"),
+            }), false));
+        }
+        roots.push(
             new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: Category.All,
                 name: l10n.t("All"),
@@ -53,7 +66,8 @@ class ExplorerNodeManager implements Disposable {
                 id: Category.Favorite,
                 name: l10n.t("Favorite"),
             }), false),
-        ];
+        );
+        return roots;
     }
 
     public getAllNodes(): LeetCodeNode[] {
@@ -121,6 +135,9 @@ class ExplorerNodeManager implements Disposable {
     }
 
     public getChildrenNodesById(id: string): LeetCodeNode[] {
+        if (id === Category.Daily) {
+            return this.dailyProblem ? [new LeetCodeNode(this.dailyProblem)] : [];
+        }
         // The sub-category node's id is named as {Category.SubName}
         const metaInfo: string[] = id.split(".");
         const res: LeetCodeNode[] = [];
@@ -152,6 +169,7 @@ class ExplorerNodeManager implements Disposable {
         this.explorerNodeMap.clear();
         this.companySet.clear();
         this.tagSet.clear();
+        this.dailyProblem = undefined;
     }
 
     private sortSubCategoryNodes(subCategoryNodes: LeetCodeNode[], category: Category): void {

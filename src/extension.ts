@@ -9,6 +9,7 @@ import * as plugin from "./commands/plugin";
 import * as session from "./commands/session";
 import * as show from "./commands/show";
 import * as star from "./commands/star";
+import * as submissions from "./commands/submissions";
 import * as submit from "./commands/submit";
 import * as test from "./commands/test";
 import { explorerNodeManager } from "./explorer/explorerNodeManager";
@@ -82,6 +83,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.pickOne", () => show.pickOne()),
             vscode.commands.registerCommand("leetcode.searchProblem", () => show.searchProblem()),
             vscode.commands.registerCommand("leetcode.showSolution", (input: LeetCodeNode | vscode.Uri) => show.showSolution(input)),
+            vscode.commands.registerCommand("leetcode.showSubmissions", (node: LeetCodeNode) => submissions.showSubmissionHistory(node)),
             vscode.commands.registerCommand("leetcode.refreshExplorer", () => leetCodeTreeDataProvider.refresh(true)),
             vscode.commands.registerCommand("leetcode.testSolution", (uri?: vscode.Uri) => {
                 TrackData.report({

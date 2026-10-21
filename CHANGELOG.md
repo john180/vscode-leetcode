@@ -3,6 +3,11 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+### Added
+- Add a Daily Challenge tree entry from the CN homepage SSR data.
+- Show a problem's submission history from the tree context menu or command palette, with status, language, date, runtime, and memory; selecting an entry opens the submission on LeetCode.
+
 ## [0.20.1] - 2026-10-21
 ### Fixed
 - Retry transient GraphQL/network failures with exponential backoff and honor `Retry-After`; all requests now have a 20-second timeout.

@@ -43,7 +43,8 @@
         "onCommand:leetcode.switchDefaultLanguage",
         "onCommand:leetcode.problems.sort",
         "onView:leetCodeExplorer",
-        "onUri"
+        "onUri",
+        "onCommand:leetcode.showSubmissions"
     ],
     "main": "./dist/extension.js",
     "l10n": "./l10n",
@@ -146,6 +147,11 @@
                 "title": "%command.problems.sort%",
                 "category": "LeetCode",
                 "icon": "$(sort-precedence)"
+            },
+            {
+                "command": "leetcode.showSubmissions",
+                "title": "%command.showSubmissions%",
+                "category": "LeetCode"
             }
         ],
         "viewsContainers": {
@@ -235,6 +241,11 @@
                     "command": "leetcode.removeFavorite",
                     "when": "view == leetCodeExplorer && viewItem == problem-favorite",
                     "group": "inline"
+                },
+                {
+                    "command": "leetcode.showSubmissions",
+                    "when": "view == leetCodeExplorer && viewItem =~ /problem*/",
+                    "group": "leetcode@4"
                 }
             ],
             "commandPalette": [
@@ -716,7 +727,7 @@
         "watch": "node esbuild.js --watch",
         "typecheck": "tsc -p ./ --noEmit",
         "lint": "eslint src --ext .ts",
-        "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/client.test.js out-test/test/unit/cookie.test.js out-test/test/unit/l10n.test.js out-test/test/unit/login.test.js out-test/test/unit/markdown.test.js out-test/test/unit/problemFile.test.js out-test/test/unit/problemMapper.test.js out-test/test/unit/retry.test.js out-test/test/unit/session.test.js",
+        "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/client.test.js out-test/test/unit/cookie.test.js out-test/test/unit/dailyChallenge.test.js out-test/test/unit/l10n.test.js out-test/test/unit/login.test.js out-test/test/unit/markdown.test.js out-test/test/unit/problemFile.test.js out-test/test/unit/problemMapper.test.js out-test/test/unit/retry.test.js out-test/test/unit/session.test.js out-test/test/unit/submissionHistory.test.js",
         "build": "npm run typecheck && npm run lint && npm run test && npm run compile",
         "package": "npm run build && vsce package",
         "vs-publish": "vsce publish"
