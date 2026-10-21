@@ -5,6 +5,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 ### Fixed
+- Show a signing-in state instead of the sign-in welcome while a stored cookie is being validated.
 - Localize Hot 100 and favorite-list question titles by mapping their slug to the loaded problem list.
 
 ## [0.22.0] - 2026-10-21

@@ -5,7 +5,7 @@ import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import { leetCodeManager } from "../leetCodeManager";
-import { Category, ProblemState } from "../shared";
+import { Category, ProblemState, UserStatus } from "../shared";
 import { explorerNodeManager } from "./explorerNodeManager";
 import { LeetCodeNode } from "./LeetCodeNode";
 import { globalState } from "../globalState";
@@ -28,7 +28,23 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
         this.treeView = treeView;
     }
 
+    public setMessage(message: string | undefined): void {
+        if (this.treeView) {
+            this.treeView.message = message;
+        }
+    }
+
     public async refresh(forceRefresh: boolean = false): Promise<void> {
+        if (leetCodeManager.getStatus() === UserStatus.SigningIn) {
+            this.setMessage(vscode.l10n.t("Signing in..."));
+            this.onDidChangeTreeDataEvent.fire(null);
+            return;
+        }
+        if (leetCodeManager.getStatus() === UserStatus.SignedOut) {
+            this.setMessage(undefined);
+            this.onDidChangeTreeDataEvent.fire(null);
+            return;
+        }
         const loadingMessage: string = vscode.l10n.t("Loading problems...");
         if (this.treeView) {
             this.treeView.message = loadingMessage;

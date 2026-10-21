@@ -29,8 +29,12 @@ class LeetCodeManager extends EventEmitter {
 
     public async getLoginStatus(): Promise<void> {
         invalidateProblemCache();
+        const storedCookie: string | undefined = globalState.getCookie();
+        if (storedCookie) {
+            this.userStatus = UserStatus.SigningIn;
+            this.emit("statusChanged");
+        }
         try {
-            const storedCookie: string | undefined = globalState.getCookie();
             if (storedCookie) {
                 try {
                     const data = await queryUserData(storedCookie);

@@ -17,6 +17,9 @@ export class LeetCodeStatusBarItem implements vscode.Disposable {
             case UserStatus.SignedIn:
                 this.statusBarItem.text = `LeetCode: ${user}`;
                 break;
+            case UserStatus.SigningIn:
+                this.statusBarItem.text = vscode.l10n.t("LeetCode: signing in...");
+                break;
             case UserStatus.SignedOut:
             default:
                 this.statusBarItem.text = "";

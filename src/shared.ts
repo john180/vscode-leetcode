@@ -11,6 +11,7 @@ export interface IQuickItemEx<T> extends vscode.QuickPickItem {
 export enum UserStatus {
     SignedIn = 1,
     SignedOut = 2,
+    SigningIn = 3,
 }
 
 export const languages: string[] = [

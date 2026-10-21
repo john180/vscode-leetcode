@@ -181,7 +181,7 @@
             {
                 "view": "leetCodeExplorer",
                 "contents": "%viewsWelcome.signIn%",
-                "when": "!leetcode.signedIn"
+                "when": "!leetcode.signedIn && !leetcode.signingIn"
             }
         ],
         "menus": {

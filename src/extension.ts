@@ -36,21 +36,33 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             void leetCodeManager.handleSessionExpired();
         });
         leetCodeManager.on("statusChanged", () => {
-            const signedIn: boolean = leetCodeManager.getStatus() === UserStatus.SignedIn;
+            const status: UserStatus = leetCodeManager.getStatus();
+            const signedIn: boolean = status === UserStatus.SignedIn;
+            const signingIn: boolean = status === UserStatus.SigningIn;
             vscode.commands.executeCommand("setContext", "leetcode.signedIn", signedIn);
-            leetCodeStatusBarController.updateStatusBar(leetCodeManager.getStatus(), leetCodeManager.getUser());
-            leetCodeTreeDataProvider.refresh();
+            vscode.commands.executeCommand("setContext", "leetcode.signingIn", signingIn);
+            leetCodeStatusBarController.updateStatusBar(status, leetCodeManager.getUser());
+            if (signingIn) {
+                leetCodeTreeDataProvider.setMessage(vscode.l10n.t("Signing in..."));
+            } else {
+                leetCodeTreeDataProvider.refresh();
+            }
         });
 
         leetCodeTreeDataProvider.initialize(context);
         await globalState.initialize(context);
+        const hasStoredCookie: boolean = Boolean(globalState.getCookie());
         await vscode.commands.executeCommand("setContext", "leetcode.signedIn", false);
+        await vscode.commands.executeCommand("setContext", "leetcode.signingIn", hasStoredCookie);
 
         const treeView = vscode.window.createTreeView("leetCodeExplorer", {
             treeDataProvider: leetCodeTreeDataProvider,
             showCollapseAll: true,
         });
         leetCodeTreeDataProvider.setTreeView(treeView);
+        if (hasStoredCookie) {
+            leetCodeTreeDataProvider.setMessage(vscode.l10n.t("Signing in..."));
+        }
 
         context.subscriptions.push(
             leetCodeStatusBarController,
