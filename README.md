@@ -4,6 +4,7 @@
 
 > 在 VS Code 中刷力扣：题库、题解、测试与提交，自动选择 LeetCode China / LeetCode。
 
+更新记录：[简体中文](CHANGELOG.zh-CN.md)
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/yanxijian.vscode-leetcode-community?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 

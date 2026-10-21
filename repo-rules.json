@@ -107,8 +107,8 @@
                 "README.ja.md",
                 "README.ko.md"
             ],
-            "pattern": "leetcode\\.cn|力扣",
-            "message": "non-Chinese READMEs must use leetcode.com / the global site, not leetcode.cn"
+            "pattern": "leetcode\\.cn|力扣|CHANGELOG\\.zh-CN\\.md",
+            "message": "non-Chinese READMEs must use leetcode.com and the English changelog"
         },
         {
             "id": "no-extension-telemetry",
@@ -158,6 +158,10 @@
                 {
                     "path": "README.ko.md",
                     "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
+                },
+                {
+                    "path": "CHANGELOG.zh-CN.md",
+                    "pattern": "(?m)^## \\[(\\d+)\\.(\\d+)\\.(\\d+)\\]"
                 }
             ]
         }
@@ -181,7 +185,8 @@
         ".githooks/commit-msg",
         ".github/workflows/hygiene.yml",
         "README.ja.md",
-        "README.ko.md"
+        "README.ko.md",
+        "CHANGELOG.zh-CN.md"
     ],
     "markdown": {
         "globs": [
