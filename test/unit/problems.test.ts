@@ -106,3 +106,117 @@ test("getProblems caches, invalidates, and isolates endpoints", async () => {
         invalidateProblemCache();
     }
 });
+
+test("getProblems expires its cache after the TTL", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    const originalNow = Date.now;
+    let now = 1_000_000;
+    let requests = 0;
+    Date.now = () => now;
+    axios.defaults.adapter = async (config: any) => {
+        requests += 1;
+        const payload = JSON.parse(config.data);
+        if (String(payload.query).includes("companyTagsV2")) {
+            return response({ data: { companyTagsV2: { companyTagInfoNodes: [], hasMore: false } } }, config);
+        }
+        return response({
+            data: {
+                problemsetQuestionListV2: {
+                    questions: [{ questionFrontendId: "1", titleSlug: "two-sum", title: "Two Sum", difficulty: "Easy" }],
+                },
+            },
+        }, config);
+    };
+    try {
+        invalidateProblemCache();
+        endpoint = "leetcode";
+        await getProblems(true);
+        const afterFirst = requests;
+        await getProblems();
+        assert.equal(requests, afterFirst);
+        now += 5 * 60 * 1000 + 1;
+        await getProblems();
+        assert.ok(requests > afterFirst);
+    } finally {
+        Date.now = originalNow;
+        axios.defaults.adapter = originalAdapter;
+        invalidateProblemCache();
+    }
+});
+
+test("concurrent getProblems calls share one pending request", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let requests = 0;
+    let releasePage: (() => void) | undefined;
+    const pageGate = new Promise<void>((resolve) => {
+        releasePage = resolve;
+    });
+    axios.defaults.adapter = async (config: any) => {
+        requests += 1;
+        const payload = JSON.parse(config.data);
+        if (String(payload.query).includes("companyTagsV2")) {
+            return response({ data: { companyTagsV2: { companyTagInfoNodes: [], hasMore: false } } }, config);
+        }
+        await pageGate;
+        return response({
+            data: {
+                problemsetQuestionListV2: {
+                    questions: [{ questionFrontendId: "1", titleSlug: "two-sum", title: "Two Sum", difficulty: "Easy" }],
+                },
+            },
+        }, config);
+    };
+    try {
+        invalidateProblemCache();
+        endpoint = "leetcode";
+        const first = getProblems(true);
+        const second = getProblems();
+        await new Promise((resolve) => setImmediate(resolve));
+        releasePage?.();
+        const results = await Promise.all([first, second]);
+        assert.equal(results[0].length, 1);
+        assert.equal(results[1].length, 1);
+        assert.equal(requests, 2);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+        invalidateProblemCache();
+    }
+});
+
+test("a failed load is not cached and can be retried", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let fail = true;
+    let requests = 0;
+    axios.defaults.adapter = async (config: any) => {
+        requests += 1;
+        const payload = JSON.parse(config.data);
+        if (String(payload.query).includes("companyTagsV2")) {
+            return response({ data: { companyTagsV2: { companyTagInfoNodes: [], hasMore: false } } }, config);
+        }
+        if (fail) {
+            const error: any = new Error("network down");
+            error.config = config;
+            error.response = { status: 400, headers: {} };
+            throw error;
+        }
+        return response({
+            data: {
+                problemsetQuestionListV2: {
+                    questions: [{ questionFrontendId: "1", titleSlug: "two-sum", title: "Two Sum", difficulty: "Easy" }],
+                },
+            },
+        }, config);
+    };
+    try {
+        invalidateProblemCache();
+        endpoint = "leetcode";
+        await assert.rejects(getProblems(true), /network down/);
+        fail = false;
+        const problems = await getProblems();
+        assert.equal(problems.length, 1);
+        assert.equal(requests, 4);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+        invalidateProblemCache();
+    }
+});

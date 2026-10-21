@@ -39,7 +39,9 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
                     dispose: () => undefined,
                     show: () => undefined,
                 }),
-                withProgress: async (_options: unknown, task: () => Promise<unknown>) => task(),
+                withProgress: async (_options: unknown, task: (progress: any) => Promise<unknown>) => task({
+                    report: () => undefined,
+                }),
             },
             commands: { executeCommand: async () => undefined },
             Uri: { file: (value: string) => ({ fsPath: value, toString: () => value }) },
@@ -143,4 +145,47 @@ test("leetCodeManager starts signed out without a cookie", async () => {
     await leetCodeManager.getLoginStatus();
     assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
     assert.equal(leetCodeManager.getUser(), undefined);
+});
+
+test("leetCodeManager handles URI sign-in and profile switching", async () => {
+    await globalState.removeAll();
+    await globalState.initialize(contextWithCookie());
+    queryResult = { isSignedIn: true, username: "uri-user", isPremium: false, avatar: "" };
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { parseAuthCallback } = require("../../src/auth/login");
+    assert.equal((leetCodeManager as any).handlingUriSignIn, false);
+    assert.equal(parseAuthCallback("cookie=LEETCODE_SESSION%3Duri%3B%20csrftoken%3Duri").cookie, "LEETCODE_SESSION=uri; csrftoken=uri");
+    await leetCodeManager.handleUriSignIn({
+        query: "cookie=LEETCODE_SESSION%3Duri%3B%20csrftoken%3Duri",
+    } as any);
+    assert.equal(leetCodeManager.getStatus(), UserStatus.SignedIn);
+    assert.equal(leetCodeManager.getUser(), "uri-user");
+
+    queryResult = { isSignedIn: true, username: "bob", isPremium: false, avatar: "" };
+    await leetCodeManager.createProfile("bob", "LEETCODE_SESSION=bob; csrftoken=bob");
+    assert.deepEqual(globalState.getProfiles().map((profile: any) => profile.name), ["uri-user", "bob"]);
+
+    queryResult = { isSignedIn: true, username: "uri-user", isPremium: false, avatar: "" };
+    await leetCodeManager.switchProfile("uri-user");
+    assert.equal(leetCodeManager.getUser(), "uri-user");
+
+    await leetCodeManager.deleteProfile("bob");
+    assert.deepEqual(
+        globalState.getProfiles().map((profile: any) => profile.name),
+        ["uri-user"],
+        JSON.stringify(globalState.getProfiles()),
+    );
+});
+
+test("leetCodeManager ignores an OAuth error callback", async () => {
+    await globalState.removeAll();
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie());
+    await leetCodeManager.handleUriSignIn({ query: "error=access_denied&error_description=Cancelled" } as any);
+    assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
+    assert.equal(leetCodeManager.getUser(), undefined);
+});
+
+test("leetCodeManager rejects an invalid profile cookie", async () => {
+    await assert.rejects(leetCodeManager.createProfile("bad", "not-a-cookie"), /Cookie must/);
 });
