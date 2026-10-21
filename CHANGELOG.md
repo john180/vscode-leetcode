@@ -6,6 +6,10 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.24.2] - 2026-10-22
+### Fixed
+- Use absolute GitHub links for the changelog in all README variants so the Marketplace listing resolves them correctly.
+
 ## [0.24.1] - 2026-10-22
 ### Added
 - Tests for problem cache/endpoint isolation and authentication state transitions.

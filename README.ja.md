@@ -20,7 +20,7 @@
 - オフライン: [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases) から `.vsix` をダウンロードし、次を実行します:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.24.1.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.24.2.vsix --force
   ```
 
 > [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) のコミュニティ版です。LeetCode 公式リリースではありません。拡張機能 ID は `yanxijian.vscode-leetcode-community` で、コマンド・ビュー・設定 ID は公式版と共通です。インストール前に公式の `LeetCode.vscode-leetcode` を無効化してください。
