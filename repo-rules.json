@@ -109,6 +109,17 @@
             ],
             "pattern": "leetcode\\.cn|力扣",
             "message": "non-Chinese READMEs must use leetcode.com / the global site, not leetcode.cn"
+        },
+        {
+            "id": "no-extension-telemetry",
+            "globs": [
+                "src/*.ts",
+                "src/**/*.ts",
+                "package.json",
+                "package.nls*.json"
+            ],
+            "pattern": "analysis\\.leetcode\\.cn|analysis\\.lingkou\\.xyz|allowReportData|TrackData",
+            "message": "telemetry was inherited from upstream and intentionally removed; do not reintroduce it"
         }
     ],
     "headers": {

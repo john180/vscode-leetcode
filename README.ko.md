@@ -18,7 +18,7 @@
 - 오프라인: [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases)에서 `.vsix`를 내려받은 후 실행합니다:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.23.2.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.24.0.vsix --force
   ```
 
 > [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode)의 커뮤니티 포크입니다. LeetCode 공식 릴리스가 아닙니다. 확장 ID는 `yanxijian.vscode-leetcode-community`이며 명령, 뷰, 설정 ID는 공식 확장과 공유됩니다. 설치 전에 공식 `LeetCode.vscode-leetcode`를 비활성화하세요.
@@ -86,7 +86,6 @@ Cookie는 VS Code `SecretStorage`에 저장되며 일반 텍스트 설정에는 
 | `leetcode.enableSideMode` | 미리 보기/해답을 두 번째 편집기 열에서 열기 | `true` |
 | `leetcode.colorizeProblems` | 난이도별로 문제 색상 표시 | `true` |
 | `leetcode.problems.sortStrategy` | `None`, `Acceptance Rate (Ascending)`, `Acceptance Rate (Descending)` | `None` |
-| `leetcode.allowReportData` | 익명 사용 데이터 허용(VS Code 원격 분석 필요) | `false` |
 
 ## 문제 해결
 

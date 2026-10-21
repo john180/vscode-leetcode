@@ -18,7 +18,7 @@
 - オフライン: [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases) から `.vsix` をダウンロードし、次を実行します:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.23.2.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.24.0.vsix --force
   ```
 
 > [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) のコミュニティ版です。LeetCode 公式リリースではありません。拡張機能 ID は `yanxijian.vscode-leetcode-community` で、コマンド・ビュー・設定 ID は公式版と共通です。インストール前に公式の `LeetCode.vscode-leetcode` を無効化してください。
@@ -86,7 +86,6 @@ Cookie は VS Code の `SecretStorage` に保存され、平文設定には書�
 | `leetcode.enableSideMode` | プレビュー/解答を 2 番目のエディター列で開く | `true` |
 | `leetcode.colorizeProblems` | 難易度で問題を色分け | `true` |
 | `leetcode.problems.sortStrategy` | `None`、`Acceptance Rate (Ascending)`、`Acceptance Rate (Descending)` | `None` |
-| `leetcode.allowReportData` | 匿名使用データを許可（VS Code テレメトリも必要） | `false` |
 
 ## トラブルシューティング
 

@@ -36,7 +36,6 @@
     "config.enableSideMode": "문제를 풀 때 모든 웹뷰를 두 번째 편집기 열에 그룹화할지 여부입니다.",
     "config.colorizeProblems": "탐색기 트리의 문제 파일에 난이도 배지와 색을 추가합니다.",
     "config.sortStrategy": "문제 목록의 정렬 방식입니다.",
-    "config.allowReportData": "익명 사용 데이터에 동의합니다. VS Code 원격 분석이 활성화되어 있어야 합니다.",
     "config.showDescription.enumDescriptions.0": "문제 설명을 새 웹뷰 창에 표시합니다",
     "config.showDescription.enumDescriptions.1": "문제 설명을 파일 주석에 표시합니다",
     "command.showSubmissions": "제출 기록 보기",

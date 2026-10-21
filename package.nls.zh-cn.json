@@ -35,7 +35,6 @@
     "config.enableSideMode": "解题时是否将 Webview 页面统一放到第二编辑列。",
     "config.colorizeProblems": "在资源管理器中为题目添加难度角标与颜色。",
     "config.sortStrategy": "题目列表排序策略。",
-    "config.allowReportData": "选择加入匿名使用数据上报，需同时开启 VS Code 遥测。",
     "config.showDescription.enumDescriptions.0": "在新的 Webview 窗口中显示题目描述",
     "config.showDescription.enumDescriptions.1": "在代码文件的注释中显示题目描述",
     "command.showSubmissions": "查看提交历史",

@@ -19,7 +19,7 @@
 - Offline: download the `.vsix` from [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases), then:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.23.2.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.24.0.vsix --force
   ```
 
 > Community fork of [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode). It is not an official LeetCode release. The extension ID is `yanxijian.vscode-leetcode-community`; command, view, and setting IDs are shared with the official extension, so disable the official `LeetCode.vscode-leetcode` before installing this one.
@@ -87,7 +87,6 @@ The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The
 | `leetcode.enableSideMode` | Open preview/solution in the second editor column | `true` |
 | `leetcode.colorizeProblems` | Colorize problems by difficulty | `true` |
 | `leetcode.problems.sortStrategy` | `None`, `Acceptance Rate (Ascending)`, `Acceptance Rate (Descending)` | `None` |
-| `leetcode.allowReportData` | Opt in to anonymous usage data (also requires VS Code telemetry) | `false` |
 
 ## Troubleshooting
 

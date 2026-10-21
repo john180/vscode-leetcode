@@ -27,7 +27,6 @@ import { leetCodePreviewProvider } from "./webview/leetCodePreviewProvider";
 import { leetCodeSolutionProvider } from "./webview/leetCodeSolutionProvider";
 import { leetCodeSubmissionProvider } from "./webview/leetCodeSubmissionProvider";
 import { markdownEngine } from "./webview/markdownEngine";
-import TrackData from "./utils/trackingUtils";
 import { globalState } from "./globalState";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -86,14 +85,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.signout", () => leetCodeManager.signOut()),
             vscode.commands.registerCommand("leetcode.manageSessions", () => session.manageSessions()),
             vscode.commands.registerCommand("leetcode.previewProblem", (node: LeetCodeNode) => {
-                TrackData.report({
-                    event_key: `vscode_open_problem`,
-                    type: "click",
-                    extra: JSON.stringify({
-                        problem_id: node.id,
-                        problem_name: node.name,
-                    }),
-                });
                 show.previewProblem(node);
             }),
             vscode.commands.registerCommand("leetcode.showProblem", (node: LeetCodeNode) => show.showProblem(node)),
@@ -103,17 +94,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.showSubmissions", (node: LeetCodeNode) => submissions.showSubmissionHistory(node)),
             vscode.commands.registerCommand("leetcode.refreshExplorer", () => leetCodeTreeDataProvider.refresh(true)),
             vscode.commands.registerCommand("leetcode.testSolution", (uri?: vscode.Uri) => {
-                TrackData.report({
-                    event_key: `vscode_runCode`,
-                    type: "click",
-                });
                 return test.testSolution(uri);
             }),
             vscode.commands.registerCommand("leetcode.submitSolution", (uri?: vscode.Uri) => {
-                TrackData.report({
-                    event_key: `vscode_submit`,
-                    type: "click",
-                });
                 return submit.submitSolution(uri);
             }),
             vscode.commands.registerCommand("leetcode.switchDefaultLanguage", () => switchDefaultLanguage()),

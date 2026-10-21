@@ -114,7 +114,7 @@ Key data shapes (measured):
 2. **Problem list (replaced in P2)**: the old implementation parsed the CLI table with one regex; P0 measured 3248 of 3527 lines matched and **280 special IDs (`LCP 82`/`LCS 02`/interview) dropped**. P2 now pages through GraphQL and keeps every special ID.
 3. **Statement (replaced in P3)**: the old preview destructured CLI output by fixed line numbers, so one extra line shifted everything; it now uses structured `questionData` fields.
 4. **Submit/test** (`src/webview/leetCodeSubmissionProvider.ts:75`): parses `√/×` text; failure details are limited.
-5. **Telemetry** (`src/utils/trackingUtils.ts`): on by default; reports username and `uri.path`; nothing in the repo sets `NODE_ENV` 🟡; does not honor `env.isTelemetryEnabled`.
+5. **Telemetry** (inherited from upstream; fully removed in this fork's 0.24.0): upstream enabled it by default and reported usage data; this fork contains no telemetry code and sends no analytics to third parties.
 6. **Dependencies (CLI removed in P4)**: the old `vsc-leetcode-cli@2.8.1` (MIT, 195 packages, `request` + `cheerio 0.20`) is gone; `npm ci` dropped from 233 to 68 packages. VSIX size will be confirmed in P6.
 
 ### 3.5 Diagnosis
@@ -325,7 +325,7 @@ The CLI's 3527 is the unlocked set after `-q L`; the direct client must filter w
 **P5 results (2026-10-20)**
 
 - Raised `engines.vscode` to `^1.90`, aligned `@types/vscode`, TypeScript 5.4 and `@types/node` 20; `tsc`/`tslint` pass.
-- Telemetry now defaults to off and also requires VS Code global telemetry; local paths and the test domain are gone, as is the global `withCredentials` side effect.
+- Telemetry code, the setting, and the third-party analytics domain are fully removed; no telemetry is sent.
 - Webviews use `asWebviewUri` + `cspSource` + nonce; removed `vscode-resource:`, `enableCommandUris`, and `retainContextWhenHidden`.
 - The fake "Sign in" node was replaced by `viewsWelcome` plus the `leetcode.signedIn` context key.
 - zh/en: `package.nls.json` / `.zh-cn.json` cover 17 commands, the view name, the welcome text, and 18 setting descriptions; `l10n/bundle.l10n.zh-cn.json` covers core login/session strings.

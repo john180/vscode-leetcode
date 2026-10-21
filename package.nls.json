@@ -35,7 +35,6 @@
     "config.enableSideMode": "Determine whether to group all webview pages into the second editor column when solving problems.",
     "config.colorizeProblems": "Add difficulty badge and colorize problems files in explorer tree.",
     "config.sortStrategy": "Sorting strategy for problems list.",
-    "config.allowReportData": "Opt in to anonymous usage data. Requires VS Code telemetry to be enabled.",
     "config.showDescription.enumDescriptions.0": "Show the problem description in a new webview window",
     "config.showDescription.enumDescriptions.1": "Show the problem description in the file's comment",
     "command.showSubmissions": "Show Submission History",

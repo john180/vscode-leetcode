@@ -36,7 +36,6 @@
     "config.enableSideMode": "問題を解くときにすべての Web ビューを 2 番目のエディター列にまとめるかどうか。",
     "config.colorizeProblems": "エクスプローラーツリーの問題ファイルに難易度バッジと色を付けます。",
     "config.sortStrategy": "問題一覧の並べ替え方法です。",
-    "config.allowReportData": "匿名の使用データに同意します。VS Code のテレメトリが有効である必要があります。",
     "config.showDescription.enumDescriptions.0": "問題の説明を新しい Web ビューウィンドウに表示します",
     "config.showDescription.enumDescriptions.1": "問題の説明をファイルのコメントに表示します",
     "command.showSubmissions": "提出履歴を表示",

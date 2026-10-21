@@ -112,7 +112,7 @@
 2. **题库（P2 已替换）**：原实现用一条正则解析 CLI 表格，P0 实测 3527 行中 3248 行匹配、**280 行特殊题号（`LCP 82`/`LCS 02`/面试题）被丢弃**；P2 改为 GraphQL 全量分页，特殊题号全部保留。
 3. **题干（P3 已替换）**：原预览按固定行号解构 CLI 输出，一行变化即错位；现改用 `questionData` 的结构化字段。
 4. **提交/测试**（`src/webview/leetCodeSubmissionProvider.ts:75`）：解析 `√/×` 文本，失败详情表达力有限。
-5. **遥测**（`src/utils/trackingUtils.ts`）：默认开启；上报 username 与 `uri.path`；`NODE_ENV` 判断在仓库内无任何设置点🟡；未接入 `env.isTelemetryEnabled`。
+5. **遥测**（上游原有代码，已在本分支 0.24.0 完全移除）：上游曾默认开启并上报使用数据；本分支不再包含遥测代码，也不向第三方上报数据。
 6. **依赖（P4 已移除 CLI）**：原 `vsc-leetcode-cli@2.8.1`（MIT，195 个包，`request` + `cheerio 0.20`）已删除；`npm ci` 从 233 个包降到 68 个，VSIX 体积待 P6 重新打包确认。
 
 ### 3.5 诊断结论
@@ -323,7 +323,7 @@
 **P5 结果（2026-10-20）**
 
 - `engines.vscode` 抬到 `^1.90`，`@types/vscode` 对齐，TypeScript 5.4，`@types/node` 20；`tsc`/`tslint` 通过。
-- 遥测改为默认关闭，且必须同时满足 VS Code 全局遥测；删除本地路径上报与测试域名，去掉 `withCredentials` 全局副作用。
+- 遥测代码、设置和第三方分析域名已完全移除；不再有遥测上报。
 - Webview 改用 `asWebviewUri` + `cspSource` + nonce；移除 `vscode-resource:`、`enableCommandUris`、`retainContextWhenHidden`。
 - 未登录时用 `viewsWelcome` + `leetcode.signedIn` 上下文替代伪"Sign in"节点。
 - 中英：`package.nls.json` / `.zh-cn.json` 覆盖 17 个命令、视图名、Welcome 与 18 项设置描述；`l10n/bundle.l10n.zh-cn.json` 覆盖登录/会话核心文案。

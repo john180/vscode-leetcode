@@ -3,6 +3,14 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.24.0] - 2026-10-22
+### Removed
+- Removed the telemetry implementation and the `leetcode.allowReportData` setting. This telemetry was inherited from the upstream project (upstream commit 71264fa, where it defaulted to true); it was not introduced by this fork. This fork had already defaulted it to false and required VS Code telemetry, and it is now removed completely. There is no feature impact.
+- Removed references to the `analysis.leetcode.cn` and `analysis.lingkou.xyz` analytics endpoints.
+
+### Added
+- A privacy regression test and a RepoRules guard that reject reintroducing telemetry.
+
 ## [0.23.2] - 2026-10-21
 ### Fixed
 - Align English, Japanese, and Korean READMEs with the global LeetCode site: use leetcode.com examples instead of leetcode.cn.
