@@ -1,13 +1,38 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import * as hljs from "highlight.js";
+import hljs from "highlight.js/lib/core";
+import type { LanguageFn } from "highlight.js";
 import MarkdownIt = require("markdown-it");
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { isWindows } from "../utils/osUtils";
+
+const highlightLanguages: { [name: string]: LanguageFn } = {
+    bash: require("highlight.js/lib/languages/bash"),
+    c: require("highlight.js/lib/languages/c"),
+    cpp: require("highlight.js/lib/languages/cpp"),
+    csharp: require("highlight.js/lib/languages/csharp"),
+    go: require("highlight.js/lib/languages/go"),
+    java: require("highlight.js/lib/languages/java"),
+    javascript: require("highlight.js/lib/languages/javascript"),
+    json: require("highlight.js/lib/languages/json"),
+    kotlin: require("highlight.js/lib/languages/kotlin"),
+    php: require("highlight.js/lib/languages/php"),
+    python: require("highlight.js/lib/languages/python"),
+    ruby: require("highlight.js/lib/languages/ruby"),
+    rust: require("highlight.js/lib/languages/rust"),
+    scala: require("highlight.js/lib/languages/scala"),
+    sql: require("highlight.js/lib/languages/sql"),
+    swift: require("highlight.js/lib/languages/swift"),
+    typescript: require("highlight.js/lib/languages/typescript"),
+};
+
+for (const [name, language] of Object.entries(highlightLanguages)) {
+    hljs.registerLanguage(name, language);
+}
 
 class MarkdownEngine implements vscode.Disposable {
 
@@ -75,7 +100,7 @@ class MarkdownEngine implements vscode.Disposable {
         const md: MarkdownIt = new MarkdownIt({
             linkify: true,
             typographer: true,
-            highlight: (code: string, lang?: string): string => {
+            highlight: (code: string, lang: string): string => {
                 switch (lang && lang.toLowerCase()) {
                     case "mysql":
                         lang = "sql"; break;
@@ -86,7 +111,7 @@ class MarkdownEngine implements vscode.Disposable {
                 }
                 if (lang && hljs.getLanguage(lang)) {
                     try {
-                        return hljs.highlight(lang, code, true).value;
+                        return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
                     } catch (error) { /* do not highlight */ }
                 }
                 return ""; // use external default escaping
@@ -100,7 +125,7 @@ class MarkdownEngine implements vscode.Disposable {
     }
 
     private addCodeBlockHighlight(md: MarkdownIt): void {
-        const codeBlock: MarkdownIt.TokenRender = md.renderer.rules["code_block"];
+        const codeBlock: MarkdownIt.Renderer.RenderRule = md.renderer.rules["code_block"] as MarkdownIt.Renderer.RenderRule;
         // tslint:disable-next-line:typedef
         md.renderer.rules["code_block"] = (tokens, idx, options, env, self) => {
             // if any token uses lang-specified code fence, then do not highlight code block
@@ -108,7 +133,9 @@ class MarkdownEngine implements vscode.Disposable {
                 return codeBlock(tokens, idx, options, env, self);
             }
             // otherwise, highlight with default lang in env object.
-            const highlighted: string = options.highlight(tokens[idx].content, env.lang);
+            const highlighted: string = options.highlight
+                ? options.highlight(tokens[idx].content, env.lang, "")
+                : "";
             return [
                 `<pre><code ${self.renderAttrs(tokens[idx])} >`,
                 highlighted || md.utils.escapeHtml(tokens[idx].content),
@@ -118,10 +145,13 @@ class MarkdownEngine implements vscode.Disposable {
     }
 
     private addImageUrlCompletion(md: MarkdownIt): void {
-        const image: MarkdownIt.TokenRender = md.renderer.rules["image"];
+        const image: MarkdownIt.Renderer.RenderRule = md.renderer.rules["image"] as MarkdownIt.Renderer.RenderRule;
         // tslint:disable-next-line:typedef
         md.renderer.rules["image"] = (tokens, idx, options, env, self) => {
-            const imageSrc: string[] | undefined = tokens[idx].attrs.find((value: string[]) => value[0] === "src");
+            const attrs: Array<[string, string]> | null = tokens[idx].attrs;
+            const imageSrc: [string, string] | undefined = attrs
+                ? attrs.find((value: [string, string]) => value[0] === "src")
+                : undefined;
             if (env.host && imageSrc && imageSrc[1].startsWith("/")) {
                 imageSrc[1] = `${env.host}${imageSrc[1]}`;
             }

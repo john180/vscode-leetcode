@@ -3,6 +3,15 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+### Fixed
+- Complete the cookie and Web Authorization flow: OAuth callback errors, duplicate callbacks, endpoint-aware prompts, and an explicit open-login-page action.
+- Web Authorization continues to use the installed extension ID rather than the official one.
+
+### Changed
+- Upgrade axios, fs-extra, highlight.js, lodash, and markdown-it to current stable versions.
+- Register only the languages used by LeetCode, reducing the bundle from 2.82 MB to 1.36 MB and the VSIX from 653 KB to 316 KB.
+
 ## [0.19.4] - 2026-10-21
 ### Fixed
 - Web Authorization now redirects to the installed extension ID instead of the hardcoded official `leetcode.vscode-leetcode` ID.
