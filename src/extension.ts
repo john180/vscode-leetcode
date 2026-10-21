@@ -20,6 +20,7 @@ import { leetCodeChannel } from "./leetCodeChannel";
 import { leetCodeManager } from "./leetCodeManager";
 import { leetCodeStatusBarController } from "./statusbar/leetCodeStatusBarController";
 import { setExtensionId, UserStatus } from "./shared";
+import { resolveEndpoint } from "./auth/endpointResolver";
 import { sessionEvents } from "./auth/session";
 import { DialogType, promptForOpenOutputChannel } from "./utils/uiUtils";
 import { leetCodePreviewProvider } from "./webview/leetCodePreviewProvider";
@@ -53,6 +54,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
         leetCodeTreeDataProvider.initialize(context);
         await globalState.initialize(context);
+        await resolveEndpoint();
         const hasStoredCookie: boolean = Boolean(globalState.getCookie());
         await vscode.commands.executeCommand("setContext", "leetcode.signedIn", false);
         await vscode.commands.executeCommand("setContext", "leetcode.signingIn", hasStoredCookie);

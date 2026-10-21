@@ -2,7 +2,7 @@
     "name": "vscode-leetcode-community",
     "displayName": "LeetCode Community",
     "description": "Solve LeetCode problems in VS Code",
-    "version": "0.22.1",
+    "version": "0.23.0",
     "author": "yanxijian",
     "publisher": "yanxijian",
     "license": "MIT",
@@ -411,9 +411,10 @@
                     },
                     "leetcode.endpoint": {
                         "type": "string",
-                        "default": "leetcode-cn",
+                        "default": "auto",
                         "scope": "application",
                         "enum": [
+                            "auto",
                             "leetcode",
                             "leetcode-cn"
                         ],
@@ -743,7 +744,7 @@
         "watch": "node esbuild.js --watch",
         "typecheck": "tsc -p ./ --noEmit",
         "lint": "eslint src",
-        "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/client.test.js out-test/test/unit/cookie.test.js out-test/test/unit/dailyChallenge.test.js out-test/test/unit/diffUtils.test.js out-test/test/unit/favoriteLists.test.js out-test/test/unit/l10n.test.js out-test/test/unit/login.test.js out-test/test/unit/markdown.test.js out-test/test/unit/problemFile.test.js out-test/test/unit/problemMapper.test.js out-test/test/unit/retry.test.js out-test/test/unit/session.test.js out-test/test/unit/submissionHistory.test.js",
+        "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/client.test.js out-test/test/unit/cookie.test.js out-test/test/unit/dailyChallenge.test.js out-test/test/unit/endpointDetection.test.js out-test/test/unit/diffUtils.test.js out-test/test/unit/favoriteLists.test.js out-test/test/unit/l10n.test.js out-test/test/unit/login.test.js out-test/test/unit/markdown.test.js out-test/test/unit/problemFile.test.js out-test/test/unit/problemMapper.test.js out-test/test/unit/retry.test.js out-test/test/unit/session.test.js out-test/test/unit/submissionHistory.test.js",
         "build": "npm run typecheck && npm run lint && npm run test && npm run compile",
         "package": "npm run build && vsce package",
         "vs-publish": "vsce publish"

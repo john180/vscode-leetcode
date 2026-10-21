@@ -21,6 +21,23 @@ query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $fi
   }
 }`;
 
+export const PROBLEM_LIST_QUERY_GLOBAL: string = `
+query problemsetQuestionListV2($limit: Int, $skip: Int) {
+  problemsetQuestionListV2(limit: $limit, skip: $skip) {
+    questions {
+      questionFrontendId
+      title
+      titleSlug
+      difficulty
+      paidOnly
+      acRate
+      status
+      isInMyFavorites
+      topicTags { name slug }
+    }
+  }
+}`;
+
 export const QUESTION_DETAIL_QUERY: string = `
 query questionData($titleSlug: String!) {
   question(titleSlug: $titleSlug) {

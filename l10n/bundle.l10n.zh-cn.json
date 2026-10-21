@@ -146,5 +146,8 @@
     "All statuses": "全部状态",
     "Search by problem id, title, slug, tag, or company": "按题号、标题、slug、标签或公司搜索",
     "Signing in...": "正在登录...",
-    "LeetCode: signing in...": "LeetCode: 正在登录..."
+    "LeetCode: signing in...": "LeetCode: 正在登录...",
+    "Top 100": "热门 100",
+    "Mainland China uses 力扣, other regions use LeetCode": "中国大陆使用力扣，其他地区使用 LeetCode",
+    "Current site": "当前站点"
 }

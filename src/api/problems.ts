@@ -8,7 +8,7 @@ import { graphql, IGraphQLRequest } from "./client";
 import { isRetryableError, MAX_RETRIES, retryDelayMs, sleep } from "./retry";
 import { fetchCompanyTagNames } from "./companyTags";
 import { IQuestionListPage, IQuestionNode, mapQuestion } from "./problemMapper";
-import { PROBLEM_LIST_QUERY } from "./queries";
+import { PROBLEM_LIST_QUERY, PROBLEM_LIST_QUERY_GLOBAL } from "./queries";
 
 const PAGE_SIZE = 100;
 const PAGE_CONCURRENCY = 4;
@@ -16,6 +16,24 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 
 interface IProblemListResponse {
     problemsetQuestionList: IQuestionListPage;
+}
+
+interface IGlobalQuestionNode {
+    questionFrontendId: string;
+    title?: string;
+    titleSlug?: string;
+    difficulty?: string;
+    paidOnly?: boolean;
+    acRate?: number;
+    status?: string;
+    isInMyFavorites?: boolean;
+    topicTags?: Array<{ name: string; slug: string }>;
+}
+
+interface IGlobalProblemListResponse {
+    problemsetQuestionListV2: {
+        questions: IGlobalQuestionNode[];
+    };
 }
 
 let cachedProblems: IProblem[] | undefined;
@@ -52,13 +70,81 @@ async function fetchPage(skip: number, attempt: number = 0): Promise<IQuestionLi
     }
 }
 
+async function fetchGlobalPage(skip: number, attempt: number = 0): Promise<IQuestionListPage> {
+    try {
+        const data = await graphql<IGlobalProblemListResponse>(getRequest(), PROBLEM_LIST_QUERY_GLOBAL, {
+            limit: PAGE_SIZE,
+            skip,
+        });
+        const questions: IQuestionNode[] = data.problemsetQuestionListV2.questions.map((question: IGlobalQuestionNode) => ({
+            frontendQuestionId: question.questionFrontendId,
+            title: question.title,
+            titleSlug: question.titleSlug,
+            difficulty: question.difficulty,
+            paidOnly: question.paidOnly,
+            acRate: question.acRate,
+            status: question.status,
+            isInMyFavorites: question.isInMyFavorites,
+            topicTags: question.topicTags,
+        }));
+        return { total: 0, questions };
+    } catch (error) {
+        if (attempt >= MAX_RETRIES || !isRetryableError(error)) {
+            throw error;
+        }
+        await sleep(retryDelayMs(attempt, error));
+        return fetchGlobalPage(skip, attempt + 1);
+    }
+}
+
+function isGlobalEndpoint(): boolean {
+    return getUrl("graphql").includes("leetcode.com");
+}
+
+async function loadAllGlobalProblems(
+    useTranslation: boolean,
+    companyNamesPromise: Promise<Map<string, string>>,
+): Promise<IProblem[]> {
+    const pages: IQuestionListPage[] = [await fetchGlobalPage(0)];
+    let skip: number = PAGE_SIZE;
+    while (pages[pages.length - 1].questions.length === PAGE_SIZE) {
+        const batch: IQuestionListPage[] = await Promise.all(
+            Array.from({ length: PAGE_CONCURRENCY }, (_, index: number) => fetchGlobalPage(skip + index * PAGE_SIZE)),
+        );
+        pages.push(...batch);
+        if (batch.some((page: IQuestionListPage) => page.questions.length < PAGE_SIZE)) {
+            break;
+        }
+        skip += PAGE_SIZE * PAGE_CONCURRENCY;
+    }
+
+    const companyNames: Map<string, string> = await companyNamesPromise;
+    const seen: Set<string> = new Set<string>();
+    const problems: IProblem[] = [];
+    for (const page of pages) {
+        for (const question of page.questions) {
+            const problem: IProblem = mapQuestion(question, useTranslation, companyNames);
+            if (!problem.id || seen.has(problem.id)) {
+                continue;
+            }
+            seen.add(problem.id);
+            problems.push(problem);
+        }
+    }
+    return problems;
+}
+
 async function loadAllProblems(): Promise<IProblem[]> {
     const useTranslation: boolean = shouldUseEndpointTranslation();
-    const firstPage: IQuestionListPage = await fetchPage(0);
-    const pages: IQuestionListPage[] = [firstPage];
     const companyNamesPromise: Promise<Map<string, string>> = useTranslation
         ? fetchCompanyTagNames(getRequest()).catch((): Map<string, string> => new Map<string, string>())
         : Promise.resolve(new Map<string, string>());
+    if (isGlobalEndpoint()) {
+        return loadAllGlobalProblems(useTranslation, companyNamesPromise);
+    }
+
+    const firstPage: IQuestionListPage = await fetchPage(0);
+    const pages: IQuestionListPage[] = [firstPage];
 
     const skips: number[] = [];
     for (let skip: number = PAGE_SIZE; skip < firstPage.total; skip += PAGE_SIZE) {

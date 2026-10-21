@@ -24,6 +24,7 @@ export interface IQuestionNode {
     acRate?: number;
     status?: string;
     isFavor?: boolean;
+    isInMyFavorites?: boolean;
     topicTags?: ITopicTag[];
     extra?: {
         topCompanyTags?: ICompanyTag[];
@@ -99,7 +100,7 @@ export function mapQuestion(question: IQuestionNode, useTranslation: boolean, co
         passRate: formatPassRate(question.acRate),
         state: mapProblemState(question.status),
         locked: Boolean(question.paidOnly),
-        isFavorite: Boolean(question.isFavor),
+        isFavorite: Boolean(question.isFavor ?? question.isInMyFavorites),
         companies,
         tags,
     };

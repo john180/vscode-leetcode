@@ -69,7 +69,7 @@ export function mapFavoriteLists(data: unknown): IFavoriteList[] {
 export function mapHot100List(data: unknown): IFavoriteList | undefined {
     const lists: IRawFavoriteList[] = (data as IFavoriteListResponse | undefined)?.favorites?.leetcode_favorites || [];
     const hot100: IRawFavoriteList | undefined = lists.find(
-        (list: IRawFavoriteList) => /HOT\s*100|热题\s*100/i.test(list.name || ""),
+        (list: IRawFavoriteList) => /HOT\s*100|热题\s*100|TOP\s*100\s*LIKED/i.test(list.name || ""),
     );
     if (!hot100) {
         return undefined;

@@ -56,3 +56,19 @@ test("mapHot100List selects the official HOT 100 list", () => {
     assert.equal(list?.idHash, "2cktkvj");
     assert.equal(list?.questions.length, 1);
 });
+
+test("mapHot100List recognizes the global Top 100 Liked list", () => {
+    const list = mapHot100List({
+        favorites: {
+            leetcode_favorites: [
+                {
+                    id_hash: "global-hot",
+                    name: "Top 100 Liked Questions",
+                    questions: [{ id: 1, title: "Two Sum", title_slug: "two-sum" }],
+                },
+            ],
+        },
+    });
+    assert.equal(list?.idHash, "global-hot");
+    assert.equal(list?.questions.length, 1);
+});

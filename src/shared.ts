@@ -62,6 +62,7 @@ export enum ProblemState {
 }
 
 export enum Endpoint {
+    Auto = "auto",
     LeetCode = "leetcode",
     LeetCodeCN = "leetcode-cn",
 }
@@ -155,8 +156,7 @@ export function buildAuthLoginUrl(endpoint: string): string {
 }
 
 export const getUrl = (key: string) => {
-    const leetCodeConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration("leetcode");
-    const point = leetCodeConfig.get<string>("endpoint", Endpoint.LeetCodeCN);
+    const point: Endpoint = getEffectiveEndpoint();
     switch (point) {
         case Endpoint.LeetCodeCN:
             return urlsCn[key];
@@ -165,3 +165,18 @@ export const getUrl = (key: string) => {
             return urls[key];
     }
 };
+
+let resolvedEndpoint: Endpoint = Endpoint.LeetCode;
+
+export function setResolvedEndpoint(endpoint: Endpoint): void {
+    resolvedEndpoint = endpoint;
+}
+
+export function getEffectiveEndpoint(): Endpoint {
+    const leetCodeConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration("leetcode");
+    const configured: string = leetCodeConfig.get<string>("endpoint", Endpoint.Auto);
+    if (configured === Endpoint.Auto) {
+        return resolvedEndpoint;
+    }
+    return configured === Endpoint.LeetCodeCN ? Endpoint.LeetCodeCN : Endpoint.LeetCode;
+}

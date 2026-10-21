@@ -3,6 +3,12 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.23.0] - 2026-10-21
+### Added
+- LeetCode Global support: default endpoint `leetcode`, `problemsetQuestionListV2` problem loading, GraphQL daily challenge, `Top 100 Liked Questions`, and global favorites/submissions.
+- README notes for switching between leetcode.com and leetcode.cn.
+- Automatic endpoint selection (uto): mainland China time zones default to LeetCode China, other regions default to LeetCode.
+
 ## [0.22.1] - 2026-10-21
 ### Fixed
 - Show a signing-in state instead of the sign-in welcome while a stored cookie is being validated.

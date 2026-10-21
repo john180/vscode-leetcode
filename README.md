@@ -20,7 +20,7 @@
 - 离线安装：从 [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases) 下载 `.vsix`，然后：
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.22.1.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.23.0.vsix --force
   ```
 
 > 本项目是 [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) 的社区分支，不是 LeetCode 官方发布。扩展 ID 为 `yanxijian.vscode-leetcode-community`；命令、视图与设置 ID 与官方版相同，安装前请先禁用官方 `LeetCode.vscode-leetcode`。
@@ -45,7 +45,9 @@
 2. 执行 **LeetCode: Sign In**（登录）。
 3. 选择 **LeetCode Cookie**，粘贴从 `https://leetcode.cn` 复制的 `Cookie` 请求头；也可以使用 **Web Authorization**。
 
-Cookie 只保存在 VS Code 的 `SecretStorage` 中，不会写入明文设置。默认站点是 `leetcode-cn`；如果你手动改过 `leetcode.endpoint`，请确认它仍是 `leetcode-cn`。
+Cookie 只保存在 VS Code 的 `SecretStorage` 中，不会写入明文设置。默认站点是 `auto`：中国大陆自动使用力扣，其他地区使用 LeetCode；也可通过 `LeetCode: Switch Endpoint` 手动指定。
+
+`auto` 会按系统时区选择站点；切回国内版请执行 `LeetCode: Switch Endpoint` 选择 `力扣`，或把 `leetcode.endpoint` 设为 `leetcode-cn`。国际版 Cookie 必须来自 `leetcode.com`；Hot 100 会使用官方 `Top 100 Liked Questions`，显示为“热门 100”。
 
 ## 快速开始
 
@@ -74,7 +76,7 @@ Cookie 只保存在 VS Code 的 `SecretStorage` 中，不会写入明文设置�
 
 | 设置 | 说明 | 默认值 |
 | --- | --- | --- |
-| `leetcode.endpoint` | 当前站点：`leetcode` 或 `leetcode-cn` | `leetcode-cn` |
+| `leetcode.endpoint` | `auto`、`leetcode` 或 `leetcode-cn` | `auto` |
 | `leetcode.defaultLanguage` | 新文件的默认语言 | 未设置 |
 | `leetcode.workspaceFolder` | 题目文件保存目录 | `$HOME/.leetcode` |
 | `leetcode.filePath` | 相对目录与文件名模板 | `${id}.${kebab-case-name}.${ext}` |
@@ -92,7 +94,7 @@ Cookie 只保存在 VS Code 的 `SecretStorage` 中，不会写入明文设置�
 
 **登录提示 "The cookie is not signed in"**
 
-- 确认 `leetcode.endpoint` 是 `leetcode-cn`；
+- 确认 `leetcode.endpoint` 与 Cookie 来源一致（`leetcode.cn` 或 `leetcode.com`）；
 - 确认 cookie 来自已登录的 `https://leetcode.cn`，不是 `leetcode.com`；
 - 从 Network 请求头复制，确保包含 `LEETCODE_SESSION` 与 `csrftoken`；
 - 打开 Output → LeetCode，日志会显示校验的 endpoint 和 `signedIn` 结果（不会打印 cookie）。

@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.md)
 
-> Solve LeetCode problems in VS Code: problems, solutions, tests, and submissions, with leetcode.cn as the default endpoint.
+> Solve LeetCode problems in VS Code: problems, solutions, tests, and submissions, with automatic endpoint selection (LeetCode China in mainland China, LeetCode elsewhere).
 
 > This repository intentionally maintains only Simplified Chinese and English, as an explicit exception to the workspace four-language convention.
 
@@ -20,7 +20,7 @@
 - Offline: download the `.vsix` from [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases), then:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.22.1.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.23.0.vsix --force
   ```
 
 > Community fork of [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode). It is not an official LeetCode release. The extension ID is `yanxijian.vscode-leetcode-community`; command, view, and setting IDs are shared with the official extension, so disable the official `LeetCode.vscode-leetcode` before installing this one.
@@ -45,7 +45,9 @@
 2. Run **LeetCode: Sign In**.
 3. Choose **LeetCode Cookie** and paste the `Cookie` request header copied from `https://leetcode.cn`; **Web Authorization** is also available.
 
-The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The default endpoint is `leetcode-cn`; if you changed `leetcode.endpoint` manually, keep it at `leetcode-cn` for leetcode.cn.
+The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The default endpoint is `auto`: mainland China uses LeetCode China, other regions use LeetCode. Use `LeetCode: Switch Endpoint` to override.
+
+`auto` selects the site from the system time zone; use `LeetCode: Switch Endpoint` or set `leetcode.endpoint` to override. The global cookie must come from `leetcode.com`. The global Hot 100 entry uses the official `Top 100 Liked Questions` list.
 
 ## Quick Start
 
@@ -74,7 +76,7 @@ The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The
 
 | Setting | Description | Default |
 | --- | --- | --- |
-| `leetcode.endpoint` | Active endpoint: `leetcode` or `leetcode-cn` | `leetcode-cn` |
+| `leetcode.endpoint` | `auto`, `leetcode`, or `leetcode-cn` | `auto` |
 | `leetcode.defaultLanguage` | Default language for new files | unset |
 | `leetcode.workspaceFolder` | Folder used to store problem files | `$HOME/.leetcode` |
 | `leetcode.filePath` | Relative folder and filename template | `${id}.${kebab-case-name}.${ext}` |
@@ -92,7 +94,7 @@ The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The
 
 **"The cookie is not signed in"**
 
-- Confirm `leetcode.endpoint` is `leetcode-cn`.
+- Confirm `leetcode.endpoint` matches the cookie source (`leetcode.cn` or `leetcode.com`).
 - Confirm the cookie comes from a signed-in `https://leetcode.cn`, not `leetcode.com`.
 - Copy it from a Network request header so it includes both `LEETCODE_SESSION` and `csrftoken`.
 - Open Output → LeetCode; the log shows the endpoint and `signedIn` result without printing the cookie.

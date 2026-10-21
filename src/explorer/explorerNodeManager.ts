@@ -60,7 +60,7 @@ class ExplorerNodeManager implements Disposable {
         if (this.hot100List) {
             roots.push(new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: Category.Hot100,
-                name: l10n.t("Hot 100"),
+                name: /top\s*100|liked/i.test(this.hot100List.name) ? l10n.t("Top 100") : l10n.t("Hot 100"),
             }), false));
         }
         roots.push(
