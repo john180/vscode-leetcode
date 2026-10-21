@@ -118,5 +118,16 @@
     "Submit": "提交",
     "Test": "测试",
     "Unstar": "取消收藏",
-    "Star": "收藏"
+    "Star": "收藏",
+    "All": "全部",
+    "Difficulty": "难度",
+    "Tag": "标签",
+    "Company": "公司",
+    "Favorite": "收藏",
+    "Easy": "简单",
+    "Medium": "中等",
+    "Hard": "困难",
+    "Tags": "标签",
+    "Companies": "公司",
+    "Submissions": "提交记录"
 }

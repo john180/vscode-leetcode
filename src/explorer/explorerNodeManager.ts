@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import * as _ from "lodash";
-import { Disposable } from "vscode";
+import { Disposable, l10n } from "vscode";
 import * as list from "../commands/list";
 import { getSortingStrategy } from "../commands/plugin";
 import { Category, defaultProblem, ProblemState, SortingStrategy } from "../shared";
@@ -35,23 +35,23 @@ class ExplorerNodeManager implements Disposable {
         return [
             new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: Category.All,
-                name: Category.All,
+                name: l10n.t("All"),
             }), false),
             new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: Category.Difficulty,
-                name: Category.Difficulty,
+                name: l10n.t("Difficulty"),
             }), false),
             new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: Category.Tag,
-                name: Category.Tag,
+                name: l10n.t("Tag"),
             }), false),
             new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: Category.Company,
-                name: Category.Company,
+                name: l10n.t("Company"),
             }), false),
             new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: Category.Favorite,
-                name: Category.Favorite,
+                name: l10n.t("Favorite"),
             }), false),
         ];
     }
@@ -67,15 +67,15 @@ class ExplorerNodeManager implements Disposable {
         res.push(
             new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: `${Category.Difficulty}.Easy`,
-                name: "Easy",
+                name: l10n.t("Easy"),
             }), false),
             new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: `${Category.Difficulty}.Medium`,
-                name: "Medium",
+                name: l10n.t("Medium"),
             }), false),
             new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: `${Category.Difficulty}.Hard`,
-                name: "Hard",
+                name: l10n.t("Hard"),
             }), false),
         );
         this.sortSubCategoryNodes(res, Category.Difficulty);
@@ -159,7 +159,8 @@ class ExplorerNodeManager implements Disposable {
             case Category.Difficulty:
                 subCategoryNodes.sort((a: LeetCodeNode, b: LeetCodeNode): number => {
                     function getValue(input: LeetCodeNode): number {
-                        switch (input.name.toLowerCase()) {
+                        const difficulty: string = input.id.split(".")[1] || "";
+                        switch (difficulty.toLowerCase()) {
                             case "easy":
                                 return 1;
                             case "medium":

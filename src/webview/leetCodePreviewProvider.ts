@@ -79,7 +79,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
         const head: string = markdownEngine.render(`# [${title}](${url})`);
         const info: string = markdownEngine.render(
             [
-                `| Difficulty |`,
+                `| ${l10n.t("Difficulty")} |`,
                 `| :--------: |`,
                 `| ${this.detail.difficulty} |`,
             ].join("\n"),
@@ -93,7 +93,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
         const tags: string = tagItems.length > 0
             ? [
                 `<details>`,
-                `<summary><strong>Tags</strong></summary>`,
+                `<summary><strong>${l10n.t("Tags")}</strong></summary>`,
                 markdownEngine.render(tagItems.join(" | ")),
                 `</details>`,
             ].join("\n")
@@ -101,12 +101,12 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
         const companies: string = this.node.companies.length > 0
             ? [
                 `<details>`,
-                `<summary><strong>Companies</strong></summary>`,
+                `<summary><strong>${l10n.t("Companies")}</strong></summary>`,
                 markdownEngine.render(this.node.companies.map((company: string) => `\`${company}\``).join(" | ")),
                 `</details>`,
             ].join("\n")
             : "";
-        const links: string = markdownEngine.render(`[Submissions](${this.getSubmissionsLink(url)}) | [Solution](${this.getSolutionsLink(url)})`);
+        const links: string = markdownEngine.render(`[${l10n.t("Submissions")}](${this.getSubmissionsLink(url)}) | [${l10n.t("Solution")}](${this.getSolutionsLink(url)})`);
         const webview = this.webview!;
         const nonce: string = this.getNonce();
         return `
