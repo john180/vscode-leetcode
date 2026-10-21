@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 import { invalidateProblemCache } from "./api/problems";
 import { normalizeCookie, validateCookie } from "./auth/cookie";
 import { leetCodeChannel } from "./leetCodeChannel";
-import { Endpoint, getUrl, IQuickItemEx, urls, urlsCn, UserStatus } from "./shared";
+import { buildAuthLoginUrl, getUrl, IQuickItemEx, UserStatus } from "./shared";
 import { DialogType, openUrl, promptForOpenOutputChannel } from "./utils/uiUtils";
 import { getLeetCodeEndpoint } from "./commands/plugin";
 import { globalState } from "./globalState";
@@ -224,13 +224,7 @@ class LeetCodeManager extends EventEmitter {
     }
 
     public getAuthLoginUrl(): string {
-        switch (getLeetCodeEndpoint()) {
-            case Endpoint.LeetCodeCN:
-                return urlsCn.authLoginUrl;
-            case Endpoint.LeetCode:
-            default:
-                return urls.authLoginUrl;
-        }
+        return buildAuthLoginUrl(getLeetCodeEndpoint());
     }
 }
 

@@ -122,15 +122,12 @@ export enum SortingStrategy {
 export const PREMIUM_URL_CN = "https://leetcode.cn/premium-payment/?source=vscode";
 export const PREMIUM_URL_GLOBAL = "https://leetcode.com/subscribe/?ref=lp_pl&source=vscode";
 
-const protocol = vscode.env.appName.includes('Insiders') ? "vscode-insiders" : "vscode"
-
 export const urls = {
     // base urls
     base: "https://leetcode.com",
     graphql: "https://leetcode.com/graphql",
     userGraphql: "https://leetcode.com/graphql",
     login: "https://leetcode.com/accounts/login/",
-    authLoginUrl: `https://leetcode.com/authorize-login/${protocol}/?path=leetcode.vscode-leetcode`,
 };
 
 export const urlsCn = {
@@ -139,8 +136,20 @@ export const urlsCn = {
     graphql: "https://leetcode.cn/graphql",
     userGraphql: "https://leetcode.cn/graphql/",
     login: "https://leetcode.cn/accounts/login/",
-    authLoginUrl: `https://leetcode.cn/authorize-login/${protocol}/?path=leetcode.vscode-leetcode`,
 };
+
+let extensionId: string = "leetcode.vscode-leetcode";
+
+export function setExtensionId(id: string): void {
+    if (id) {
+        extensionId = id;
+    }
+}
+
+export function buildAuthLoginUrl(endpoint: string): string {
+    const base: string = endpoint === Endpoint.LeetCodeCN ? urlsCn.base : urls.base;
+    return `${base}/authorize-login/${vscode.env.uriScheme}/?path=${encodeURIComponent(extensionId)}`;
+}
 
 export const getUrl = (key: string) => {
     const leetCodeConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration("leetcode");
