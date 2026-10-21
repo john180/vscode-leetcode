@@ -114,5 +114,9 @@
     "Acceptance Rate (Ascending)": "通过率（升序）",
     "Acceptance Rate (Descending)": "通过率（降序）",
     "Frequency (Ascending)": "出现频率（升序）",
-    "Frequency (Descending)": "出现频率（降序）"
+    "Frequency (Descending)": "出现频率（降序）",
+    "Submit": "提交",
+    "Test": "测试",
+    "Unstar": "取消收藏",
+    "Star": "收藏"
 }

@@ -345,8 +345,8 @@
                             "None"
                         ],
                         "enumDescriptions": [
-                            "Show the problem description in a new webview window",
-                            "Show the problem description in the file's comment"
+                            "%config.showDescription.enumDescriptions.0%",
+                            "%config.showDescription.enumDescriptions.1%"
                         ],
                         "scope": "application",
                         "description": "%config.showDescription%"
