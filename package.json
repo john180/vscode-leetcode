@@ -14,7 +14,7 @@
         "type": "git",
         "url": "https://github.com/yanxijian/vscode-leetcode"
     },
-    "homepage": "https://github.com/yanxijian/vscode-leetcode/blob/master/README.md",
+    "homepage": "https://github.com/yanxijian/vscode-leetcode/blob/community/README.md",
     "bugs": {
         "url": "https://github.com/yanxijian/vscode-leetcode/issues"
     },
