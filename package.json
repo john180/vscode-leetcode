@@ -180,6 +180,11 @@
         "viewsWelcome": [
             {
                 "view": "leetCodeExplorer",
+                "contents": "%viewsWelcome.welcome%",
+                "when": "!leetcode.signedIn"
+            },
+            {
+                "view": "leetCodeExplorer",
                 "contents": "%viewsWelcome.signIn%",
                 "when": "leetcode.showSignIn"
             }

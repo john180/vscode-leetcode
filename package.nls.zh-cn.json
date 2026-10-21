@@ -39,5 +39,6 @@
     "config.showDescription.enumDescriptions.0": "在新的 Webview 窗口中显示题目描述",
     "config.showDescription.enumDescriptions.1": "在代码文件的注释中显示题目描述",
     "command.showSubmissions": "查看提交历史",
-    "command.addToFavoriteList": "加入收藏夹"
+    "command.addToFavoriteList": "加入收藏夹",
+    "viewsWelcome.welcome": "欢迎使用 **LeetCode Community**。正在准备 LeetCode 工作区..."
 }

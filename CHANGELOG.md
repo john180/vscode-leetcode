@@ -6,6 +6,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 ### Fixed
 - Show a signing-in state instead of the sign-in welcome while a stored cookie is being validated.
+- Show a LeetCode Community welcome message while the initial authentication state is unresolved.
 - Keep the sign-in welcome and title-bar button hidden until the extension has resolved the authentication state.
 - Localize Hot 100 and favorite-list question titles by mapping their slug to the loaded problem list.
 

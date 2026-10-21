@@ -39,5 +39,6 @@
     "config.showDescription.enumDescriptions.0": "Show the problem description in a new webview window",
     "config.showDescription.enumDescriptions.1": "Show the problem description in the file's comment",
     "command.showSubmissions": "Show Submission History",
-    "command.addToFavoriteList": "Add to Favorite List"
+    "command.addToFavoriteList": "Add to Favorite List",
+    "viewsWelcome.welcome": "Welcome to **LeetCode Community**. Preparing your LeetCode workspace..."
 }
