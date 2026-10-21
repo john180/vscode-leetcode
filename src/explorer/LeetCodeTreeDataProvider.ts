@@ -12,6 +12,7 @@ import { globalState } from "../globalState";
 
 export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCodeNode> {
     private context: vscode.ExtensionContext;
+    private treeView: vscode.TreeView<LeetCodeNode> | undefined;
 
     private onDidChangeTreeDataEvent: vscode.EventEmitter<LeetCodeNode | undefined | null> = new vscode.EventEmitter<
         LeetCodeNode | undefined | null
@@ -23,8 +24,30 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
         this.context = context;
     }
 
+    public setTreeView(treeView: vscode.TreeView<LeetCodeNode>): void {
+        this.treeView = treeView;
+    }
+
     public async refresh(forceRefresh: boolean = false): Promise<void> {
-        await explorerNodeManager.refreshCache(forceRefresh);
+        const loadingMessage: string = vscode.l10n.t("Loading problems...");
+        if (this.treeView) {
+            this.treeView.message = loadingMessage;
+        }
+        try {
+            await vscode.window.withProgress(
+                {
+                    location: { viewId: "leetCodeExplorer" },
+                    title: loadingMessage,
+                },
+                async () => {
+                    await explorerNodeManager.refreshCache(forceRefresh);
+                },
+            );
+        } finally {
+            if (this.treeView) {
+                this.treeView.message = undefined;
+            }
+        }
         this.onDidChangeTreeDataEvent.fire(null);
     }
 

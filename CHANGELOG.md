@@ -13,6 +13,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Upgrade axios, fs-extra, highlight.js, lodash, and markdown-it to current stable versions.
 - Register only the languages used by LeetCode, reducing the bundle from 2.82 MB to 1.36 MB and the VSIX from 653 KB to 316 KB.
 - Resolve company tag names through the endpoint's `companyTagsV2` list so the Company tree uses localized names instead of slugs.
+- Show a native view progress spinner and a loading message while the problem tree refreshes after sign-in.
 - Localize the remaining command, quick-pick, dialog, and webview strings; add a test that every used `l10n` key has a Chinese translation.
 
 ## [0.19.4] - 2026-10-21

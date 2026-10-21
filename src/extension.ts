@@ -45,6 +45,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await globalState.initialize(context);
         await vscode.commands.executeCommand("setContext", "leetcode.signedIn", false);
 
+        const treeView = vscode.window.createTreeView("leetCodeExplorer", {
+            treeDataProvider: leetCodeTreeDataProvider,
+            showCollapseAll: true,
+        });
+        leetCodeTreeDataProvider.setTreeView(treeView);
+
         context.subscriptions.push(
             leetCodeStatusBarController,
             leetCodeChannel,
@@ -55,7 +61,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             codeLensController,
             explorerNodeManager,
             vscode.window.registerFileDecorationProvider(leetCodeTreeItemDecorationProvider),
-            vscode.window.createTreeView("leetCodeExplorer", { treeDataProvider: leetCodeTreeDataProvider, showCollapseAll: true }),
+            treeView,
             vscode.commands.registerCommand("leetcode.deleteCache", () => cache.deleteCache()),
             vscode.commands.registerCommand("leetcode.toggleLeetCodeCn", () => plugin.switchEndpoint()),
             vscode.commands.registerCommand("leetcode.signin", () => leetCodeManager.signIn()),
