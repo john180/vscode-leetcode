@@ -2,6 +2,7 @@
 // Licensed under the MIT license.
 
 import * as vscode from "vscode";
+import { buildAuthLoginUrl as buildAuthLoginUrlFor } from "./auth/login";
 
 export interface IQuickItemEx<T> extends vscode.QuickPickItem {
     value: T;
@@ -147,8 +148,7 @@ export function setExtensionId(id: string): void {
 }
 
 export function buildAuthLoginUrl(endpoint: string): string {
-    const base: string = endpoint === Endpoint.LeetCodeCN ? urlsCn.base : urls.base;
-    return `${base}/authorize-login/${vscode.env.uriScheme}/?path=${encodeURIComponent(extensionId)}`;
+    return buildAuthLoginUrlFor(endpoint, vscode.env.uriScheme, extensionId);
 }
 
 export const getUrl = (key: string) => {

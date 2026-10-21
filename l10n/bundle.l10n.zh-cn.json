@@ -15,5 +15,12 @@
     "Session name must not be empty": "会话名称不能为空",
     "Paste the Cookie header for this session.": "粘贴该会话的 Cookie 请求头。",
     "Cannot delete an active session.": "不能删除当前正在使用的会话。",
-    "This operation cannot be reverted. Are you sure to delete the session: {0}?": "此操作不可恢复，确定删除会话“{0}”？"
+    "This operation cannot be reverted. Are you sure to delete the session: {0}?": "此操作不可恢复，确定删除会话“{0}”？",
+    "Sign in to {0}": "登录 {0}",
+    "Paste the Cookie header copied from {0}": "粘贴从 {0} 复制的 Cookie 请求头",
+    "Open Login Page": "打开登录页",
+    "Open {0} in the browser": "在浏览器中打开 {0}",
+    "Sign in on the website, then copy the Cookie header and use LeetCode Cookie.": "在网站上登录后，复制 Cookie 请求头并选择 LeetCode Cookie。",
+    "Complete the login in your browser; this window will update automatically.": "请在浏览器中完成登录，本窗口会自动更新。",
+    "Login was not completed: {0}": "登录未完成：{0}"
 }
