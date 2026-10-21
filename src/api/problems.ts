@@ -8,6 +8,7 @@ import { graphql, IGraphQLRequest } from "./client";
 import { isRetryableError, MAX_RETRIES, retryDelayMs, sleep } from "./retry";
 import { fetchCompanyTagNames } from "./companyTags";
 import { IQuestionListPage, IQuestionNode, mapQuestion } from "./problemMapper";
+import { collectProblems } from "./problemCollection";
 import { loadGlobalQuestionPages } from "./problemPagination";
 import { PROBLEM_LIST_QUERY, PROBLEM_LIST_QUERY_GLOBAL } from "./queries";
 
@@ -109,19 +110,7 @@ async function loadAllGlobalProblems(
     const pages: IQuestionListPage[] = await loadGlobalQuestionPages(fetchGlobalPage, PAGE_SIZE, PAGE_CONCURRENCY);
 
     const companyNames: Map<string, string> = await companyNamesPromise;
-    const seen: Set<string> = new Set<string>();
-    const problems: IProblem[] = [];
-    for (const page of pages) {
-        for (const question of page.questions) {
-            const problem: IProblem = mapQuestion(question, useTranslation, companyNames);
-            if (!problem.id || seen.has(problem.id)) {
-                continue;
-            }
-            seen.add(problem.id);
-            problems.push(problem);
-        }
-    }
-    return problems;
+    return collectProblems(pages, (question: IQuestionNode) => mapQuestion(question, useTranslation, companyNames));
 }
 
 async function loadAllProblems(): Promise<IProblem[]> {
@@ -150,19 +139,7 @@ async function loadAllProblems(): Promise<IProblem[]> {
     }
 
     const companyNames: Map<string, string> = await companyNamesPromise;
-    const seen: Set<string> = new Set<string>();
-    const problems: IProblem[] = [];
-    for (const page of pages) {
-        for (const question of page.questions) {
-            const problem: IProblem = mapQuestion(question as IQuestionNode, useTranslation, companyNames);
-            if (!problem.id || seen.has(problem.id)) {
-                continue;
-            }
-            seen.add(problem.id);
-            problems.push(problem);
-        }
-    }
-    return problems;
+    return collectProblems(pages, (question: IQuestionNode) => mapQuestion(question, useTranslation, companyNames));
 }
 
 /**
