@@ -143,5 +143,6 @@
     "Saved test case": "上次测试用例",
     "Load more...": "加载更多...",
     "Filter by status": "按状态筛选",
-    "All statuses": "全部状态"
+    "All statuses": "全部状态",
+    "Search by problem id, title, slug, tag, or company": "按题号、标题、slug、标签或公司搜索"
 }

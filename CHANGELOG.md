@@ -3,6 +3,10 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.22.0] - 2026-10-21
+### Added
+- Enhanced problem search: id, Chinese/English title, slug, tags, and companies (with tags/companies shown in the picker detail).
+
 ## [0.21.0] - 2026-10-21
 ### Added
 - Add a Daily Challenge tree entry from the CN homepage SSR data.

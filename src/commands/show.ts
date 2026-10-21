@@ -103,7 +103,8 @@ export async function searchProblem(): Promise<void> {
     }
     const choice: IQuickItemEx<IProblem> | undefined = await vscode.window.showQuickPick(parseProblemsToPicks(list.listProblems()), {
         matchOnDetail: true,
-        placeHolder: vscode.l10n.t("Select one problem"),
+        matchOnDescription: true,
+        placeHolder: vscode.l10n.t("Search by problem id, title, slug, tag, or company"),
     });
     if (!choice) {
         return;
@@ -254,17 +255,29 @@ async function showDescriptionView(node: IProblem, detail: IQuestionDetail, useT
 }
 async function parseProblemsToPicks(p: Promise<IProblem[]>): Promise<Array<IQuickItemEx<IProblem>>> {
     return new Promise(async (resolve: (res: Array<IQuickItemEx<IProblem>>) => void): Promise<void> => {
-        const picks: Array<IQuickItemEx<IProblem>> = (await p).map((problem: IProblem) =>
-            Object.assign(
+        const picks: Array<IQuickItemEx<IProblem>> = (await p).map((problem: IProblem) => {
+            const tags: string = problem.tags.slice(0, 5).join(", ");
+            const companies: string = problem.companies.slice(0, 5).join(", ");
+            const details: string[] = [
+                `${vscode.l10n.t("AC rate: {0}, Difficulty: {1}", problem.passRate, problem.difficulty)}`,
+                `${problem.slug}`,
+            ];
+            if (tags) {
+                details.push(`${vscode.l10n.t("Tags")}: ${tags}`);
+            }
+            if (companies) {
+                details.push(`${vscode.l10n.t("Companies")}: ${companies}`);
+            }
+            return Object.assign(
                 {},
                 {
                     label: `${parseProblemDecorator(problem.state, problem.locked)}${problem.id}.${problem.name}`,
-                    description: "",
-                    detail: vscode.l10n.t("AC rate: {0}, Difficulty: {1}", problem.passRate, problem.difficulty),
+                    description: problem.slug,
+                    detail: details.join(" · "),
                     value: problem,
                 }
-            )
-        );
+            );
+        });
         resolve(picks);
     });
 }
