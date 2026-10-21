@@ -17,13 +17,13 @@ export abstract class LeetCodeWebview implements Disposable {
         }
     }
 
-    protected showWebviewInternal(): void {
+    protected async showWebviewInternal(): Promise<void> {
         const { title, viewColumn, preserveFocus } = this.getWebviewOption();
         if (!this.panel) {
             this.panel = window.createWebviewPanel(this.viewType, title, { viewColumn, preserveFocus }, {
                 enableScripts: true,
                 enableFindWidget: true,
-                retainContextWhenHidden: false,
+                retainContextWhenHidden: true, // avoid webview service-worker re-registration races (microsoft/vscode#125993)
                 localResourceRoots: markdownEngine.localResourceRoots,
             });
             this.panel.onDidDispose(this.onDidDisposeWebview, this, this.listeners);
@@ -33,9 +33,8 @@ export abstract class LeetCodeWebview implements Disposable {
             this.panel.title = title;
             if (viewColumn === ViewColumn.Two) {
                 // Make sure second group exists. See vscode#71608 issue
-                commands.executeCommand("workbench.action.focusSecondEditorGroup").then(() => {
-                    this.panel!.reveal(viewColumn, preserveFocus);
-                });
+                await commands.executeCommand("workbench.action.focusSecondEditorGroup");
+                this.panel.reveal(viewColumn, preserveFocus);
             } else {
                 this.panel.reveal(viewColumn, preserveFocus);
             }

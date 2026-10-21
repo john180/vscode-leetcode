@@ -24,7 +24,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
         this.node = node;
         this.sideMode = isSideMode;
         this.useTranslation = useTranslation;
-        this.showWebviewInternal();
+        void this.showWebviewInternal();
     }
 
     protected getWebviewOption(): ILeetCodeWebviewOption {
@@ -113,7 +113,13 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
             <!DOCTYPE html>
             <html>
             <head>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"/>
+                <meta http-equiv="Content-Security-Policy" content="
+                    default-src 'none';
+                    worker-src 'self' ${webview.cspSource};
+                    img-src https: data: ${webview.cspSource};
+                    style-src ${webview.cspSource} 'unsafe-inline';
+                    script-src 'nonce-${nonce}';
+                "/>
                 ${markdownEngine.getStyles(webview)}
                 ${!this.sideMode ? button.style : ""}
                 <style>

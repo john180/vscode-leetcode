@@ -14,7 +14,7 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
 
     public show(result: ISubmissionResult): void {
         this.result = result;
-        this.showWebviewInternal();
+        void this.showWebviewInternal();
         this.showKeybindingsHint();
     }
 
@@ -69,7 +69,12 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
             <!DOCTYPE html>
             <html>
             <head>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline';"/>
+                <meta http-equiv="Content-Security-Policy" content="
+                    default-src 'none';
+                    worker-src 'self' ${webview.cspSource};
+                    img-src https: data: ${webview.cspSource};
+                    style-src ${webview.cspSource} 'unsafe-inline';
+                "/>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 ${styles}

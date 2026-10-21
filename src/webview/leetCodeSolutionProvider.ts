@@ -17,7 +17,7 @@ class LeetCodeSolutionProvider extends LeetCodeWebview {
     public show(title: string, content: string): void {
         this.title = title;
         this.content = content;
-        this.showWebviewInternal();
+        void this.showWebviewInternal();
     }
 
     protected getWebviewOption(): ILeetCodeWebviewOption {
@@ -47,7 +47,12 @@ class LeetCodeSolutionProvider extends LeetCodeWebview {
             <!DOCTYPE html>
             <html>
             <head>
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline';"/>
+                <meta http-equiv="Content-Security-Policy" content="
+                    default-src 'none';
+                    worker-src 'self' ${webview.cspSource};
+                    img-src https: data: ${webview.cspSource};
+                    style-src ${webview.cspSource} 'unsafe-inline';
+                "/>
                 ${styles}
             </head>
             <body class="vscode-body 'scrollBeyondLastLine' 'wordWrap' 'showEditorSelection'" style="tab-size:4">
