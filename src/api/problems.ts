@@ -8,6 +8,7 @@ import { graphql, IGraphQLRequest } from "./client";
 import { isRetryableError, MAX_RETRIES, retryDelayMs, sleep } from "./retry";
 import { fetchCompanyTagNames } from "./companyTags";
 import { IQuestionListPage, IQuestionNode, mapQuestion } from "./problemMapper";
+import { loadGlobalQuestionPages } from "./problemPagination";
 import { PROBLEM_LIST_QUERY, PROBLEM_LIST_QUERY_GLOBAL } from "./queries";
 
 const PAGE_SIZE = 100;
@@ -70,10 +71,10 @@ async function fetchPage(skip: number, attempt: number = 0): Promise<IQuestionLi
     }
 }
 
-async function fetchGlobalPage(skip: number, attempt: number = 0): Promise<IQuestionListPage> {
+async function fetchGlobalPage(skip: number, limit: number = PAGE_SIZE, attempt: number = 0): Promise<IQuestionListPage> {
     try {
         const data = await graphql<IGlobalProblemListResponse>(getRequest(), PROBLEM_LIST_QUERY_GLOBAL, {
-            limit: PAGE_SIZE,
+            limit,
             skip,
         });
         const questions: IQuestionNode[] = data.problemsetQuestionListV2.questions.map((question: IGlobalQuestionNode) => ({
@@ -93,7 +94,7 @@ async function fetchGlobalPage(skip: number, attempt: number = 0): Promise<IQues
             throw error;
         }
         await sleep(retryDelayMs(attempt, error));
-        return fetchGlobalPage(skip, attempt + 1);
+        return fetchGlobalPage(skip, limit, attempt + 1);
     }
 }
 
@@ -105,18 +106,7 @@ async function loadAllGlobalProblems(
     useTranslation: boolean,
     companyNamesPromise: Promise<Map<string, string>>,
 ): Promise<IProblem[]> {
-    const pages: IQuestionListPage[] = [await fetchGlobalPage(0)];
-    let skip: number = PAGE_SIZE;
-    while (pages[pages.length - 1].questions.length === PAGE_SIZE) {
-        const batch: IQuestionListPage[] = await Promise.all(
-            Array.from({ length: PAGE_CONCURRENCY }, (_, index: number) => fetchGlobalPage(skip + index * PAGE_SIZE)),
-        );
-        pages.push(...batch);
-        if (batch.some((page: IQuestionListPage) => page.questions.length < PAGE_SIZE)) {
-            break;
-        }
-        skip += PAGE_SIZE * PAGE_CONCURRENCY;
-    }
+    const pages: IQuestionListPage[] = await loadGlobalQuestionPages(fetchGlobalPage, PAGE_SIZE, PAGE_CONCURRENCY);
 
     const companyNames: Map<string, string> = await companyNamesPromise;
     const seen: Set<string> = new Set<string>();

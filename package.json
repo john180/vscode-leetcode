@@ -738,10 +738,11 @@
         "watch": "node esbuild.js --watch",
         "typecheck": "tsc -p ./ --noEmit",
         "lint": "eslint src",
-        "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/client.test.js out-test/test/unit/cookie.test.js out-test/test/unit/dailyChallenge.test.js out-test/test/unit/endpointDetection.test.js out-test/test/unit/diffUtils.test.js out-test/test/unit/favoriteLists.test.js out-test/test/unit/l10n.test.js out-test/test/unit/login.test.js out-test/test/unit/markdown.test.js out-test/test/unit/problemFile.test.js out-test/test/unit/privacy.test.js out-test/test/unit/problemMapper.test.js out-test/test/unit/retry.test.js out-test/test/unit/session.test.js out-test/test/unit/submissionHistory.test.js",
+        "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/client.test.js out-test/test/unit/cookie.test.js out-test/test/unit/dailyChallenge.test.js out-test/test/unit/endpointDetection.test.js out-test/test/unit/diffUtils.test.js out-test/test/unit/favoriteLists.test.js out-test/test/unit/l10n.test.js out-test/test/unit/login.test.js out-test/test/unit/markdown.test.js out-test/test/unit/problemFile.test.js out-test/test/unit/privacy.test.js out-test/test/unit/problemPagination.test.js out-test/test/unit/submission.test.js out-test/test/unit/problemMapper.test.js out-test/test/unit/retry.test.js out-test/test/unit/session.test.js out-test/test/unit/submissionHistory.test.js",
         "build": "npm run typecheck && npm run lint && npm run test && npm run compile",
         "package": "npm run build && vsce package",
-        "vs-publish": "vsce publish"
+        "vs-publish": "vsce publish",
+        "test:integration": "npm run compile && node test/integration/runTest.js"
     },
     "devDependencies": {
         "@types/fs-extra": "^11.0.4",
@@ -750,6 +751,7 @@
         "@types/mocha": "^2.2.42",
         "@types/node": "^20.11.30",
         "@types/vscode": "^1.90.0",
+        "@vscode/test-electron": "^3.1.0",
         "@vscode/vsce": "^3.2.1",
         "esbuild": "^0.25.0",
         "eslint": "^9.39.5",

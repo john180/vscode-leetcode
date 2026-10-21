@@ -113,6 +113,7 @@ npm ci
 npm run typecheck
 npm run lint
 npm test
+npm run test:integration  # 선택 사항, VS Code 필요
 npm run package
 python scripts/repo_rules.py check --config repo-rules.json
 ```

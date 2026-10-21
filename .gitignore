@@ -60,6 +60,7 @@ typings/
 # Output
 out
 out-test
+coverage
 dist
 *.vsix
 .vscode-test

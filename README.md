@@ -113,6 +113,7 @@ npm ci
 npm run typecheck
 npm run lint
 npm test
+npm run test:integration  # 可选，需要本机 VS Code
 npm run package
 python scripts/repo_rules.py check --config repo-rules.json
 ```

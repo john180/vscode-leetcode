@@ -4,8 +4,15 @@
 import axios from "axios";
 import { IGraphQLRequest } from "./client";
 
-const POLL_INTERVAL_MS = 1000;
-const POLL_TIMEOUT_MS = 90000;
+const DEFAULT_POLL_INTERVAL_MS = 1000;
+const DEFAULT_POLL_TIMEOUT_MS = 90000;
+const DEFAULT_RATE_LIMIT_DELAY_MS = 2000;
+
+export interface ISubmissionOptions {
+    pollIntervalMs?: number;
+    pollTimeoutMs?: number;
+    rateLimitDelayMs?: number;
+}
 
 export interface IProblemSubmissionTarget {
     slug: string;
@@ -123,10 +130,17 @@ function delay(ms: number): Promise<void> {
     });
 }
 
-async function pollResult(request: IGraphQLRequest, checkId: string, slug: string): Promise<ISubmissionResult> {
+async function pollResult(
+    request: IGraphQLRequest,
+    checkId: string,
+    slug: string,
+    options: ISubmissionOptions = {},
+): Promise<ISubmissionResult> {
     const headers: { [key: string]: string } = getHeaders(request, slug);
+    const intervalMs: number = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+    const timeoutMs: number = options.pollTimeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
     const startedAt: number = Date.now();
-    while (Date.now() - startedAt < POLL_TIMEOUT_MS) {
+    while (Date.now() - startedAt < timeoutMs) {
         const response = await axios.get<ICheckResponse>(
             `${request.origin}/submissions/detail/${checkId}/check/`,
             { headers, timeout: 15000 },
@@ -135,7 +149,7 @@ async function pollResult(request: IGraphQLRequest, checkId: string, slug: strin
         if (state && state !== "PENDING" && state !== "STARTED") {
             return mapResult(response.data);
         }
-        await delay(POLL_INTERVAL_MS);
+        await delay(intervalMs);
     }
     throw new Error("Timed out while waiting for the judge result.");
 }
@@ -145,8 +159,10 @@ async function postJson(
     slug: string,
     path: string,
     body: { [key: string]: string | number | boolean },
+    options: ISubmissionOptions = {},
 ): Promise<{ [key: string]: unknown }> {
     const headers: { [key: string]: string } = getHeaders(request, slug);
+    const retryDelayMs: number = options.rateLimitDelayMs ?? DEFAULT_RATE_LIMIT_DELAY_MS;
     for (let attempt: number = 0; attempt < 3; attempt += 1) {
         try {
             const response = await axios.post<{ [key: string]: unknown }>(
@@ -158,7 +174,7 @@ async function postJson(
             const bodyError: string = typeof data.error === "string" ? data.error : "";
             if (bodyError) {
                 if (bodyError.includes("too soon")) {
-                    await delay(2000 * (attempt + 1));
+                    await delay(retryDelayMs * (attempt + 1));
                     continue;
                 }
                 throw new Error(bodyError);
@@ -168,7 +184,7 @@ async function postJson(
             const data: { error?: string } | undefined = error?.response?.data;
             const message: string = data?.error || "";
             if (message.includes("too soon")) {
-                await delay(2000 * (attempt + 1));
+                await delay(retryDelayMs * (attempt + 1));
                 continue;
             }
             throw error;
@@ -182,6 +198,7 @@ export async function submitSolution(
     target: IProblemSubmissionTarget,
     language: string,
     code: string,
+    options: ISubmissionOptions = {},
 ): Promise<ISubmissionResult> {
     const data = await postJson(request, target.slug, `/problems/${target.slug}/submit/`, {
         lang: language,
@@ -189,12 +206,12 @@ export async function submitSolution(
         test_mode: false,
         typed_code: code,
         judge_type: "large",
-    });
+    }, options);
     const submissionId: unknown = (data as ISubmitResponse).submission_id;
     if (submissionId === undefined || submissionId === null) {
         throw new Error("LeetCode did not return a submission id.");
     }
-    return pollResult(request, String(submissionId), target.slug);
+    return pollResult(request, String(submissionId), target.slug, options);
 }
 
 export async function testSolution(
@@ -203,6 +220,7 @@ export async function testSolution(
     language: string,
     code: string,
     testInput: string,
+    options: ISubmissionOptions = {},
 ): Promise<ISubmissionResult> {
     const data = await postJson(request, target.slug, `/problems/${target.slug}/interpret_solution/`, {
         lang: language,
@@ -210,10 +228,10 @@ export async function testSolution(
         test_mode: false,
         typed_code: code,
         data_input: testInput,
-    });
+    }, options);
     const interpretId: unknown = (data as ITestResponse).interpret_id;
     if (interpretId === undefined || interpretId === null) {
         throw new Error("LeetCode did not return an interpret id.");
     }
-    return pollResult(request, String(interpretId), target.slug);
+    return pollResult(request, String(interpretId), target.slug, options);
 }

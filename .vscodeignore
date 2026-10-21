@@ -2,6 +2,7 @@
 .vscode-test/**
 out/**
 out-test/**
+coverage/**
 test/**
 src/**
 dist/**/*.map

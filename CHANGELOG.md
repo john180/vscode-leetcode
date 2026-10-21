@@ -13,6 +13,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 - A privacy regression test and a RepoRules guard that reject reintroducing telemetry.
+- Unit tests for global problem pagination and submission/polling, plus a VS Code Extension Host smoke test skeleton.
 
 ## [0.23.2] - 2026-10-21
 ### Fixed
