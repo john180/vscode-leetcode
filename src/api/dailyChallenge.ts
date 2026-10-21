@@ -61,7 +61,6 @@ export async function fetchDailyChallenge(request: IGraphQLRequest): Promise<IPr
         timeout: 20000,
         responseType: "text",
         headers: {
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) vscode-leetcode/0.20",
             "referer": `${request.origin}/problemset/`,
         },
     });
