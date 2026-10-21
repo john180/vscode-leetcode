@@ -137,3 +137,82 @@ test("submitSolution rejects a response without a submission id", async () => {
         axios.defaults.adapter = originalAdapter;
     }
 });
+
+test("submitSolution rejects without a cookie before making a request", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let called: boolean = false;
+    axios.defaults.adapter = async (config: any) => {
+        called = true;
+        return response({ submission_id: 1 }, config);
+    };
+    try {
+        await assert.rejects(
+            submitSolution({ ...request, cookie: "" }, target, "cpp", "code"),
+            /Not signed in/,
+        );
+        assert.equal(called, false);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("submitSolution rejects a cookie without csrftoken", async () => {
+    await assert.rejects(
+        submitSolution({ ...request, cookie: "LEETCODE_SESSION=only-session" }, target, "cpp", "code"),
+        /does not contain csrftoken/,
+    );
+});
+
+test("submitSolution propagates an unauthorized post without retrying", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let posts: number = 0;
+    axios.defaults.adapter = async () => {
+        posts += 1;
+        const error: any = new Error("unauthorized");
+        error.response = { status: 401, data: { error: "unauthorized" } };
+        throw error;
+    };
+    try {
+        await assert.rejects(submitSolution(request, target, "cpp", "code"), /unauthorized/);
+        assert.equal(posts, 1);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("submitSolution times out when the judge never reaches a terminal state", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async (config: any) => config.method === "post"
+        ? response({ submission_id: 8 }, config)
+        : response({ state: "STARTED" }, config);
+    try {
+        await assert.rejects(
+            submitSolution(request, target, "cpp", "code", { pollIntervalMs: 0, pollTimeoutMs: 0 }),
+            /Timed out/,
+        );
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("submitSolution joins array output fields", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async (config: any) => config.method === "post"
+        ? response({ submission_id: 10 }, config)
+        : response({
+            state: "WRONG_ANSWER",
+            status_msg: "Wrong Answer",
+            code_output: ["1", "2"],
+            expected_output: ["1", "3"],
+        }, config);
+    try {
+        const result = await submitSolution(request, target, "cpp", "code", {
+            pollIntervalMs: 0,
+            pollTimeoutMs: 1000,
+        });
+        assert.equal(result.codeOutput, "1\n2");
+        assert.equal(result.expectedOutput, "1\n3");
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});

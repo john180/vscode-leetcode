@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { mapFavoriteLists, mapHot100List } from "../../src/api/favoriteLists";
+import axios from "axios";
+import { fetchFavoriteData, mapFavoriteLists, mapHot100List } from "../../src/api/favoriteLists";
 
 test("mapFavoriteLists keeps private and public lists", () => {
     const lists = mapFavoriteLists({
@@ -71,4 +72,75 @@ test("mapHot100List recognizes the global Top 100 Liked list", () => {
     });
     assert.equal(list?.idHash, "global-hot");
     assert.equal(list?.questions.length, 1);
+});
+
+test("fetchFavoriteData returns empty data without a cookie", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async () => {
+        throw new Error("network should not be called");
+    };
+    try {
+        const data = await fetchFavoriteData({ endpoint: "https://leetcode.com/graphql", origin: "https://leetcode.com", cookie: "" });
+        assert.deepEqual(data, { lists: [] });
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("fetchFavoriteData maps an empty payload", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async (config: any) => ({
+        data: { favorites: {} },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+    });
+    try {
+        const data = await fetchFavoriteData({
+            endpoint: "https://empty.example/graphql",
+            origin: "https://empty.example",
+            cookie: "LEETCODE_SESSION=empty; csrftoken=empty",
+        }, true);
+        assert.deepEqual(data.lists, []);
+        assert.equal(data.hot100, undefined);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("fetchFavoriteData caches per origin and cookie and respects forceRefresh", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let calls: number = 0;
+    axios.defaults.adapter = async (config: any) => {
+        calls += 1;
+        return {
+            data: {
+                favorites: {
+                    private_favorites: [{ id_hash: "cached", name: "Cached", questions: [] }],
+                },
+            },
+            status: 200,
+            statusText: "OK",
+            headers: {},
+            config,
+        };
+    };
+    try {
+        const request = {
+            endpoint: "https://cache.example/graphql",
+            origin: "https://cache.example",
+            cookie: "LEETCODE_SESSION=cache; csrftoken=cache",
+        };
+        const first = await fetchFavoriteData(request, true);
+        const second = await fetchFavoriteData(request);
+        assert.equal(calls, 1);
+        assert.equal(first.lists.length, 1);
+        assert.equal(second.lists[0].name, "Cached");
+
+        await fetchFavoriteData(request, true);
+        assert.equal(calls, 2);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
 });
