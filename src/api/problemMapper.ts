@@ -73,7 +73,7 @@ function formatPassRate(acRate: number | undefined): string {
 
 export function mapQuestion(question: IQuestionNode, useTranslation: boolean): IProblem {
     const companies: string[] = (question.extra?.topCompanyTags || [])
-        .map((tag: ICompanyTag) => tag.slug || tag.name || "")
+        .map((tag: ICompanyTag) => useTranslation ? (tag.name || tag.slug || "") : (tag.slug || tag.name || ""))
         .filter((value: string) => Boolean(value));
     const tags: string[] = (question.topicTags || [])
         .map((tag: ITopicTag) => useTranslation ? (tag.nameTranslated || tag.name) : tag.name)

@@ -87,7 +87,7 @@ class ExplorerNodeManager implements Disposable {
         for (const company of this.companySet.values()) {
             res.push(new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: `${Category.Company}.${company}`,
-                name: _.startCase(company),
+                name: /^[a-z0-9-]+$/i.test(company) ? _.startCase(company) : company,
             }), false));
         }
         this.sortSubCategoryNodes(res, Category.Company);
