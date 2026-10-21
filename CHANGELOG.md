@@ -6,6 +6,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 ### Added
 - Add a Daily Challenge tree entry from the CN homepage SSR data.
+- Add a problem to a chosen favorite list.
+- Remember the last custom test input per problem and offer it as a saved test case.
 - Show a line diff between expected and actual output in submission results.
 - Add a Hot 100 tree entry backed by the official HOT 100 list.
 - Group the Favorite category by favorite list and show each list's questions.

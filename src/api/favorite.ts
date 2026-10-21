@@ -53,8 +53,9 @@ export async function setFavorite(
     request: IGraphQLRequest,
     target: IFavoriteTarget,
     favorite: boolean,
+    favoriteIdHash?: string,
 ): Promise<void> {
-    const favoriteIdHash: string = await getFavoriteHash(request);
+    const targetHash: string = favoriteIdHash || await getFavoriteHash(request);
     const operation: string = favorite ? "addQuestionToFavorite" : "removeQuestionFromFavorite";
     const mutation: string = `
 mutation ${operation}($favoriteIdHash: String!, $questionId: String!) {
@@ -65,7 +66,7 @@ mutation ${operation}($favoriteIdHash: String!, $questionId: String!) {
 }`;
 
     const data = await graphql<{ [key: string]: IFavoriteMutationResult }>(request, mutation, {
-        favoriteIdHash,
+        favoriteIdHash: targetHash,
         questionId: target.questionId,
     });
     const result: IFavoriteMutationResult | undefined = data[operation];

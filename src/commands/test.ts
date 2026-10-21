@@ -7,6 +7,7 @@ import { fetchQuestionDetail } from "../api/question";
 import { getLeetCodeRequest } from "../api/request";
 import { testSolution as testWithLeetCode } from "../api/submission";
 import { leetCodeManager } from "../leetCodeManager";
+import { globalState } from "../globalState";
 import { IProblem, IQuickItemEx, UserStatus } from "../shared";
 import { getLanguageFromText, getNodeIdFromText } from "../utils/problemUtils";
 import { DialogType, promptForOpenOutputChannel, showFileSelectDialog } from "../utils/uiUtils";
@@ -40,7 +41,7 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
         }
 
         const detail = await fetchQuestionDetail(getLeetCodeRequest(), problem.slug);
-        const testInput: string | undefined = await pickTestInput(document, detail.sampleTestCase);
+        const testInput: string | undefined = await pickTestInput(document, detail.sampleTestCase, problem.slug);
         if (testInput === undefined) {
             return;
         }
@@ -48,6 +49,7 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
             vscode.window.showErrorMessage(vscode.l10n.t("The test input must not be empty."));
             return;
         }
+        await globalState.saveTestCase(problem.slug, testInput);
 
         const result = await testWithLeetCode(
             getLeetCodeRequest(),
@@ -65,7 +67,9 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
 async function pickTestInput(
     document: vscode.TextDocument,
     sampleTestCase: string | undefined,
+    slug: string,
 ): Promise<string | undefined> {
+    const savedInput: string | undefined = globalState.getTestCase(slug);
     const picks: Array<IQuickItemEx<string>> = [
         {
             label: `$(three-bars) ${vscode.l10n.t("Default test cases")}`,
@@ -73,6 +77,12 @@ async function pickTestInput(
             detail: vscode.l10n.t("Test with the problem's sample case"),
             value: ":default",
         },
+        ...(savedInput ? [{
+            label: `$(history) ${vscode.l10n.t("Saved test case")}`,
+            description: "",
+            detail: savedInput.replace(/\n/g, " ").slice(0, 80),
+            value: ":saved",
+        }] : []),
         {
             label: `$(pencil) ${vscode.l10n.t("Write directly...")}`,
             description: "",
@@ -94,6 +104,10 @@ async function pickTestInput(
 
     if (choice.value === ":default") {
         return sampleTestCase || "";
+    }
+
+    if (choice.value === ":saved") {
+        return savedInput;
     }
 
     if (choice.value === ":direct") {

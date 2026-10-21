@@ -44,7 +44,8 @@
         "onCommand:leetcode.problems.sort",
         "onView:leetCodeExplorer",
         "onUri",
-        "onCommand:leetcode.showSubmissions"
+        "onCommand:leetcode.showSubmissions",
+        "onCommand:leetcode.addToFavoriteList"
     ],
     "main": "./dist/extension.js",
     "l10n": "./l10n",
@@ -152,6 +153,11 @@
                 "command": "leetcode.showSubmissions",
                 "title": "%command.showSubmissions%",
                 "category": "LeetCode"
+            },
+            {
+                "command": "leetcode.addToFavoriteList",
+                "title": "%command.addToFavoriteList%",
+                "category": "LeetCode"
             }
         ],
         "viewsContainers": {
@@ -246,6 +252,11 @@
                     "command": "leetcode.showSubmissions",
                     "when": "view == leetCodeExplorer && viewItem =~ /problem*/",
                     "group": "leetcode@4"
+                },
+                {
+                    "command": "leetcode.addToFavoriteList",
+                    "when": "view == leetCodeExplorer && viewItem =~ /problem*/",
+                    "group": "leetcode@5"
                 }
             ],
             "commandPalette": [

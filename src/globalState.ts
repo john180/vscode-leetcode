@@ -7,6 +7,7 @@ const CookieKey = "leetcode-cookie";
 const UserStatusKey = "leetcode-user-status";
 const ProfilesKey = "leetcode-profiles";
 const ActiveProfileKey = "leetcode-active-profile";
+const TestCaseKey = "leetcode-test-case";
 
 export interface IProfileInfo {
     name: string;
@@ -141,6 +142,14 @@ class GlobalState {
 
     public getUserStatus(): UserDataType | undefined {
         return this._userStatus ?? this._state?.get<UserDataType>(UserStatusKey);
+    }
+
+    public async saveTestCase(slug: string, input: string): Promise<void> {
+        await this._state?.update(`${TestCaseKey}:${slug}`, input);
+    }
+
+    public getTestCase(slug: string): string | undefined {
+        return this._state?.get<string>(`${TestCaseKey}:${slug}`);
     }
 
     public async removeCookie(): Promise<void> {

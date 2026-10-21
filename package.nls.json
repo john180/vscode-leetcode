@@ -38,5 +38,6 @@
     "config.allowReportData": "Opt in to anonymous usage data. Requires VS Code telemetry to be enabled.",
     "config.showDescription.enumDescriptions.0": "Show the problem description in a new webview window",
     "config.showDescription.enumDescriptions.1": "Show the problem description in the file's comment",
-    "command.showSubmissions": "Show Submission History"
+    "command.showSubmissions": "Show Submission History",
+    "command.addToFavoriteList": "Add to Favorite List"
 }
