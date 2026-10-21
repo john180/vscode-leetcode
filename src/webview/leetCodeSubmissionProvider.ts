@@ -3,6 +3,7 @@
 
 import { l10n, ViewColumn } from "vscode";
 import type { ISubmissionResult } from "../api/submission";
+import { diffLines, IDiffLine } from "../utils/diffUtils";
 import { openKeybindingsEditor, promptHintMessage } from "../utils/uiUtils";
 import { ILeetCodeWebviewOption, LeetCodeWebview } from "./LeetCodeWebview";
 import { markdownEngine } from "./markdownEngine";
@@ -60,6 +61,12 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
         }
         if (this.result.expectedOutput) {
             lines.push("", `### ${l10n.t("Expected")}`, "```text", this.result.expectedOutput, "```");
+        }
+        if (this.result.expectedOutput && this.result.codeOutput && this.result.expectedOutput !== this.result.codeOutput) {
+            const diff: string[] = diffLines(this.result.expectedOutput, this.result.codeOutput)
+                .slice(0, 200)
+                .map((line: IDiffLine) => `${line.type === "add" ? "+" : line.type === "remove" ? "-" : " "}${line.text}`);
+            lines.push("", `### ${l10n.t("Diff")}`, "```diff", ...diff, "```");
         }
 
         const body: string = markdownEngine.render(lines.join("\n"));

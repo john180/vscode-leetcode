@@ -135,5 +135,6 @@
     "No submissions found for this problem.": "该题目暂无提交记录。",
     "Select a submission to open on LeetCode": "选择一条提交记录在 LeetCode 中打开",
     "Failed to load submissions. Please open the output channel for details.": "加载提交记录失败，请打开输出面板查看详情。",
-    "Daily Challenge": "每日一题"
+    "Daily Challenge": "每日一题",
+    "Diff": "差异"
 }

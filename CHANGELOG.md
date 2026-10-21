@@ -6,6 +6,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 ### Added
 - Add a Daily Challenge tree entry from the CN homepage SSR data.
+- Show a line diff between expected and actual output in submission results.
 - Group the Favorite category by favorite list and show each list's questions.
 - Show a problem's submission history from the tree context menu or command palette, with status, language, date, runtime, and memory; selecting an entry opens the submission on LeetCode.
 
