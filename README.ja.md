@@ -2,7 +2,7 @@
 
 **日本語** · [简体中文](README.md) · [English](README.en.md) · [한국어](README.ko.md)
 
-> VS Code で LeetCode の問題閲覧、解答、テスト、提出を行えます。中国本土では LeetCode China、その他の地域では LeetCode を自動選択します。
+> VS Code で LeetCode の問題閲覧、解答、テスト、提出を行えます。この README はグローバル版 LeetCode（leetcode.com）を前提としています。
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/yanxijian.vscode-leetcode-community?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 
@@ -18,14 +18,14 @@
 - オフライン: [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases) から `.vsix` をダウンロードし、次を実行します:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.23.1.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.23.2.vsix --force
   ```
 
 > [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) のコミュニティ版です。LeetCode 公式リリースではありません。拡張機能 ID は `yanxijian.vscode-leetcode-community` で、コマンド・ビュー・設定 ID は公式版と共通です。インストール前に公式の `LeetCode.vscode-leetcode` を無効化してください。
 
 ## 機能
 
-- LeetCode China / LeetCode の問題を閲覧できます。中国語タイトル、AC 状態、有料ロック、タグ、企業を含みます。
+- LeetCode の問題を閲覧できます。AC 状態、有料ロック、タグ、企業を含みます。
 - `@lc` ヘッダー、コードテンプレート、任意の説明コメント付きファイルを生成します。
 - 問題説明と高評価の解答を Web ビューで表示します。
 - 同梱 CLI や Node.js のインストールなしで、サンプル/カスタムテストの実行と提出ができます。
@@ -41,9 +41,9 @@
 
 1. アクティビティバーの LeetCode ビューを開きます。
 2. **LeetCode: Sign In** を実行します。
-3. **LeetCode Cookie** を選び、`https://leetcode.cn` または `https://leetcode.com` からコピーした `Cookie` リクエストヘッダーを貼り付けます。**Web Authorization** も利用できます。
+3. **LeetCode Cookie** を選び、`https://leetcode.com` からコピーした `Cookie` リクエストヘッダーを貼り付けます。**Web Authorization** も利用できます。
 
-Cookie は VS Code の `SecretStorage` に保存され、平文設定には書き込まれません。既定のエンドポイントは `auto` で、中国本土では LeetCode China、その他の地域では LeetCode を使用します。変更するには `LeetCode: Switch Endpoint` を実行してください。
+Cookie は VS Code の `SecretStorage` に保存され、平文設定には書き込まれません。既定のエンドポイントは `auto` です。この README はグローバル版を前提とし、サイトの切り替えは `LeetCode: Switch Endpoint` で行えます。
 
 `auto` はシステムのタイムゾーンでサイトを選びます。`LeetCode: Switch Endpoint` または `leetcode.endpoint` で上書きできます。グローバル版の Cookie は `leetcode.com` のものである必要があります。グローバル版の Hot 100 は公式の `Top 100 Liked Questions` を使用します。
 
@@ -60,7 +60,7 @@ Cookie は VS Code の `SecretStorage` に保存され、平文設定には書�
 | コマンド | 説明 |
 | --- | --- |
 | `LeetCode: Sign In` / `Sign Out` | サインイン / サインアウト |
-| `LeetCode: Switch Endpoint` | LeetCode China / LeetCode を切り替え |
+| `LeetCode: Switch Endpoint` | LeetCode / LeetCode China を切り替え |
 | `LeetCode: Search Problem` | 問題を検索 |
 | `LeetCode: Show Problem` | 問題を開いてファイルを生成 |
 | `LeetCode: Preview Problem` | 問題説明を Web ビューでプレビュー |
@@ -92,7 +92,7 @@ Cookie は VS Code の `SecretStorage` に保存され、平文設定には書�
 
 **「The cookie is not signed in」**
 
-- `leetcode.endpoint` が Cookie の取得元（`leetcode.cn` または `leetcode.com`）と一致しているか確認します。
+- `leetcode.endpoint` が Cookie の取得元（`https://leetcode.com`）と一致しているか確認します。
 - Cookie がサインイン済みのサイトから取得されているか確認します。
 - `LEETCODE_SESSION` と `csrftoken` の両方を含むよう、Network のリクエストヘッダーからコピーします。
 - Output → LeetCode を開きます。Cookie を表示せずにエンドポイントと `signedIn` の結果が記録されます。

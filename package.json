@@ -2,7 +2,7 @@
     "name": "vscode-leetcode-community",
     "displayName": "LeetCode Community",
     "description": "Solve LeetCode problems in VS Code",
-    "version": "0.23.1",
+    "version": "0.23.2",
     "author": "yanxijian",
     "publisher": "yanxijian",
     "license": "MIT",

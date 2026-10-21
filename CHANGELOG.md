@@ -3,6 +3,11 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.23.2] - 2026-10-21
+### Fixed
+- Align English, Japanese, and Korean READMEs with the global LeetCode site: use leetcode.com examples instead of leetcode.cn.
+- Add a RepoRules check that rejects leetcode.cn/力扣 references in non-Chinese READMEs.
+
 ## [0.23.1] - 2026-10-21
 ### Added
 - Japanese and Korean localization for the extension manifest, runtime messages, and README.

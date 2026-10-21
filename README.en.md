@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
 
-> Solve LeetCode problems in VS Code: problems, solutions, tests, and submissions, with automatic endpoint selection (LeetCode China in mainland China, LeetCode elsewhere).
+> Solve LeetCode problems in VS Code: problems, solutions, tests, and submissions. This README targets the global LeetCode site (leetcode.com); endpoint selection can also switch to LeetCode China.
 
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/yanxijian.vscode-leetcode-community?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
@@ -19,14 +19,14 @@
 - Offline: download the `.vsix` from [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases), then:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.23.1.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.23.2.vsix --force
   ```
 
 > Community fork of [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode). It is not an official LeetCode release. The extension ID is `yanxijian.vscode-leetcode-community`; command, view, and setting IDs are shared with the official extension, so disable the official `LeetCode.vscode-leetcode` before installing this one.
 
 ## Features
 
-- Browse all leetcode.cn problems, including `LCP` and interview-style IDs, with Chinese titles, AC state, paid locks, tags, and companies.
+- Browse all LeetCode problems, including contest and interview-style IDs, with AC state, paid locks, tags, and companies.
 - Generate a file with the `@lc` header, code template, and optional description comment.
 - Show the problem description and top solution in a webview.
 - Run sample/custom tests and submit without the bundled CLI or a Node.js installation.
@@ -42,16 +42,16 @@
 
 1. Open the LeetCode view in the activity bar.
 2. Run **LeetCode: Sign In**.
-3. Choose **LeetCode Cookie** and paste the `Cookie` request header copied from `https://leetcode.cn`; **Web Authorization** is also available.
+3. Choose **LeetCode Cookie** and paste the `Cookie` request header copied from `https://leetcode.com`; **Web Authorization** is also available.
 
-The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The default endpoint is `auto`: mainland China uses LeetCode China, other regions use LeetCode. Use `LeetCode: Switch Endpoint` to override.
+The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The default endpoint is `auto`; this README uses leetcode.com examples. Use `LeetCode: Switch Endpoint` to override.
 
 `auto` selects the site from the system time zone; use `LeetCode: Switch Endpoint` or set `leetcode.endpoint` to override. The global cookie must come from `leetcode.com`. The global Hot 100 entry uses the official `Top 100 Liked Questions` list.
 
 ## Quick Start
 
 1. Install and enable the extension, and disable the official one.
-2. Sign in to leetcode.cn.
+2. Sign in to LeetCode.
 3. Pick a problem in the LeetCode view, or run **Search Problem** / **Pick One**.
 4. Edit the generated file and use the CodeLens **Test** or **Submit** action.
 5. Click **Solution** when you need the top solution.
@@ -61,7 +61,7 @@ The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The
 | Command | Description |
 | --- | --- |
 | `LeetCode: Sign In` / `Sign Out` | Sign in or out |
-| `LeetCode: Switch Endpoint` | Switch between leetcode.cn and leetcode.com |
+| `LeetCode: Switch Endpoint` | Switch between LeetCode and LeetCode China |
 | `LeetCode: Search Problem` | Search problems |
 | `LeetCode: Show Problem` | Open a problem and generate the file |
 | `LeetCode: Preview Problem` | Preview the description in a webview |
@@ -93,8 +93,8 @@ The cookie is stored in VS Code `SecretStorage`, not in plain text settings. The
 
 **"The cookie is not signed in"**
 
-- Confirm `leetcode.endpoint` matches the cookie source (`leetcode.cn` or `leetcode.com`).
-- Confirm the cookie comes from a signed-in `https://leetcode.cn`, not `leetcode.com`.
+- Confirm `leetcode.endpoint` matches the cookie source; this README assumes `https://leetcode.com`.
+- Confirm the cookie comes from a signed-in `https://leetcode.com`.
 - Copy it from a Network request header so it includes both `LEETCODE_SESSION` and `csrftoken`.
 - Open Output → LeetCode; the log shows the endpoint and `signedIn` result without printing the cookie.
 
