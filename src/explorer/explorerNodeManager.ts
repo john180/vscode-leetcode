@@ -7,6 +7,7 @@ import * as list from "../commands/list";
 import { getSortingStrategy } from "../commands/plugin";
 import { getLeetCodeRequest } from "../api/request";
 import { fetchDailyChallenge } from "../api/dailyChallenge";
+import { fetchFavoriteLists, IFavoriteList } from "../api/favoriteLists";
 import { Category, defaultProblem, IProblem, ProblemState, SortingStrategy } from "../shared";
 import { shouldHideSolvedProblem } from "../utils/settingUtils";
 import { LeetCodeNode } from "./LeetCodeNode";
@@ -16,11 +17,14 @@ class ExplorerNodeManager implements Disposable {
     private companySet: Set<string> = new Set<string>();
     private tagSet: Set<string> = new Set<string>();
     private dailyProblem: IProblem | undefined;
+    private favoriteLists: IFavoriteList[] = [];
 
     public async refreshCache(forceRefresh: boolean = false): Promise<void> {
         this.dispose();
         const dailyPromise: Promise<IProblem | undefined> = fetchDailyChallenge(getLeetCodeRequest())
             .catch((): IProblem | undefined => undefined);
+        const favoritesPromise: Promise<IFavoriteList[]> = fetchFavoriteLists(getLeetCodeRequest())
+            .catch((): IFavoriteList[] => []);
         const shouldHideSolved: boolean = shouldHideSolvedProblem();
         for (const problem of await list.listProblems(forceRefresh)) {
             if (shouldHideSolved && problem.state === ProblemState.AC) {
@@ -35,6 +39,7 @@ class ExplorerNodeManager implements Disposable {
             }
         }
         this.dailyProblem = await dailyPromise;
+        this.favoriteLists = await favoritesPromise;
     }
 
     public getRootNodes(): LeetCodeNode[] {
@@ -134,9 +139,37 @@ class ExplorerNodeManager implements Disposable {
         return this.applySortingStrategy(res);
     }
 
+    public getFavoriteListNodes(): LeetCodeNode[] {
+        if (this.favoriteLists.length === 0) {
+            return this.getFavoriteNodes();
+        }
+        return this.favoriteLists.map((list: IFavoriteList) => new LeetCodeNode(Object.assign({}, defaultProblem, {
+            id: `${Category.Favorite}.${list.idHash}`,
+            name: list.name === "Favorite" ? l10n.t("Favorite") : list.name,
+        }), false));
+    }
+
+    public getFavoriteQuestionNodes(listId: string): LeetCodeNode[] {
+        const list: IFavoriteList | undefined = this.favoriteLists.find(
+            (item: IFavoriteList) => item.idHash === listId,
+        );
+        if (!list) {
+            return [];
+        }
+        return list.questions.map((question) => new LeetCodeNode(Object.assign({}, defaultProblem, {
+            id: question.id || question.titleSlug,
+            name: question.title || question.titleSlug,
+            slug: question.titleSlug,
+            state: ProblemState.Unknown,
+        }), true));
+    }
+
     public getChildrenNodesById(id: string): LeetCodeNode[] {
         if (id === Category.Daily) {
             return this.dailyProblem ? [new LeetCodeNode(this.dailyProblem)] : [];
+        }
+        if (id.startsWith(`${Category.Favorite}.`)) {
+            return this.getFavoriteQuestionNodes(id.slice(`${Category.Favorite}.`.length));
         }
         // The sub-category node's id is named as {Category.SubName}
         const metaInfo: string[] = id.split(".");
@@ -170,6 +203,7 @@ class ExplorerNodeManager implements Disposable {
         this.companySet.clear();
         this.tagSet.clear();
         this.dailyProblem = undefined;
+        this.favoriteLists = [];
     }
 
     private sortSubCategoryNodes(subCategoryNodes: LeetCodeNode[], category: Category): void {
