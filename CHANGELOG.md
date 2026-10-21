@@ -3,7 +3,7 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.21.0] - 2026-10-21
 ### Added
 - Add a Daily Challenge tree entry from the CN homepage SSR data.
 - Add a problem to a chosen favorite list.
