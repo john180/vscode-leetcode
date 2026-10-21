@@ -39,8 +39,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             const status: UserStatus = leetCodeManager.getStatus();
             const signedIn: boolean = status === UserStatus.SignedIn;
             const signingIn: boolean = status === UserStatus.SigningIn;
+            const showSignIn: boolean = status === UserStatus.SignedOut;
             vscode.commands.executeCommand("setContext", "leetcode.signedIn", signedIn);
             vscode.commands.executeCommand("setContext", "leetcode.signingIn", signingIn);
+            vscode.commands.executeCommand("setContext", "leetcode.showSignIn", showSignIn);
             leetCodeStatusBarController.updateStatusBar(status, leetCodeManager.getUser());
             if (signingIn) {
                 leetCodeTreeDataProvider.setMessage(vscode.l10n.t("Signing in..."));
@@ -54,6 +56,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         const hasStoredCookie: boolean = Boolean(globalState.getCookie());
         await vscode.commands.executeCommand("setContext", "leetcode.signedIn", false);
         await vscode.commands.executeCommand("setContext", "leetcode.signingIn", hasStoredCookie);
+        await vscode.commands.executeCommand("setContext", "leetcode.showSignIn", false);
 
         const treeView = vscode.window.createTreeView("leetCodeExplorer", {
             treeDataProvider: leetCodeTreeDataProvider,

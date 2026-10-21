@@ -181,7 +181,7 @@
             {
                 "view": "leetCodeExplorer",
                 "contents": "%viewsWelcome.signIn%",
-                "when": "!leetcode.signedIn && !leetcode.signingIn"
+                "when": "leetcode.showSignIn"
             }
         ],
         "menus": {
@@ -193,7 +193,7 @@
                 },
                 {
                     "command": "leetcode.signin",
-                    "when": "view == leetCodeExplorer",
+                    "when": "view == leetCodeExplorer && leetcode.showSignIn",
                     "group": "navigation@1"
                 },
                 {
@@ -208,7 +208,7 @@
                 },
                 {
                     "command": "leetcode.signout",
-                    "when": "view == leetCodeExplorer",
+                    "when": "view == leetCodeExplorer && leetcode.signedIn",
                     "group": "overflow@1"
                 },
                 {
