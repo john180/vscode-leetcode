@@ -1,10 +1,9 @@
 # LeetCode Community
 
-**简体中文** · [English](README.en.md)
+**简体中文** · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
 
-> 在 VS Code 中刷力扣：题库、题解、测试与提交，默认使用 leetcode.cn。
+> 在 VS Code 中刷力扣：题库、题解、测试与提交，自动选择 LeetCode China / LeetCode。
 
-> 本仓按项目要求只维护简体中文与英文两版，属于对工作区四语言约定的明确例外。
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/yanxijian.vscode-leetcode-community?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 
@@ -20,7 +19,7 @@
 - 离线安装：从 [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases) 下载 `.vsix`，然后：
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.23.0.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.23.1.vsix --force
   ```
 
 > 本项目是 [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) 的社区分支，不是 LeetCode 官方发布。扩展 ID 为 `yanxijian.vscode-leetcode-community`；命令、视图与设置 ID 与官方版相同，安装前请先禁用官方 `LeetCode.vscode-leetcode`。

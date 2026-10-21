@@ -1,10 +1,9 @@
 # LeetCode Community
 
-**English** · [简体中文](README.md)
+**English** · [简体中文](README.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
 
 > Solve LeetCode problems in VS Code: problems, solutions, tests, and submissions, with automatic endpoint selection (LeetCode China in mainland China, LeetCode elsewhere).
 
-> This repository intentionally maintains only Simplified Chinese and English, as an explicit exception to the workspace four-language convention.
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/yanxijian.vscode-leetcode-community?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 
@@ -20,7 +19,7 @@
 - Offline: download the `.vsix` from [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases), then:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.23.0.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.23.1.vsix --force
   ```
 
 > Community fork of [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode). It is not an official LeetCode release. The extension ID is `yanxijian.vscode-leetcode-community`; command, view, and setting IDs are shared with the official extension, so disable the official `LeetCode.vscode-leetcode` before installing this one.

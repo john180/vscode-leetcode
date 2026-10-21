@@ -3,6 +3,11 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.23.1] - 2026-10-21
+### Added
+- Japanese and Korean localization for the extension manifest, runtime messages, and README.
+- README language switcher now covers English, Simplified Chinese, Japanese, and Korean.
+
 ## [0.23.0] - 2026-10-21
 ### Added
 - LeetCode Global support: default endpoint `leetcode`, `problemsetQuestionListV2` problem loading, GraphQL daily challenge, `Top 100 Liked Questions`, and global favorites/submissions.

@@ -34,8 +34,18 @@ function l10nKeys(): string[] {
     return keys;
 }
 
-test("every l10n key used in src has a Chinese translation", () => {
-    const bundle = JSON.parse(readFileSync(join(process.cwd(), "l10n", "bundle.l10n.zh-cn.json"), "utf8"));
-    const missing: string[] = [...new Set(l10nKeys())].filter((key: string) => !(key in bundle));
-    assert.deepEqual(missing, []);
+test("every l10n key used in src has a translation for each locale", () => {
+    for (const locale of ["zh-cn", "ja", "ko"]) {
+        const bundle = JSON.parse(readFileSync(join(process.cwd(), "l10n", `bundle.l10n.${locale}.json`), "utf8"));
+        const missing: string[] = [...new Set(l10nKeys())].filter((key: string) => !(key in bundle));
+        assert.deepEqual(missing, [], `${locale} is missing ${missing.join(", ")}`);
+    }
+});
+
+test("manifest translations cover every package.nls key", () => {
+    const base = JSON.parse(readFileSync(join(process.cwd(), "package.nls.json"), "utf8"));
+    for (const locale of ["zh-cn", "ja", "ko"]) {
+        const translated = JSON.parse(readFileSync(join(process.cwd(), `package.nls.${locale}.json`), "utf8"));
+        assert.deepEqual(Object.keys(base).sort(), Object.keys(translated).sort(), `${locale} manifest keys differ`);
+    }
 });
