@@ -19,6 +19,9 @@ interface IHomeSsrData {
     };
 }
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+let dailyCache: { origin: string; at: number; value: IProblem | undefined } | undefined;
+
 /**
  * LeetCode CN does not expose the daily challenge through GraphQL. The homepage
  * embeds it in __NEXT_DATA__; keep the parser isolated so a markup change only
@@ -56,7 +59,10 @@ export function parseDailyChallenge(html: string): IProblem | undefined {
     };
 }
 
-export async function fetchDailyChallenge(request: IGraphQLRequest): Promise<IProblem | undefined> {
+export async function fetchDailyChallenge(request: IGraphQLRequest, forceRefresh: boolean = false): Promise<IProblem | undefined> {
+    if (!forceRefresh && dailyCache && dailyCache.origin === request.origin && Date.now() - dailyCache.at < CACHE_TTL_MS) {
+        return dailyCache.value;
+    }
     const response = await axios.get<string>(`${request.origin}/`, {
         timeout: 20000,
         responseType: "text",
@@ -64,5 +70,7 @@ export async function fetchDailyChallenge(request: IGraphQLRequest): Promise<IPr
             "referer": `${request.origin}/problemset/`,
         },
     });
-    return parseDailyChallenge(response.data);
+    const value: IProblem | undefined = parseDailyChallenge(response.data);
+    dailyCache = { origin: request.origin, at: Date.now(), value };
+    return value;
 }

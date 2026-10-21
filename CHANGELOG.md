@@ -10,6 +10,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Remember the last custom test input per problem and offer it as a saved test case.
 - Show a line diff between expected and actual output in submission results.
 - Add a Hot 100 tree entry backed by the official HOT 100 list.
+- Paginate submission history and filter it by status.
+- Cache favorite lists, Hot 100, and the daily challenge for five minutes.
 - Group the Favorite category by favorite list and show each list's questions.
 - Show a problem's submission history from the tree context menu or command palette, with status, language, date, runtime, and memory; selecting an entry opens the submission on LeetCode.
 

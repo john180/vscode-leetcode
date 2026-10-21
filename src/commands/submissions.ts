@@ -7,6 +7,7 @@ import {
     formatSubmissionDate,
     formatSubmissionLabel,
     ISubmissionHistoryItem,
+    ISubmissionHistoryPage,
 } from "../api/submissionHistory";
 import { getLeetCodeRequest } from "../api/request";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
@@ -17,6 +18,8 @@ import { getNodeIdFromFile } from "../utils/problemUtils";
 import { DialogType, openUrl, promptForOpenOutputChannel, promptForSignIn } from "../utils/uiUtils";
 import { getActiveFilePath } from "../utils/workspaceUtils";
 import * as list from "./list";
+
+type SubmissionPick = ISubmissionHistoryItem | "load-more" | "filter";
 
 async function resolveNode(node?: LeetCodeNode): Promise<LeetCodeNode | undefined> {
     if (node) {
@@ -62,27 +65,80 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
     }
 
     try {
-        const history: ISubmissionHistoryItem[] = await fetchSubmissionHistory(getLeetCodeRequest(), target.slug);
-        if (history.length === 0) {
-            window.showInformationMessage(l10n.t("No submissions found for this problem."));
-            return;
-        }
-
-        const picks: Array<IQuickItemEx<ISubmissionHistoryItem>> = history.map((item: ISubmissionHistoryItem) => ({
-            label: formatSubmissionLabel(item),
-            description: item.status,
-            detail: formatDetail(item),
-            value: item,
-        }));
-        const choice: IQuickItemEx<ISubmissionHistoryItem> | undefined = await window.showQuickPick(picks, {
-            matchOnDetail: true,
-            placeHolder: l10n.t("Select a submission to open on LeetCode"),
-        });
-        if (!choice) {
-            return;
-        }
         const request = getLeetCodeRequest();
-        await openUrl(`${request.origin}/submissions/detail/${choice.value.id}/`);
+        const items: ISubmissionHistoryItem[] = [];
+        let hasNext: boolean = true;
+        let loaded: boolean = false;
+        let filterStatus: string | undefined;
+
+        while (true) {
+            if (!loaded) {
+                const page: ISubmissionHistoryPage = await fetchSubmissionHistory(request, target.slug, 0, 10);
+                items.push(...page.items);
+                hasNext = page.hasNext && page.items.length > 0;
+                loaded = true;
+                if (items.length === 0) {
+                    window.showInformationMessage(l10n.t("No submissions found for this problem."));
+                    return;
+                }
+            }
+
+            const visible: ISubmissionHistoryItem[] = filterStatus
+                ? items.filter((item: ISubmissionHistoryItem) => item.status === filterStatus)
+                : items;
+            const picks: Array<IQuickItemEx<SubmissionPick>> = visible.map((item: ISubmissionHistoryItem) => ({
+                label: formatSubmissionLabel(item),
+                description: item.status,
+                detail: formatDetail(item),
+                value: item,
+            }));
+            if (hasNext) {
+                picks.push({
+                    label: `$(cloud-download) ${l10n.t("Load more...")}`,
+                    description: "",
+                    detail: "",
+                    value: "load-more",
+                });
+            }
+            picks.push({
+                label: `$(filter) ${l10n.t("Filter by status")}`,
+                description: filterStatus || l10n.t("All statuses"),
+                detail: "",
+                value: "filter",
+            });
+
+            const choice: IQuickItemEx<SubmissionPick> | undefined = await window.showQuickPick(picks, {
+                matchOnDetail: true,
+                placeHolder: l10n.t("Select a submission to open on LeetCode"),
+            });
+            if (!choice) {
+                return;
+            }
+
+            if (choice.value === "load-more") {
+                const page: ISubmissionHistoryPage = await fetchSubmissionHistory(request, target.slug, items.length, 10);
+                items.push(...page.items);
+                hasNext = page.hasNext && page.items.length > 0;
+                continue;
+            }
+
+            if (choice.value === "filter") {
+                const statuses: string[] = [...new Set(items.map((item: ISubmissionHistoryItem) => item.status))];
+                const statusChoice: string | undefined = await window.showQuickPick(
+                    [l10n.t("All statuses"), ...statuses],
+                    { placeHolder: l10n.t("Filter by status") },
+                );
+                if (statusChoice === l10n.t("All statuses")) {
+                    filterStatus = undefined;
+                } else if (statusChoice) {
+                    filterStatus = statusChoice;
+                }
+                continue;
+            }
+
+            await openUrl(`${request.origin}/submissions/detail/${choice.value.id}/`);
+            return;
+        }
     } catch (error) {
         await promptForOpenOutputChannel(
             l10n.t("Failed to load submissions. Please open the output channel for details."),

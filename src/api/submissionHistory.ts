@@ -13,6 +13,11 @@ export interface ISubmissionHistoryItem {
     memory: string;
 }
 
+export interface ISubmissionHistoryPage {
+    items: ISubmissionHistoryItem[];
+    hasNext: boolean;
+}
+
 interface ISubmissionDump {
     id?: string | number;
     status_display?: string;
@@ -25,6 +30,7 @@ interface ISubmissionDump {
 
 interface ISubmissionHistoryResponse {
     submissions_dump?: ISubmissionDump[];
+    has_next?: boolean;
 }
 
 export function mapSubmissionDump(data: unknown): ISubmissionHistoryItem[] {
@@ -61,7 +67,9 @@ export function formatSubmissionDate(timestamp: string): string {
 export async function fetchSubmissionHistory(
     request: IGraphQLRequest,
     slug: string,
-): Promise<ISubmissionHistoryItem[]> {
+    offset: number = 0,
+    limit: number = 10,
+): Promise<ISubmissionHistoryPage> {
     if (!request.cookie) {
         throw new Error("Not signed in. Please sign in to LeetCode first.");
     }
@@ -69,6 +77,7 @@ export async function fetchSubmissionHistory(
         `${request.origin}/api/submissions/${encodeURIComponent(slug)}/`,
         {
             timeout: 20000,
+            params: { offset, limit },
             headers: {
                 "cookie": request.cookie,
                 "origin": request.origin,
@@ -78,5 +87,8 @@ export async function fetchSubmissionHistory(
             },
         },
     );
-    return mapSubmissionDump(response.data);
+    return {
+        items: mapSubmissionDump(response.data),
+        hasNext: Boolean(response.data?.has_next),
+    };
 }

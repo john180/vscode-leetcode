@@ -7,7 +7,7 @@ import * as list from "../commands/list";
 import { getSortingStrategy } from "../commands/plugin";
 import { getLeetCodeRequest } from "../api/request";
 import { fetchDailyChallenge } from "../api/dailyChallenge";
-import { fetchFavoriteLists, fetchHot100List, IFavoriteList } from "../api/favoriteLists";
+import { fetchFavoriteData, IFavoriteList } from "../api/favoriteLists";
 import { Category, defaultProblem, IProblem, ProblemState, SortingStrategy } from "../shared";
 import { shouldHideSolvedProblem } from "../utils/settingUtils";
 import { LeetCodeNode } from "./LeetCodeNode";
@@ -22,12 +22,10 @@ class ExplorerNodeManager implements Disposable {
 
     public async refreshCache(forceRefresh: boolean = false): Promise<void> {
         this.dispose();
-        const dailyPromise: Promise<IProblem | undefined> = fetchDailyChallenge(getLeetCodeRequest())
+        const dailyPromise: Promise<IProblem | undefined> = fetchDailyChallenge(getLeetCodeRequest(), forceRefresh)
             .catch((): IProblem | undefined => undefined);
-        const favoritesPromise: Promise<IFavoriteList[]> = fetchFavoriteLists(getLeetCodeRequest())
-            .catch((): IFavoriteList[] => []);
-        const hot100Promise: Promise<IFavoriteList | undefined> = fetchHot100List(getLeetCodeRequest())
-            .catch((): IFavoriteList | undefined => undefined);
+        const favoritePromise = fetchFavoriteData(getLeetCodeRequest(), forceRefresh)
+            .catch(() => ({ lists: [] as IFavoriteList[], hot100: undefined }));
         const shouldHideSolved: boolean = shouldHideSolvedProblem();
         for (const problem of await list.listProblems(forceRefresh)) {
             if (shouldHideSolved && problem.state === ProblemState.AC) {
@@ -42,8 +40,9 @@ class ExplorerNodeManager implements Disposable {
             }
         }
         this.dailyProblem = await dailyPromise;
-        this.favoriteLists = await favoritesPromise;
-        this.hot100List = await hot100Promise;
+        const favoriteData = await favoritePromise;
+        this.favoriteLists = favoriteData.lists;
+        this.hot100List = favoriteData.hot100;
     }
 
     public getRootNodes(): LeetCodeNode[] {

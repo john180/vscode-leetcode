@@ -36,6 +36,15 @@ interface IFavoriteListResponse {
     };
 }
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface IFavoriteData {
+    lists: IFavoriteList[];
+    hot100?: IFavoriteList;
+}
+
+let cache: { key: string; at: number; data: IFavoriteData } | undefined;
+
 export function mapFavoriteLists(data: unknown): IFavoriteList[] {
     const favorites = (data as IFavoriteListResponse | undefined)?.favorites;
     const lists: IRawFavoriteList[] = [
@@ -82,16 +91,30 @@ async function fetchFavoritePayload(request: IGraphQLRequest): Promise<IFavorite
     return response.data;
 }
 
-export async function fetchFavoriteLists(request: IGraphQLRequest): Promise<IFavoriteList[]> {
+export async function fetchFavoriteData(
+    request: IGraphQLRequest,
+    forceRefresh: boolean = false,
+): Promise<IFavoriteData> {
     if (!request.cookie) {
-        return [];
+        return { lists: [] };
     }
-    return mapFavoriteLists(await fetchFavoritePayload(request));
+    const key: string = `${request.origin}|${request.cookie}`;
+    if (!forceRefresh && cache && cache.key === key && Date.now() - cache.at < CACHE_TTL_MS) {
+        return cache.data;
+    }
+    const payload = await fetchFavoritePayload(request);
+    const data: IFavoriteData = {
+        lists: mapFavoriteLists(payload),
+        hot100: mapHot100List(payload),
+    };
+    cache = { key, at: Date.now(), data };
+    return data;
+}
+
+export async function fetchFavoriteLists(request: IGraphQLRequest): Promise<IFavoriteList[]> {
+    return (await fetchFavoriteData(request)).lists;
 }
 
 export async function fetchHot100List(request: IGraphQLRequest): Promise<IFavoriteList | undefined> {
-    if (!request.cookie) {
-        return undefined;
-    }
-    return mapHot100List(await fetchFavoritePayload(request));
+    return (await fetchFavoriteData(request)).hot100;
 }
