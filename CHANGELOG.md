@@ -19,6 +19,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Unit tests for global problem pagination and submission/polling, plus a VS Code Extension Host smoke test skeleton.
 - Expanded edge-case tests for problem mapping, favorite-list caching and empty data, submission failures, and documentation consistency.
 - Added security and input-boundary tests for markdown rendering, cookie/login parsing, and the problem-file language matrix.
+- Added global-state migration/profile tests and axios-adapter tests for favorites, questions, solutions, and company tags.
 
 ## [0.23.2] - 2026-10-21
 ### Fixed
