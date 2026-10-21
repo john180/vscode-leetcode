@@ -38,7 +38,7 @@ CI: add the token as the repository secret `VSCE_PAT`, then run the
 ## 4. Verify
 
 ```powershell
-code --install-extension .\vscode-leetcode-community-0.19.3.vsix --force
+code --install-extension .\vscode-leetcode-community-0.19.4.vsix --force
 ```
 
 Disable the official `LeetCode.vscode-leetcode` extension first: both use the

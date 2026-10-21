@@ -3,6 +3,10 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.19.4] - 2026-10-21
+### Fixed
+- Web Authorization now redirects to the installed extension ID instead of the hardcoded official `leetcode.vscode-leetcode` ID.
+
 ## [0.19.3] - 2026-10-21
 ### Changed
 - Removed the last `url` module import; `URLSearchParams` is now the Node global.
