@@ -5,14 +5,13 @@ import { globalState } from "../globalState";
 import { getUrl, IProblem } from "../shared";
 import { shouldUseEndpointTranslation } from "../utils/settingUtils";
 import { graphql, IGraphQLRequest } from "./client";
+import { isRetryableError, MAX_RETRIES, retryDelayMs, sleep } from "./retry";
 import { fetchCompanyTagNames } from "./companyTags";
 import { IQuestionListPage, IQuestionNode, mapQuestion } from "./problemMapper";
 import { PROBLEM_LIST_QUERY } from "./queries";
 
 const PAGE_SIZE = 100;
 const PAGE_CONCURRENCY = 4;
-const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 400;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 interface IProblemListResponse {
@@ -25,12 +24,6 @@ let cachedKey: string | undefined;
 let pendingProblems: Promise<IProblem[]> | undefined;
 let pendingKey: string | undefined;
 let requestId: number = 0;
-
-function delay(ms: number): Promise<void> {
-    return new Promise<void>((resolve: () => void): void => {
-        setTimeout(resolve, ms);
-    });
-}
 
 function getRequest(): IGraphQLRequest {
     const endpoint: string = getUrl("graphql");
@@ -51,10 +44,10 @@ async function fetchPage(skip: number, attempt: number = 0): Promise<IQuestionLi
         });
         return data.problemsetQuestionList;
     } catch (error) {
-        if (attempt >= MAX_RETRIES) {
+        if (attempt >= MAX_RETRIES || !isRetryableError(error)) {
             throw error;
         }
-        await delay(RETRY_DELAY_MS * (attempt + 1));
+        await sleep(retryDelayMs(attempt, error));
         return fetchPage(skip, attempt + 1);
     }
 }

@@ -8,6 +8,7 @@ test("isSessionExpiredError recognizes 401 and 403", () => {
 });
 
 test("isSessionExpiredError ignores other failures", () => {
+    assert.equal(isSessionExpiredError({ response: { status: 429 } }), false);
     assert.equal(isSessionExpiredError({ response: { status: 500 } }), false);
     assert.equal(isSessionExpiredError(new Error("network")), false);
     assert.equal(isSessionExpiredError(undefined), false);

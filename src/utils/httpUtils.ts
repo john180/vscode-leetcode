@@ -10,6 +10,7 @@ export function LcAxios<T = any>(path: string, settings?: AxiosRequestConfig, co
         return Promise.reject(new Error("Failed to obtain the cookie. Please log in again."));
     }
     return axios(path, {
+        timeout: 20000,
         headers: {
             referer,
             "content-type": "application/json",
