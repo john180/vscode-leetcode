@@ -2,9 +2,9 @@ name: hygiene
 
 on:
   push:
-    branches: [master]
+    branches: [community]
   pull_request:
-    branches: [master]
+    branches: [community]
 
 permissions:
   contents: read
