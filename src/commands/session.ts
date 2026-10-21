@@ -45,7 +45,7 @@ export async function manageSessions(): Promise<void> {
         await leetCodeManager.switchProfile((choice.value as ISession).name);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
-        await promptForOpenOutputChannel("Failed to switch session. Please open the output channel for details.", DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to switch session. Please open the output channel for details."), DialogType.error);
     }
 }
 
@@ -65,14 +65,14 @@ function parseSessionsToPicks(includeOperations: boolean = false): Array<IQuickI
 
 function parseSessionManagementOperations(): Array<IQuickItemEx<string>> {
     return [{
-        label: "$(plus) Create a session",
+        label: `$(plus) ${vscode.l10n.t("Create a session")}`,
         description: "",
-        detail: "Click this item to create a session",
+        detail: vscode.l10n.t("Click this item to create a session"),
         value: ":createSession",
     }, {
-        label: "$(trashcan) Delete a session",
+        label: `$(trashcan) ${vscode.l10n.t("Delete a session")}`,
         description: "",
-        detail: "Click this item to DELETE a session",
+        detail: vscode.l10n.t("Click this item to DELETE a session"),
         value: ":deleteSession",
     }];
 }
@@ -101,14 +101,14 @@ async function createSession(): Promise<void> {
         await leetCodeManager.createProfile(name.trim(), cookie);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
-        await promptForOpenOutputChannel("Failed to create the session. Please open the output channel for details.", DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to create the session. Please open the output channel for details."), DialogType.error);
     }
 }
 
 async function deleteSession(): Promise<void> {
     const choice: IQuickItemEx<ISession | string> | undefined = await vscode.window.showQuickPick(
         parseSessionsToPicks(false),
-        { placeHolder: "Please select the session you want to delete" },
+        { placeHolder: vscode.l10n.t("Please select the session you want to delete") },
     );
     if (!choice) {
         return;
@@ -133,6 +133,6 @@ async function deleteSession(): Promise<void> {
         await leetCodeManager.deleteProfile(selectedSession.name);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
-        await promptForOpenOutputChannel("Failed to delete the session. Please open the output channel for details.", DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to delete the session. Please open the output channel for details."), DialogType.error);
     }
 }

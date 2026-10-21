@@ -1,7 +1,7 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { QuickPickItem, window, workspace, WorkspaceConfiguration } from "vscode";
+import { l10n, QuickPickItem, window, workspace, WorkspaceConfiguration } from "vscode";
 import { languages } from "../shared";
 
 export async function switchDefaultLanguage(): Promise<void> {
@@ -11,7 +11,7 @@ export async function switchDefaultLanguage(): Promise<void> {
     for (const language of languages) {
         languageItems.push({
             label: language,
-            description: defaultLanguage === language ? "Currently used" : undefined,
+            description: defaultLanguage === language ? l10n.t("Currently used") : undefined,
         });
     }
     // Put the default language at the top of the list
@@ -25,7 +25,7 @@ export async function switchDefaultLanguage(): Promise<void> {
     });
 
     const selectedItem: QuickPickItem | undefined = await window.showQuickPick(languageItems, {
-        placeHolder: "Please the default language",
+        placeHolder: l10n.t("Select the default language"),
         ignoreFocusOut: true,
     });
 
@@ -34,5 +34,5 @@ export async function switchDefaultLanguage(): Promise<void> {
     }
 
     leetCodeConfig.update("defaultLanguage", selectedItem.label, true /* Global */);
-    window.showInformationMessage(`Successfully set the default language to ${selectedItem.label}`);
+    window.showInformationMessage(l10n.t("Successfully set the default language to {0}.", selectedItem.label));
 }

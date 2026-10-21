@@ -9,6 +9,7 @@ import { customCodeLensProvider } from "../codelens/CustomCodeLensProvider";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeTreeDataProvider } from "../explorer/LeetCodeTreeDataProvider";
 import { hasStarShortcut } from "../utils/settingUtils";
+import { l10n } from "vscode";
 import { DialogType, promptForOpenOutputChannel } from "../utils/uiUtils";
 
 export async function addFavorite(node: LeetCodeNode): Promise<void> {
@@ -30,7 +31,7 @@ async function toggleFavorite(node: LeetCodeNode, favorite: boolean): Promise<vo
             customCodeLensProvider.refresh();
         }
     } catch (error) {
-        const action: string = favorite ? "add the problem to favorite" : "remove the problem from favorite";
-        await promptForOpenOutputChannel(`Failed to ${action}. Please open the output channel for details.`, DialogType.error);
+        const action: string = favorite ? l10n.t("add the problem to favorite") : l10n.t("remove the problem from favorite");
+        await promptForOpenOutputChannel(l10n.t("Failed to {0}. Please open the output channel for details.", action), DialogType.error);
     }
 }

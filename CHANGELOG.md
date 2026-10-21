@@ -7,10 +7,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 - Complete the cookie and Web Authorization flow: OAuth callback errors, duplicate callbacks, endpoint-aware prompts, and an explicit open-login-page action.
 - Web Authorization continues to use the installed extension ID rather than the official one.
+- Sign out and ask for a fresh login when an authenticated request returns 401/403.
 
 ### Changed
 - Upgrade axios, fs-extra, highlight.js, lodash, and markdown-it to current stable versions.
 - Register only the languages used by LeetCode, reducing the bundle from 2.82 MB to 1.36 MB and the VSIX from 653 KB to 316 KB.
+- Localize the remaining command, quick-pick, dialog, and webview strings; add a test that every used `l10n` key has a Chinese translation.
 
 ## [0.19.4] - 2026-10-21
 ### Fixed

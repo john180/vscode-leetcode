@@ -19,6 +19,7 @@ import { leetCodeChannel } from "./leetCodeChannel";
 import { leetCodeManager } from "./leetCodeManager";
 import { leetCodeStatusBarController } from "./statusbar/leetCodeStatusBarController";
 import { setExtensionId, UserStatus } from "./shared";
+import { sessionEvents } from "./auth/session";
 import { DialogType, promptForOpenOutputChannel } from "./utils/uiUtils";
 import { leetCodePreviewProvider } from "./webview/leetCodePreviewProvider";
 import { leetCodeSolutionProvider } from "./webview/leetCodeSolutionProvider";
@@ -30,6 +31,9 @@ import { globalState } from "./globalState";
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     try {
         setExtensionId(context.extension.id);
+        sessionEvents.on("expired", () => {
+            void leetCodeManager.handleSessionExpired();
+        });
         leetCodeManager.on("statusChanged", () => {
             const signedIn: boolean = leetCodeManager.getStatus() === UserStatus.SignedIn;
             vscode.commands.executeCommand("setContext", "leetcode.signedIn", signedIn);

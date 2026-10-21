@@ -30,13 +30,13 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
     const language: string | undefined = getLanguageFromText(code);
     const id: string = getNodeIdFromText(code) || path.basename(document.uri.fsPath).split(".")[0];
     if (!language) {
-        vscode.window.showErrorMessage("Failed to read the language from the @lc header.");
+        vscode.window.showErrorMessage(vscode.l10n.t("Failed to read the language from the @lc header."));
         return;
     }
 
     const problem: IProblem | undefined = (await list.listProblems()).find((item: IProblem) => item.id === id);
     if (!problem) {
-        vscode.window.showErrorMessage(`Failed to resolve the problem with id: ${id}.`);
+        vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem with id: {0}.", id));
         return;
     }
 
@@ -51,7 +51,7 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
         );
         leetCodeSubmissionProvider.show(result);
     } catch (error) {
-        await promptForOpenOutputChannel("Failed to submit the solution. Please open the output channel for details.", DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to submit the solution. Please open the output channel for details."), DialogType.error);
         return;
     }
 

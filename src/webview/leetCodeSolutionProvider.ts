@@ -1,7 +1,7 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { ViewColumn } from "vscode";
+import { l10n, ViewColumn } from "vscode";
 import { getLeetCodeEndpoint } from "../commands/plugin";
 import { Endpoint } from "../shared";
 import { leetCodePreviewProvider } from "./leetCodePreviewProvider";
@@ -23,13 +23,13 @@ class LeetCodeSolutionProvider extends LeetCodeWebview {
     protected getWebviewOption(): ILeetCodeWebviewOption {
         if (leetCodePreviewProvider.isSideMode()) {
             return {
-                title: "Solution",
+                title: l10n.t("Solution"),
                 viewColumn: ViewColumn.Two,
                 preserveFocus: true,
             };
         } else {
             return {
-                title: `Solution: ${this.title}`,
+                title: l10n.t("Solution: {0}", this.title),
                 viewColumn: ViewColumn.One,
             };
         }

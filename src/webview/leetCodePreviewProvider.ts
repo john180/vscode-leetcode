@@ -1,7 +1,7 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { commands, ViewColumn } from "vscode";
+import { commands, l10n, ViewColumn } from "vscode";
 import type { IQuestionDetail } from "../api/question";
 import { getLeetCodeEndpoint } from "../commands/plugin";
 import { Endpoint, IProblem } from "../shared";
@@ -30,12 +30,12 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
     protected getWebviewOption(): ILeetCodeWebviewOption {
         if (!this.sideMode) {
             return {
-                title: `${this.node.name}: Preview`,
+                title: l10n.t("{0}: Preview", this.node.name),
                 viewColumn: ViewColumn.One,
             };
         } else {
             return {
-                title: "Description",
+                title: l10n.t("Description"),
                 viewColumn: ViewColumn.Two,
                 preserveFocus: true,
             };
@@ -44,7 +44,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
 
     protected getWebviewContent(): string {
         const button: { element: string; script: string; style: string } = {
-            element: `<button id="solve">Code Now</button>`,
+            element: `<button id="solve">${l10n.t("Code Now")}</button>`,
             script: `const button = document.getElementById('solve');
                     button.onclick = () => vscode.postMessage({
                         command: 'ShowProblem',

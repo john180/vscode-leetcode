@@ -27,18 +27,19 @@ export async function selectWorkspaceFolder(): Promise<string> {
     }
 
     if (needAsk) {
-        const choice: string | undefined = await vscode.window.showQuickPick(
-            [
-                OpenOption.justOpenFile,
-                OpenOption.openInCurrentWindow,
-                OpenOption.openInNewWindow,
-                OpenOption.addToWorkspace,
-            ],
-            { placeHolder: "The LeetCode workspace folder is not opened in VS Code, would you like to open it?" },
+        const openOptions: Array<IQuickItemEx<OpenOption>> = [
+            { label: vscode.l10n.t("Just open the problem file"), value: OpenOption.justOpenFile },
+            { label: vscode.l10n.t("Open in current window"), value: OpenOption.openInCurrentWindow },
+            { label: vscode.l10n.t("Open in new window"), value: OpenOption.openInNewWindow },
+            { label: vscode.l10n.t("Add to workspace"), value: OpenOption.addToWorkspace },
+        ];
+        const choice: IQuickItemEx<OpenOption> | undefined = await vscode.window.showQuickPick(
+            openOptions,
+            { placeHolder: vscode.l10n.t("The LeetCode workspace folder is not opened in VS Code, would you like to open it?") },
         );
 
         // Todo: generate file first
-        switch (choice) {
+        switch (choice?.value) {
             case OpenOption.justOpenFile:
                 return workspaceFolderSetting;
             case OpenOption.openInCurrentWindow:
@@ -78,7 +79,7 @@ export async function getActiveDocument(uri?: vscode.Uri): Promise<vscode.TextDo
         return undefined;
     }
     if (document.isDirty && !await document.save()) {
-        vscode.window.showWarningMessage("Please save the solution file first.");
+        vscode.window.showWarningMessage(vscode.l10n.t("Please save the solution file first."));
         return undefined;
     }
     return document;
@@ -97,18 +98,18 @@ async function determineLeetCodeFolder(): Promise<string> {
     const picks: Array<IQuickItemEx<string>> = [];
     picks.push(
         {
-            label: `Default location`,
+            label: vscode.l10n.t("Default location"),
             detail: `${path.join(os.homedir(), ".leetcode")}`,
             value: `${path.join(os.homedir(), ".leetcode")}`,
         },
         {
-            label: "$(file-directory) Browse...",
+            label: `$(file-directory) ${vscode.l10n.t("Browse...")}`,
             value: ":browse",
         },
     );
     const choice: IQuickItemEx<string> | undefined = await vscode.window.showQuickPick(
         picks,
-        { placeHolder: "Select where you would like to save your LeetCode files" },
+        { placeHolder: vscode.l10n.t("Select where you would like to save your LeetCode files") },
     );
     if (!choice) {
         result = "";

@@ -50,12 +50,12 @@ export async function previewProblem(input: IProblem | vscode.Uri, isSideMode: b
         const activeFilePath: string = input.fsPath;
         const id: string = await getNodeIdFromFile(activeFilePath);
         if (!id) {
-            vscode.window.showErrorMessage(`Failed to resolve the problem id from file: ${activeFilePath}.`);
+            vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem id from file: {0}.", activeFilePath));
             return;
         }
         const cachedNode: IProblem | undefined = await findProblemById(id);
         if (!cachedNode) {
-            vscode.window.showErrorMessage(`Failed to resolve the problem with id: ${id}.`);
+            vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem with id: {0}.", id));
             return;
         }
         node = cachedNode;
@@ -77,7 +77,7 @@ export async function previewProblem(input: IProblem | vscode.Uri, isSideMode: b
         detail = await fetchQuestionDetail(getLeetCodeRequest(), node.slug);
     } catch (error) {
         leetCodeChannel.appendLine(`[ERROR] Failed to fetch the problem description: ${error}`);
-        await promptForOpenOutputChannel("Failed to fetch the problem description. Please open the output channel for details.", DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to fetch the problem description. Please open the output channel for details."), DialogType.error);
         return;
     }
     leetCodePreviewProvider.show(detail, node, isSideMode, needTranslation);
@@ -103,7 +103,7 @@ export async function searchProblem(): Promise<void> {
     }
     const choice: IQuickItemEx<IProblem> | undefined = await vscode.window.showQuickPick(parseProblemsToPicks(list.listProblems()), {
         matchOnDetail: true,
-        placeHolder: "Select one problem",
+        placeHolder: vscode.l10n.t("Select one problem"),
     });
     if (!choice) {
         return;
@@ -123,7 +123,7 @@ export async function showSolution(input: LeetCodeNode | vscode.Uri): Promise<vo
             filePath = await getActiveFilePath();
         }
         if (!filePath) {
-            vscode.window.showErrorMessage("Failed to resolve the current problem file.");
+            vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the current problem file."));
             return;
         }
         const id: string = await getNodeIdFromFile(filePath);
@@ -131,7 +131,7 @@ export async function showSolution(input: LeetCodeNode | vscode.Uri): Promise<vo
     }
 
     if (!node) {
-        vscode.window.showErrorMessage("Failed to resolve the problem for the solution.");
+        vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem for the solution."));
         return;
     }
 
@@ -140,7 +140,7 @@ export async function showSolution(input: LeetCodeNode | vscode.Uri): Promise<vo
         leetCodeSolutionProvider.show(solution.title || node.name, solution.content);
     } catch (error) {
         leetCodeChannel.appendLine(error.toString());
-        await promptForOpenOutputChannel("Failed to fetch the top voted solution. Please open the output channel for details.", DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to fetch the top voted solution. Please open the output channel for details."), DialogType.error);
     }
 }
 
@@ -153,14 +153,14 @@ async function fetchProblemLanguage(): Promise<string | undefined> {
     const language: string | undefined =
         defaultLanguage ||
         (await vscode.window.showQuickPick(languages, {
-            placeHolder: "Select the language you want to use",
+            placeHolder: vscode.l10n.t("Select the language you want to use"),
             ignoreFocusOut: true,
         }));
     // fire-and-forget default language query
     (async (): Promise<void> => {
         if (language && !defaultLanguage && leetCodeConfig.get<boolean>("hint.setDefaultLanguage")) {
             const choice: vscode.MessageItem | undefined = await vscode.window.showInformationMessage(
-                `Would you like to set '${language}' as your default language?`,
+                vscode.l10n.t("Would you like to set '{0}' as your default language?", language),
                 DialogOptions.yes,
                 DialogOptions.no,
                 DialogOptions.never
@@ -229,8 +229,8 @@ async function showProblemInternal(node: IProblem): Promise<void> {
             }),
             promptHintMessage(
                 "hint.commentDescription",
-                'You can config how to show the problem description through "leetcode.showDescription".',
-                "Open settings",
+                vscode.l10n.t('You can configure how to show the problem description through "leetcode.showDescription".'),
+                vscode.l10n.t("Open settings"),
                 (): Promise<any> => openSettingsEditor("leetcode.showDescription")
             ),
         ];
@@ -240,7 +240,7 @@ async function showProblemInternal(node: IProblem): Promise<void> {
 
         await Promise.all(promises);
     } catch (error) {
-        await promptForOpenOutputChannel(`${error} Please open the output channel for details.`, DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("{0} Please open the output channel for details.", String(error)), DialogType.error);
     }
 }
 
@@ -260,7 +260,7 @@ async function parseProblemsToPicks(p: Promise<IProblem[]>): Promise<Array<IQuic
                 {
                     label: `${parseProblemDecorator(problem.state, problem.locked)}${problem.id}.${problem.name}`,
                     description: "",
-                    detail: `AC rate: ${problem.passRate}, Difficulty: ${problem.difficulty}`,
+                    detail: vscode.l10n.t("AC rate: {0}, Difficulty: {1}", problem.passRate, problem.difficulty),
                     value: problem,
                 }
             )
@@ -332,7 +332,7 @@ async function resolveTagForProblem(problem: IProblem): Promise<string | undefin
     }
     return await vscode.window.showQuickPick(problem.tags, {
         matchOnDetail: true,
-        placeHolder: "Multiple tags available, please select one",
+        placeHolder: vscode.l10n.t("Multiple tags available, please select one"),
         ignoreFocusOut: true,
     });
 }
@@ -343,7 +343,7 @@ async function resolveCompanyForProblem(problem: IProblem): Promise<string | und
     }
     return await vscode.window.showQuickPick(problem.companies, {
         matchOnDetail: true,
-        placeHolder: "Multiple tags available, please select one",
+        placeHolder: vscode.l10n.t("Multiple tags available, please select one"),
         ignoreFocusOut: true,
     });
 }

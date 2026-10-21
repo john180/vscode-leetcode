@@ -15,13 +15,13 @@ export async function switchEndpoint(): Promise<void> {
         {
             label: `${isCnEnabled ? "" : "$(check) "}LeetCode`,
             description: "leetcode.com",
-            detail: `Enable LeetCode US`,
+            detail: vscode.l10n.t("Enable LeetCode US"),
             value: Endpoint.LeetCode,
         },
         {
             label: `${isCnEnabled ? "$(check) " : ""}力扣`,
             description: "leetcode.cn",
-            detail: `启用中国版 LeetCode`,
+            detail: vscode.l10n.t("Enable LeetCode China"),
             value: Endpoint.LeetCodeCN,
         },
     );
@@ -33,9 +33,9 @@ export async function switchEndpoint(): Promise<void> {
     try {
         const endpoint: string = choice.value;
         await leetCodeConfig.update("endpoint", endpoint, true /* UserSetting */);
-        vscode.window.showInformationMessage(`Switched the endpoint to ${endpoint}`);
+        vscode.window.showInformationMessage(vscode.l10n.t("Switched the endpoint to {0}.", endpoint));
     } catch (error) {
-        await promptForOpenOutputChannel("Failed to switch endpoint. Please open the output channel for details.", DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to switch endpoint. Please open the output channel for details."), DialogType.error);
     }
 
     try {
@@ -43,7 +43,7 @@ export async function switchEndpoint(): Promise<void> {
         await deleteCache();
         await promptForSignIn();
     } catch (error) {
-        await promptForOpenOutputChannel("Failed to sign in. Please open the output channel for details.", DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to sign in. Please open the output channel for details."), DialogType.error);
     }
 }
 
@@ -64,7 +64,7 @@ export async function switchSortingStrategy(): Promise<void> {
     picks.push(
         ...SORT_ORDER.map((s: SortingStrategy) => {
             return {
-                label: `${currentStrategy === s ? "$(check)" : "    "} ${s}`,
+                label: `${currentStrategy === s ? "$(check)" : "    "} ${getSortingLabel(s)}`,
                 value: s,
             };
         }),
@@ -83,4 +83,20 @@ export async function switchSortingStrategy(): Promise<void> {
 export function getSortingStrategy(): SortingStrategy {
     const leetCodeConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration("leetcode");
     return leetCodeConfig.get<SortingStrategy>("problems.sortStrategy", SortingStrategy.None);
+}
+
+function getSortingLabel(strategy: SortingStrategy): string {
+    switch (strategy) {
+        case SortingStrategy.AcceptanceRateAsc:
+            return vscode.l10n.t("Acceptance Rate (Ascending)");
+        case SortingStrategy.AcceptanceRateDesc:
+            return vscode.l10n.t("Acceptance Rate (Descending)");
+        case SortingStrategy.FrequencyAsc:
+            return vscode.l10n.t("Frequency (Ascending)");
+        case SortingStrategy.FrequencyDesc:
+            return vscode.l10n.t("Frequency (Descending)");
+        case SortingStrategy.None:
+        default:
+            return vscode.l10n.t("None");
+    }
 }

@@ -1,6 +1,7 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
+import * as vscode from "vscode";
 import { getProblems } from "../api/problems";
 import { leetCodeManager } from "../leetCodeManager";
 import { IProblem, UserStatus } from "../shared";
@@ -19,7 +20,7 @@ export async function listProblems(forceRefresh: boolean = false): Promise<IProb
     try {
         return await getProblems(forceRefresh);
     } catch (error) {
-        await promptForOpenOutputChannel("Failed to list problems. Please open the output channel for details.", DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to list problems. Please open the output channel for details."), DialogType.error);
         return [];
     }
 }

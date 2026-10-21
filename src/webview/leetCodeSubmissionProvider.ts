@@ -1,7 +1,7 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { ViewColumn } from "vscode";
+import { l10n, ViewColumn } from "vscode";
 import type { ISubmissionResult } from "../api/submission";
 import { openKeybindingsEditor, promptHintMessage } from "../utils/uiUtils";
 import { ILeetCodeWebviewOption, LeetCodeWebview } from "./LeetCodeWebview";
@@ -20,7 +20,7 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
 
     protected getWebviewOption(): ILeetCodeWebviewOption {
         return {
-            title: "Submission",
+            title: l10n.t("Submission"),
             viewColumn: ViewColumn.Two,
         };
     }
@@ -32,34 +32,34 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
         if (this.result.runtime || this.result.memory || this.result.totalCorrect !== undefined) {
             const details: string[] = [];
             if (this.result.runtime) {
-                details.push(`* Runtime: ${this.result.runtime}`);
+                details.push(`* ${l10n.t("Runtime")}: ${this.result.runtime}`);
             }
             if (this.result.memory) {
-                details.push(`* Memory: ${this.result.memory}`);
+                details.push(`* ${l10n.t("Memory")}: ${this.result.memory}`);
             }
             if (this.result.totalCorrect !== undefined) {
                 const total: string = this.result.totalTestcases !== undefined
                     ? ` / ${this.result.totalTestcases}`
                     : "";
-                details.push(`* Passed: ${this.result.totalCorrect}${total}`);
+                details.push(`* ${l10n.t("Passed")}: ${this.result.totalCorrect}${total}`);
             }
             lines.push("", ...details);
         }
 
         if (this.result.compileError) {
-            lines.push("", "### Compile Error", "```text", this.result.compileError, "```");
+            lines.push("", `### ${l10n.t("Compile Error")}`, "```text", this.result.compileError, "```");
         }
         if (this.result.runtimeError) {
-            lines.push("", "### Runtime Error", "```text", this.result.runtimeError, "```");
+            lines.push("", `### ${l10n.t("Runtime Error")}`, "```text", this.result.runtimeError, "```");
         }
         if (this.result.lastTestcase) {
-            lines.push("", "### Last Testcase", "```text", this.result.lastTestcase, "```");
+            lines.push("", `### ${l10n.t("Last Testcase")}`, "```text", this.result.lastTestcase, "```");
         }
         if (this.result.codeOutput) {
-            lines.push("", "### Output", "```text", this.result.codeOutput, "```");
+            lines.push("", `### ${l10n.t("Output")}`, "```text", this.result.codeOutput, "```");
         }
         if (this.result.expectedOutput) {
-            lines.push("", "### Expected", "```text", this.result.expectedOutput, "```");
+            lines.push("", `### ${l10n.t("Expected")}`, "```text", this.result.expectedOutput, "```");
         }
 
         const body: string = markdownEngine.render(lines.join("\n"));
@@ -84,8 +84,8 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
     private async showKeybindingsHint(): Promise<void> {
         await promptHintMessage(
             "hint.commandShortcut",
-            'You can customize shortcut key bindings in File > Preferences > Keyboard Shortcuts with query "leetcode".',
-            "Open Keybindings",
+            l10n.t('You can customize shortcut key bindings in File > Preferences > Keyboard Shortcuts with query "leetcode".'),
+            l10n.t("Open Keybindings"),
             (): Promise<any> => openKeybindingsEditor("leetcode solution"),
         );
     }
