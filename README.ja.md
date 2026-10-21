@@ -4,7 +4,7 @@
 
 > VS Code で LeetCode の問題閲覧、解答、テスト、提出を行えます。この README はグローバル版 LeetCode（leetcode.com）を前提としています。
 
-変更履歴: [English](CHANGELOG.md)
+変更履歴: [English](https://github.com/yanxijian/vscode-leetcode/blob/community/CHANGELOG.md)
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/yanxijian.vscode-leetcode-community?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 

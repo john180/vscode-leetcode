@@ -4,7 +4,7 @@
 
 > Solve LeetCode problems in VS Code: problems, solutions, tests, and submissions. This README targets the global LeetCode site (leetcode.com); endpoint selection can also switch to LeetCode China.
 
-Changelog: [English](CHANGELOG.md)
+Changelog: [English](https://github.com/yanxijian/vscode-leetcode/blob/community/CHANGELOG.md)
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/yanxijian.vscode-leetcode-community?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 
