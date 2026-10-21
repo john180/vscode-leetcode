@@ -14,6 +14,7 @@ import { LeetCodeNode } from "./LeetCodeNode";
 
 class ExplorerNodeManager implements Disposable {
     private explorerNodeMap: Map<string, LeetCodeNode> = new Map<string, LeetCodeNode>();
+    private problemBySlug: Map<string, LeetCodeNode> = new Map<string, LeetCodeNode>();
     private companySet: Set<string> = new Set<string>();
     private tagSet: Set<string> = new Set<string>();
     private dailyProblem: IProblem | undefined;
@@ -32,6 +33,9 @@ class ExplorerNodeManager implements Disposable {
                 continue;
             }
             this.explorerNodeMap.set(problem.id, new LeetCodeNode(problem));
+            if (problem.slug) {
+                this.problemBySlug.set(problem.slug, this.explorerNodeMap.get(problem.id)!);
+            }
             for (const company of problem.companies) {
                 this.companySet.add(company);
             }
@@ -170,12 +174,18 @@ class ExplorerNodeManager implements Disposable {
     }
 
     private toQuestionNodes(list: IFavoriteList): LeetCodeNode[] {
-        return list.questions.map((question) => new LeetCodeNode(Object.assign({}, defaultProblem, {
-            id: question.id || question.titleSlug,
-            name: question.title || question.titleSlug,
-            slug: question.titleSlug,
-            state: ProblemState.Unknown,
-        }), true));
+        return list.questions.map((question) => {
+            const cached: LeetCodeNode | undefined = this.problemBySlug.get(question.titleSlug);
+            if (cached) {
+                return cached;
+            }
+            return new LeetCodeNode(Object.assign({}, defaultProblem, {
+                id: question.id || question.titleSlug,
+                name: question.title || question.titleSlug,
+                slug: question.titleSlug,
+                state: ProblemState.Unknown,
+            }), true);
+        });
     }
 
     public getChildrenNodesById(id: string): LeetCodeNode[] {
@@ -217,6 +227,7 @@ class ExplorerNodeManager implements Disposable {
 
     public dispose(): void {
         this.explorerNodeMap.clear();
+        this.problemBySlug.clear();
         this.companySet.clear();
         this.tagSet.clear();
         this.dailyProblem = undefined;

@@ -3,6 +3,10 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+### Fixed
+- Localize Hot 100 and favorite-list question titles by mapping their slug to the loaded problem list.
+
 ## [0.22.0] - 2026-10-21
 ### Added
 - Enhanced problem search: id, Chinese/English title, slug, tags, and companies (with tags/companies shown in the picker detail).
