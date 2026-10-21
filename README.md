@@ -20,7 +20,7 @@
 - 离线安装：从 [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases) 下载 `.vsix`，然后：
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.22.0.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.22.1.vsix --force
   ```
 
 > 本项目是 [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) 的社区分支，不是 LeetCode 官方发布。扩展 ID 为 `yanxijian.vscode-leetcode-community`；命令、视图与设置 ID 与官方版相同，安装前请先禁用官方 `LeetCode.vscode-leetcode`。

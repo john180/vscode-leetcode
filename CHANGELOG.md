@@ -3,7 +3,7 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.22.1] - 2026-10-21
 ### Fixed
 - Show a signing-in state instead of the sign-in welcome while a stored cookie is being validated.
 - Show a LeetCode Community welcome message while the initial authentication state is unresolved.
