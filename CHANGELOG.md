@@ -6,6 +6,14 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.24.1] - 2026-10-22
+### Added
+- Tests for problem cache/endpoint isolation and authentication state transitions.
+- Release invariant check: a release commit must be `release: X.Y.Z`, and `vX.Y.Z` must point to that same commit.
+
+### Changed
+- Upgrade TypeScript to 5.9, ESLint to 9 flat config, and typescript-eslint to 8.
+
 ## [0.24.0] - 2026-10-22
 ### Fixed
 - URL-encode problem slugs in submission and test endpoints.
@@ -61,12 +69,6 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Group the Favorite category by favorite list and show each list's questions.
 - Show a problem's submission history from the tree context menu or command palette, with status, language, date, runtime, and memory; selecting an entry opens the submission on LeetCode.
 
-## [Unreleased]
-### Added
-- Tests for problem cache/endpoint isolation and authentication state transitions.
-
-### Changed
-- Upgrade TypeScript to 5.9, ESLint to 9 flat config, and typescript-eslint to 8.
 
 ## [0.20.1] - 2026-10-21
 ### Fixed
