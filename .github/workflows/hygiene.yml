@@ -27,7 +27,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: yanxijian/RepoRules
-          ref: 3c0ab027302b373d9c0b3be00466287c29fc9b7f
           path: .repo-rules
 
       - name: Check vendored checker is current
