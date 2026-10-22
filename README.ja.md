@@ -2,11 +2,14 @@
 
 **日本語** · [简体中文](README.md) · [English](README.en.md) · [한국어](README.ko.md)
 
+[![CI](https://github.com/yanxijian/vscode-leetcode/actions/workflows/build.yml/badge.svg?branch=community)](https://github.com/yanxijian/vscode-leetcode/actions/workflows/build.yml)
+[![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/yanxijian.vscode-leetcode-community.svg)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
+[![VS Code 1.90+](https://badgen.net/badge/VS%20Code/1.90%2B/blue?icon=visualstudio)](https://code.visualstudio.com/)
+[![License: MIT](https://badgen.net/badge/license/MIT/yellow)](https://github.com/yanxijian/vscode-leetcode/blob/community/LICENSE)
+
 > VS Code で LeetCode の問題閲覧、解答、テスト、提出を行えます。この README はグローバル版 LeetCode（leetcode.com）を前提としています。
 
 変更履歴: [CHANGELOG.md](https://github.com/yanxijian/vscode-leetcode/blob/community/CHANGELOG.md)
-
-[![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/yanxijian.vscode-leetcode-community.svg)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 
 ## インストール
 

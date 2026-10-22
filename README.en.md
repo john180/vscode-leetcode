@@ -2,11 +2,14 @@
 
 **English** · [简体中文](README.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
 
+[![CI](https://github.com/yanxijian/vscode-leetcode/actions/workflows/build.yml/badge.svg?branch=community)](https://github.com/yanxijian/vscode-leetcode/actions/workflows/build.yml)
+[![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/yanxijian.vscode-leetcode-community.svg)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
+[![VS Code 1.90+](https://badgen.net/badge/VS%20Code/1.90%2B/blue?icon=visualstudio)](https://code.visualstudio.com/)
+[![License: MIT](https://badgen.net/badge/license/MIT/yellow)](https://github.com/yanxijian/vscode-leetcode/blob/community/LICENSE)
+
 > Solve LeetCode problems in VS Code: problems, solutions, tests, and submissions. This README targets the global LeetCode site (leetcode.com); endpoint selection can also switch to LeetCode China.
 
 Changelog: [CHANGELOG.md](https://github.com/yanxijian/vscode-leetcode/blob/community/CHANGELOG.md)
-
-[![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/yanxijian.vscode-leetcode-community.svg)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 
 ## Install
 

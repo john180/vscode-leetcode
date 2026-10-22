@@ -50,3 +50,18 @@ test("README Marketplace badges use the working provider", () => {
         assert.doesNotMatch(text, /img\.shields\.io\/visual-studio-marketplace/);
     }
 });
+
+test("READMEs show CI, Marketplace, VS Code, and license badges before the first section", () => {
+    for (const name of ["README.md", "README.en.md", "README.ja.md", "README.ko.md"]) {
+        const text = read(name);
+        for (const marker of [
+            "[![CI](https://github.com/yanxijian/vscode-leetcode/actions/workflows/build.yml/badge.svg?branch=community)]",
+            "[![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/yanxijian.vscode-leetcode-community.svg)]",
+            "[![VS Code 1.90+](https://badgen.net/badge/VS%20Code/1.90%2B/blue?icon=visualstudio)]",
+            "[![License: MIT](https://badgen.net/badge/license/MIT/yellow)]",
+        ]) {
+            assert.ok(text.includes(marker), `${name} is missing ${marker}`);
+        }
+        assert.ok(text.indexOf("[![CI]") < text.indexOf("## "), `${name} badges are not at the top`);
+    }
+});
