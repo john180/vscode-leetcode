@@ -18,11 +18,13 @@ test("package and both changelogs use the same version", () => {
 test("READMEs point to the changelog matching their language", () => {
     assert.match(
         read("README.md"),
-        /https:\/\/github\.com\/yanxijian\/vscode-leetcode\/blob\/community\/CHANGELOG\.zh-CN\.md/,
+        /\[CHANGELOG\.zh-CN\.md\]\(https:\/\/github\.com\/yanxijian\/vscode-leetcode\/blob\/community\/CHANGELOG\.zh-CN\.md\)/,
     );
+    assert.doesNotMatch(read("README.md"), /\[简体中文\]\(https:\/\/github\.com\/yanxijian\/vscode-leetcode\/blob\/community\/CHANGELOG/);
     for (const name of ["README.en.md", "README.ja.md", "README.ko.md"]) {
         const text = read(name);
-        assert.match(text, /https:\/\/github\.com\/yanxijian\/vscode-leetcode\/blob\/community\/CHANGELOG\.md/);
+        assert.match(text, /\[CHANGELOG\.md\]\(https:\/\/github\.com\/yanxijian\/vscode-leetcode\/blob\/community\/CHANGELOG\.md\)/);
+        assert.doesNotMatch(text, /\[English\]\(https:\/\/github\.com\/yanxijian\/vscode-leetcode\/blob\/community\/CHANGELOG/);
         assert.doesNotMatch(text, /CHANGELOG\.zh-CN\.md/);
         assert.doesNotMatch(text, /leetcode\.cn|力扣/);
     }
