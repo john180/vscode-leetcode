@@ -6,7 +6,7 @@
 
 更新记录：[CHANGELOG.zh-CN.md](https://github.com/yanxijian/vscode-leetcode/blob/community/CHANGELOG.zh-CN.md)
 
-[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/yanxijian.vscode-leetcode-community?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
+[![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/yanxijian.vscode-leetcode-community.svg)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
 
 ## 安装
 

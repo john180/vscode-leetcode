@@ -42,3 +42,11 @@ test("the VSIX ignore list excludes tests and coverage artifacts", () => {
     assert.match(ignore, /^test\/\*\*$/m);
     assert.match(ignore, /^coverage\/\*\*$/m);
 });
+
+test("README Marketplace badges use the working provider", () => {
+    for (const name of ["README.md", "README.en.md", "README.ja.md", "README.ko.md"]) {
+        const text = read(name);
+        assert.match(text, /https:\/\/vsmarketplacebadges\.dev\/version\/yanxijian\.vscode-leetcode-community\.svg/);
+        assert.doesNotMatch(text, /img\.shields\.io\/visual-studio-marketplace/);
+    }
+});
