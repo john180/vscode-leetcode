@@ -23,7 +23,7 @@
 - 오프라인: [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases)에서 `.vsix`를 내려받은 후 실행합니다:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.24.2.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.24.3.vsix --force
   ```
 
 > [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode)의 커뮤니티 포크입니다. LeetCode 공식 릴리스가 아닙니다. 확장 ID는 `yanxijian.vscode-leetcode-community`이며 명령, 뷰, 설정 ID는 공식 확장과 공유됩니다. 설치 전에 공식 `LeetCode.vscode-leetcode`를 비활성화하세요.

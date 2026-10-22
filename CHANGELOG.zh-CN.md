@@ -4,6 +4,11 @@
 
 本文件维护社区分支从 0.19.0 开始的中文更新记录。0.18.4 及更早版本属于上游历史，见英文版。
 
+## [0.24.3] - 2026-10-22
+### 变更
+- 四种 README 顶部统一放置 CI、Marketplace、VS Code 与 MIT 许可证 badge。
+- 替换已停用的 Shields.io Marketplace badge 和不稳定的静态 badge。
+
 ## [0.24.2] - 2026-10-22
 ### 修复
 - 四种 README 的 ChangeLog 链接改为 GitHub 绝对地址，确保 Marketplace 页面可以正确解析。

@@ -6,6 +6,11 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.24.3] - 2026-10-22
+### Changed
+- Move CI, Marketplace, VS Code, and MIT license badges to the top of all README variants.
+- Replace the retired Shields.io Marketplace badge and the unreliable static badges.
+
 ## [0.24.2] - 2026-10-22
 ### Fixed
 - Use absolute GitHub links for the changelog in all README variants so the Marketplace listing resolves them correctly.

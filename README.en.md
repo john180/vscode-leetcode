@@ -23,7 +23,7 @@ Changelog: [CHANGELOG.md](https://github.com/yanxijian/vscode-leetcode/blob/comm
 - Offline: download the `.vsix` from [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases), then:
 
   ```powershell
-  code --install-extension .\vscode-leetcode-community-0.24.2.vsix --force
+  code --install-extension .\vscode-leetcode-community-0.24.3.vsix --force
   ```
 
 > Community fork of [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode). It is not an official LeetCode release. The extension ID is `yanxijian.vscode-leetcode-community`; command, view, and setting IDs are shared with the official extension, so disable the official `LeetCode.vscode-leetcode` before installing this one.
