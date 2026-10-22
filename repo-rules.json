@@ -1,221 +1,235 @@
 {
-    "version": 1,
-    "skip_dirs": [
-        ".git",
-        ".vscode",
-        ".vscode-test",
-        ".repo-rules",
-        "node_modules",
-        "dist",
-        "out",
-        "out-test"
-    ],
-    "skip_prefixes": [],
-    "skip_globs": [
-        "*.vsix"
-    ],
-    "encoding": [
-        {
-            "glob": "*.ts",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": "*.js",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": "*.json",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": "*.md",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": "*.yml",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": "*.yaml",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": "*.ps1",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": "*.sh",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": ".gitignore",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": ".gitattributes",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": ".vscodeignore",
-            "bom": false,
-            "eol": "lf"
-        },
-        {
-            "glob": "LICENSE",
-            "bom": false,
-            "eol": "lf"
-        }
-    ],
-    "width": {
-        "globs": [
-            "*.ts"
-        ],
-        "limit": 210,
-        "tab_width": 4
+  "version": 1,
+  "skip_dirs": [
+    ".git",
+    ".vscode",
+    ".vscode-test",
+    ".repo-rules",
+    "node_modules",
+    "dist",
+    "out",
+    "out-test"
+  ],
+  "skip_prefixes": [],
+  "skip_globs": [
+    "*.vsix"
+  ],
+  "encoding": [
+    {
+      "glob": "*.ts",
+      "bom": false,
+      "eol": "lf"
     },
-    "forbidden": [
-        {
-            "id": "expired-npm-mirror",
-            "globs": [
-                "package-lock.json"
-            ],
-            "pattern": "r2\\.cnpmjs\\.org",
-            "message": "use registry.npmjs.org; the cnpm mirror certificate is expired"
-        },
-        {
-            "id": "official-publisher",
-            "globs": [
-                "package.json"
-            ],
-            "pattern": "\"publisher\":\\s*\"LeetCode\"",
-            "message": "publish under yanxijian, not the official publisher"
-        },
-        {
-            "id": "global-readme-no-cn-url",
-            "globs": [
-                "README.en.md",
-                "README.ja.md",
-                "README.ko.md"
-            ],
-            "pattern": "leetcode\\.cn|力扣|CHANGELOG\\.zh-CN\\.md",
-            "message": "non-Chinese READMEs must use leetcode.com and the English changelog"
-        },
-        {
-            "id": "no-extension-telemetry",
-            "globs": [
-                "src/*.ts",
-                "src/**/*.ts",
-                "package.json",
-                "package.nls*.json"
-            ],
-            "pattern": "analysis\\.leetcode\\.cn|analysis\\.lingkou\\.xyz|allowReportData|TrackData",
-            "message": "telemetry was inherited from upstream and intentionally removed; do not reintroduce it"
-        }
-    ],
-    "headers": {
-        "globs": [],
-        "first_line": "#pragma once",
-        "forbid_namespace_using": true
+    {
+      "glob": "*.js",
+      "bom": false,
+      "eol": "lf"
     },
-    "versions": [
-        {
-            "id": "release-version",
-            "sources": [
-                {
-                    "path": "package.json",
-                    "pattern": "\"version\":\\s*\"(\\d+)\\.(\\d+)\\.(\\d+)\""
-                },
-                {
-                    "path": "package-lock.json",
-                    "pattern": "\"version\":\\s*\"(\\d+)\\.(\\d+)\\.(\\d+)\""
-                },
-                {
-                    "path": "CHANGELOG.md",
-                    "pattern": "(?m)^## \\[(\\d+)\\.(\\d+)\\.(\\d+)\\]"
-                },
-                {
-                    "path": "README.md",
-                    "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
-                },
-                {
-                    "path": "README.en.md",
-                    "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
-                },
-                {
-                    "path": "README.ja.md",
-                    "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
-                },
-                {
-                    "path": "README.ko.md",
-                    "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
-                },
-                {
-                    "path": "CHANGELOG.zh-CN.md",
-                    "pattern": "(?m)^## \\[(\\d+)\\.(\\d+)\\.(\\d+)\\]"
-                }
-            ]
-        }
-    ],
-    "changelog": null,
-    "required_files": [
-        "LICENSE",
-        "README.md",
-        "README.en.md",
-        "CHANGELOG.md",
-        "package.json",
-        "package-lock.json",
-        ".vscodeignore",
-        ".gitattributes",
-        "src/extension.ts",
-        "docs/PUBLISHING.md",
-        "docs/PUBLISHING.zh-CN.md",
-        "repo-rules.json",
-        "scripts/repo_rules.py",
-        ".githooks/pre-commit",
-        ".githooks/commit-msg",
-        ".github/workflows/hygiene.yml",
-        "README.ja.md",
-        "README.ko.md",
-        "CHANGELOG.zh-CN.md",
-        "scripts/check-release.mjs"
-    ],
-    "markdown": {
-        "globs": [
-            "*.md"
-        ],
-        "check_links": true,
-        "languages": {
-            "default": "README.md",
-            "variants": [
-                "README.en.md",
-                "README.ja.md",
-                "README.ko.md"
-            ],
-            "switch_line": true
-        }
+    {
+      "glob": "*.json",
+      "bom": false,
+      "eol": "lf"
     },
-    "gitattributes": {
-        "path": ".gitattributes",
-        "required_patterns": [
-            "\\* text=auto",
-            "\\*\\.ts\\s+text eol=lf",
-            "\\*\\.md\\s+text eol=lf"
-        ]
+    {
+      "glob": "*.md",
+      "bom": false,
+      "eol": "lf"
     },
-    "comments": {
-        "english": true
+    {
+      "glob": "*.yml",
+      "bom": false,
+      "eol": "lf"
     },
-    "commit_message": {
-        "english": true
+    {
+      "glob": "*.yaml",
+      "bom": false,
+      "eol": "lf"
+    },
+    {
+      "glob": "*.ps1",
+      "bom": false,
+      "eol": "lf"
+    },
+    {
+      "glob": "*.sh",
+      "bom": false,
+      "eol": "lf"
+    },
+    {
+      "glob": ".gitignore",
+      "bom": false,
+      "eol": "lf"
+    },
+    {
+      "glob": ".gitattributes",
+      "bom": false,
+      "eol": "lf"
+    },
+    {
+      "glob": ".vscodeignore",
+      "bom": false,
+      "eol": "lf"
+    },
+    {
+      "glob": "LICENSE",
+      "bom": false,
+      "eol": "lf"
     }
+  ],
+  "width": {
+    "globs": [
+      "*.ts"
+    ],
+    "limit": 210,
+    "tab_width": 4
+  },
+  "forbidden": [
+    {
+      "id": "expired-npm-mirror",
+      "globs": [
+        "package-lock.json"
+      ],
+      "pattern": "r2\\.cnpmjs\\.org",
+      "message": "use registry.npmjs.org; the cnpm mirror certificate is expired"
+    },
+    {
+      "id": "official-publisher",
+      "globs": [
+        "package.json"
+      ],
+      "pattern": "\"publisher\":\\s*\"LeetCode\"",
+      "message": "publish under yanxijian, not the official publisher"
+    },
+    {
+      "id": "global-readme-no-cn-url",
+      "globs": [
+        "README.en.md",
+        "README.ja.md",
+        "README.ko.md"
+      ],
+      "pattern": "leetcode\\.cn|力扣|CHANGELOG\\.zh-CN\\.md",
+      "message": "non-Chinese READMEs must use leetcode.com and the English changelog"
+    },
+    {
+      "id": "no-extension-telemetry",
+      "globs": [
+        "src/*.ts",
+        "src/**/*.ts",
+        "package.json",
+        "package.nls*.json"
+      ],
+      "pattern": "analysis\\.leetcode\\.cn|analysis\\.lingkou\\.xyz|allowReportData|TrackData",
+      "message": "telemetry was inherited from upstream and intentionally removed; do not reintroduce it"
+    }
+  ],
+  "headers": {
+    "globs": [],
+    "first_line": "#pragma once",
+    "forbid_namespace_using": true
+  },
+  "versions": [
+    {
+      "id": "release-version",
+      "sources": [
+        {
+          "path": "package.json",
+          "pattern": "\"version\":\\s*\"(\\d+)\\.(\\d+)\\.(\\d+)\""
+        },
+        {
+          "path": "package-lock.json",
+          "pattern": "\"version\":\\s*\"(\\d+)\\.(\\d+)\\.(\\d+)\""
+        },
+        {
+          "path": "CHANGELOG.md",
+          "pattern": "(?m)^## \\[(\\d+)\\.(\\d+)\\.(\\d+)\\]"
+        },
+        {
+          "path": "README.md",
+          "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
+        },
+        {
+          "path": "README.en.md",
+          "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
+        },
+        {
+          "path": "README.ja.md",
+          "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
+        },
+        {
+          "path": "README.ko.md",
+          "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
+        },
+        {
+          "path": "CHANGELOG.zh-CN.md",
+          "pattern": "(?m)^## \\[(\\d+)\\.(\\d+)\\.(\\d+)\\]"
+        }
+      ]
+    }
+  ],
+  "changelog": null,
+  "required_files": [
+    "LICENSE",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "package.json",
+    "package-lock.json",
+    ".vscodeignore",
+    ".gitattributes",
+    "src/extension.ts",
+    "docs/PUBLISHING.md",
+    "docs/PUBLISHING.zh-CN.md",
+    "repo-rules.json",
+    "scripts/repo_rules.py",
+    ".githooks/pre-commit",
+    ".githooks/commit-msg",
+    ".github/workflows/hygiene.yml",
+    "README.ja.md",
+    "README.ko.md",
+    "CHANGELOG.zh-CN.md",
+    "scripts/check-release.mjs"
+  ],
+  "markdown": {
+    "globs": [
+      "*.md"
+    ],
+    "check_links": true,
+    "languages": {
+      "default": "README.md",
+      "variants": [
+        "README.en.md",
+        "README.ja.md",
+        "README.ko.md"
+      ],
+      "switch_line": true
+    }
+  },
+  "gitattributes": {
+    "path": ".gitattributes",
+    "required_patterns": [
+      "\\* text=auto",
+      "\\*\\.ts\\s+text eol=lf",
+      "\\*\\.md\\s+text eol=lf"
+    ]
+  },
+  "comments": {
+    "english": true
+  },
+  "commit_message": {
+    "english": true
+  },
+  "actions": {
+    "globs": [
+      ".github/workflows/hygiene.yml"
+    ],
+    "require": {
+      "actions/checkout": "v7",
+      "actions/setup-python": "v7",
+      "actions/setup-node": "v7",
+      "actions/upload-artifact": "v7",
+      "actions/download-artifact": "v8",
+      "actions/cache": "v6"
+    },
+    "allow_sha": true
+  }
 }
