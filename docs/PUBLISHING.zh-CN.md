@@ -51,8 +51,23 @@ code --install-extension .\vscode-leetcode-community-0.19.4.vsix --force
    `README.md`，提前打包会把旧文案发到商店页。
 4. 创建一个独立的 release commit，subject 必须是 `release: X.Y.Z`，然后在这个
    **同一个提交**上创建 annotated tag `vX.Y.Z`；不要在后来的测试/文档提交上打 tag。
-5. 发布后等 `vsce show` / Marketplace API 显示新版本再对外宣布；
-   索引通常需要约 10 分钟。
+5. 发布后等待约 10 分钟，再查一次 Marketplace 版本。不要在循环里轮询
+   Marketplace API，见 [Marketplace 验证与限流](#marketplace-验证与限流)。
+
+## Marketplace 验证与限流
+
+Marketplace 对扩展查询、Publisher 页面和管理后台都有请求频率限制。用循环
+验证发布结果，可能把一次成功发布变成 HTTP 429，甚至连登录也被挡住。
+
+- 发布后等待约 10 分钟再做第一次检查。
+- 执行一次 `npx vsce show yanxijian.vscode-leetcode-community`；如果尚未
+  索引，至少再等 10 分钟才查第二次。
+- 禁止用 `for` / `while` 循环查询 `extensionquery`、`vsce show` 或
+  Publisher 页面。
+- 遇到 HTTP 429 立即停止所有请求。不要反复刷新，也不要循环重试登录。
+  等待 30–60 分钟；必要时换一个网络只试一次。
+- 429 表示请求限流，不等于 Publisher 或扩展被删除。不要仅凭 429 就重建
+  Publisher 或轮换凭据。
 
 ## 发布不变量
 

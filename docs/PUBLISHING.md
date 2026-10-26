@@ -55,8 +55,26 @@ same command, view, and setting IDs.
 4. Make one dedicated commit whose subject is exactly `release: X.Y.Z`, then
    create the annotated tag `vX.Y.Z` on **that same commit**. Do not tag a later
    test/docs commit.
-5. Publish, then wait until `vsce show` / the Marketplace API reports the new
-   version before announcing it. Indexing can take around 10 minutes.
+5. Publish, wait about 10 minutes, then check the Marketplace version **once**.
+   Do not poll the Marketplace API in a loop. See
+   [Marketplace verification and rate limits](#marketplace-verification-and-rate-limits).
+
+## Marketplace verification and rate limits
+
+Marketplace applies request-rate limits to extension queries, publisher pages,
+and the management portal. A verification loop can turn a successful publish
+into an HTTP 429 that also blocks sign-in.
+
+- After publishing, wait about 10 minutes before the first check.
+- Run `npx vsce show yanxijian.vscode-leetcode-community` once. If it is not
+  indexed yet, wait at least another 10 minutes before trying again.
+- Never wrap `extensionquery`, `vsce show`, or publisher-page requests in a
+  `for`/`while` loop.
+- On HTTP 429, stop all requests. Do not refresh repeatedly or retry sign-in in
+  a loop. Wait 30–60 minutes, then try once from a different network if needed.
+- A 429 means request-rate limiting, not proof that the publisher or extension
+  was deleted. Do not recreate the publisher or rotate credentials based only
+  on a 429.
 
 ## Release invariant
 
