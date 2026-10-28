@@ -44,6 +44,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Extension Host integration tests
+        run: npm run test:integration
+
       - name: Package VSIX
-        # vsce runs vscode:prepublish to compile; checks already ran above.
+        # vsce verifies types and produces the same production bundle tested above.
         run: npx --no-install vsce package

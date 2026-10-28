@@ -19,3 +19,5 @@ ACKNOWLEDGEMENTS.md
 scripts/**
 node_modules/**
 .idea/**
+.npm/**
+**/*.log

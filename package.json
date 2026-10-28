@@ -702,7 +702,7 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
+        "vscode:prepublish": "npm run typecheck && node esbuild.js --production",
         "compile": "node esbuild.js",
         "watch": "node esbuild.js --watch",
         "typecheck": "tsc -p ./ --noEmit",
@@ -710,7 +710,7 @@
         "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/*.test.js",
         "build": "npm run typecheck && npm run lint && npm run test && npm run compile",
         "package": "npm run build && vsce package",
-        "test:integration": "npm run compile && node test/integration/runTest.js"
+        "test:integration": "npm run vscode:prepublish && node test/integration/runTest.js"
     },
     "devDependencies": {
         "@types/lodash": "^4.17.26",
