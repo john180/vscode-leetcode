@@ -25,7 +25,6 @@ import { resolveEndpoint } from "./auth/endpointResolver";
 import { sessionEvents } from "./auth/session";
 import { DialogType, promptForOpenOutputChannel } from "./utils/uiUtils";
 import { leetCodePreviewProvider } from "./webview/leetCodePreviewProvider";
-import { leetCodeSolutionProvider } from "./webview/leetCodeSolutionProvider";
 import { leetCodeSubmissionProvider } from "./webview/leetCodeSubmissionProvider";
 import { markdownEngine } from "./webview/markdownEngine";
 import { globalState } from "./globalState";
@@ -82,7 +81,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             leetCodeChannel,
             leetCodePreviewProvider,
             leetCodeSubmissionProvider,
-            leetCodeSolutionProvider,
             markdownEngine,
             codeLensController,
             explorerNodeManager,
@@ -91,6 +89,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.window.registerWebviewViewProvider("leetCodeDetail", leetCodePreviewProvider, {
                 webviewOptions: { retainContextWhenHidden: true },
             }),
+            vscode.window.registerWebviewViewProvider("leetCodeResult", leetCodeSubmissionProvider),
             vscode.window.onDidChangeActiveTextEditor((editor) => show.followActiveEditor(editor)),
             vscode.commands.registerCommand("leetcode.loadMoreProblems", (node: LeetCodeNode) => leetCodeTreeDataProvider.loadMore(node)),
             vscode.commands.registerCommand("leetcode.deleteCache", () => cache.deleteCache()),

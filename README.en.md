@@ -27,7 +27,7 @@ Extension ID: `john180.vscode-leetcode`. Disable the previous community and offi
 
 - Browse all LeetCode problems, including contest and interview-style IDs, with AC state, paid locks, tags, and companies.
 - Generate a file with the `@lc` header, code template, and optional description comment.
-- Show the problem description and top solution in a webview.
+- Read the description and top solution in Problem Details in the sidebar, with test and submission results in the bottom panel, so the editor holds only code.
 - Run sample or custom tests and submit code.
 - Keep multiple accounts as local sessions and switch between them.
 - Search, sort, hide solved problems, and favorite/unfavorite problems.
@@ -47,8 +47,8 @@ The cookie is stored securely in VS Code. The site is selected from the system t
    Click the search icon in the view title and type an ID, title or slug: the list keeps only matching problems, highlights the keyword and selects the best match without opening it. Enter moves to the next match, Escape closes the box but keeps the results, and ✕ restores the full list. `tag:array` or `company:google` search within that category only.
    Visited problems are cached locally across restarts, separately for each site, login session and language, and stale entries update in the background. Refresh reloads expanded categories; **Delete Cache** also clears the persistent problem cache. Testing, submitting and viewing history do not require the full question bank.
    Clicking a problem shows its description in **Problem Details** below the list; **Code Now** (or the code icon beside the problem) creates and opens the solution file in the editor. Switching to a problem file shows that problem in Problem Details, and the book icon in the editor title bar brings the description back into view.
-2. Edit the generated file and use the CodeLens **Test** or **Submit** action.
-3. Click **Solution** when you need the top solution.
+2. Edit the generated file and use the CodeLens **Test** or **Submit** action; results appear in the **LeetCode Results** panel below the code.
+3. For the top solution, switch Problem Details to the **Solution** tab, or click the CodeLens **Solution**.
 
 ## Commands
 
@@ -61,7 +61,7 @@ The cookie is stored securely in VS Code. The site is selected from the system t
 | `LeetCode: Show Description` | Show the active problem file's description in the sidebar |
 | `LeetCode: Test in LeetCode` | Run sample or custom tests |
 | `LeetCode: Submit to LeetCode` | Submit the current file |
-| `LeetCode: Show Top Voted Solution` | Open the top solution |
+| `LeetCode: Show Top Voted Solution` | Show the top solution in the Solution tab of Problem Details |
 | `LeetCode: Manage Sessions` | Manage local sessions |
 | `LeetCode: Delete Cache` | Clear the problem cache |
 
@@ -79,7 +79,6 @@ The cookie is stored securely in VS Code. The site is selected from the system t
 | `leetcode.useEndpointTranslation` | Use the endpoint's translated content | `true` |
 | `leetcode.enableStatusBar` | Show the LeetCode status bar item | `true` |
 | `leetcode.editor.shortcuts` | CodeLens actions: `submit`, `test`, `star`, `solution`, `description` | `["submit", "test"]` |
-| `leetcode.enableSideMode` | Open the solution in the second editor column | `true` |
 | `leetcode.colorizeProblems` | Colorize problems by difficulty | `true` |
 | `leetcode.problems.sortStrategy` | `None`, `Acceptance Rate (Ascending)`, `Acceptance Rate (Descending)` | `None` |
 

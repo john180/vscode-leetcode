@@ -1,76 +1,75 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { l10n, ViewColumn } from "vscode";
+import { commands, Disposable, l10n, Webview, WebviewView, WebviewViewProvider, workspace } from "vscode";
 import type { ISubmissionResult } from "../api/submission";
+import { leetCodeChannel } from "../leetCodeChannel";
+import { IProblem } from "../shared";
 import { diffLines, IDiffLine } from "../utils/diffUtils";
 import { openKeybindingsEditor, promptHintMessage } from "../utils/uiUtils";
-import { ILeetCodeWebviewOption, LeetCodeWebview } from "./LeetCodeWebview";
 import { markdownEngine } from "./markdownEngine";
 
-class LeetCodeSubmissionProvider extends LeetCodeWebview {
+/** Test and submission results, shown in the bottom panel below the code. */
+class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
+    private view: WebviewView | undefined;
+    private result: ISubmissionResult | undefined;
+    private problem: IProblem | undefined;
 
-    protected readonly viewType: string = "leetcode.submission";
-    private result: ISubmissionResult;
+    public resolveWebviewView(view: WebviewView): void {
+        this.view = view;
+        view.webview.options = { localResourceRoots: markdownEngine.localResourceRoots };
+        const listener: Disposable = workspace.onDidChangeConfiguration((event) => {
+            if (event.affectsConfiguration("markdown")) {
+                this.render();
+            }
+        });
+        view.onDidDispose(() => {
+            listener.dispose();
+            if (this.view === view) {
+                this.view = undefined;
+            }
+        });
+        this.render();
+    }
 
-    public show(result: ISubmissionResult): void {
+    public show(result: ISubmissionResult, problem?: IProblem): void {
         this.result = result;
-        void this.showWebviewInternal();
-        this.showKeybindingsHint();
+        this.problem = problem;
+        this.render();
+        void this.reveal();
+        void this.showKeybindingsHint();
     }
 
-    protected getWebviewOption(): ILeetCodeWebviewOption {
-        return {
-            title: l10n.t("Submission"),
-            viewColumn: ViewColumn.Two,
-        };
+    public dispose(): void {
+        this.result = undefined;
+        this.problem = undefined;
     }
 
-    protected getWebviewContent(): string {
-        const status: string = this.result.statusMessage || this.result.state;
-        const lines: string[] = [`## ${status}`];
+    private async reveal(): Promise<void> {
+        // Keep typing in the editor while the result appears below it.
+        if (this.view) {
+            this.view.show(true);
+            return;
+        }
+        try {
+            await commands.executeCommand("leetCodeResult.focus", { preserveFocus: true });
+        } catch (error) {
+            leetCodeChannel.appendLine(`[WARN] Failed to reveal the result view: ${error}`);
+        }
+    }
 
-        if (this.result.runtime || this.result.memory || this.result.totalCorrect !== undefined) {
-            const details: string[] = [];
-            if (this.result.runtime) {
-                details.push(`* ${l10n.t("Runtime")}: ${this.result.runtime}`);
-            }
-            if (this.result.memory) {
-                details.push(`* ${l10n.t("Memory")}: ${this.result.memory}`);
-            }
-            if (this.result.totalCorrect !== undefined) {
-                const total: string = this.result.totalTestcases !== undefined
-                    ? ` / ${this.result.totalTestcases}`
-                    : "";
-                details.push(`* ${l10n.t("Passed")}: ${this.result.totalCorrect}${total}`);
-            }
-            lines.push("", ...details);
+    private render(): void {
+        if (!this.view) {
+            return;
         }
+        this.view.description = this.problem ? `${this.problem.id}. ${this.problem.name}` : undefined;
+        this.view.webview.html = this.getWebviewContent(this.view.webview);
+    }
 
-        if (this.result.compileError) {
-            lines.push("", `### ${l10n.t("Compile Error")}`, "```text", this.result.compileError, "```");
-        }
-        if (this.result.runtimeError) {
-            lines.push("", `### ${l10n.t("Runtime Error")}`, "```text", this.result.runtimeError, "```");
-        }
-        if (this.result.lastTestcase) {
-            lines.push("", `### ${l10n.t("Last Testcase")}`, "```text", this.result.lastTestcase, "```");
-        }
-        if (this.result.codeOutput) {
-            lines.push("", `### ${l10n.t("Output")}`, "```text", this.result.codeOutput, "```");
-        }
-        if (this.result.expectedOutput) {
-            lines.push("", `### ${l10n.t("Expected")}`, "```text", this.result.expectedOutput, "```");
-        }
-        if (this.result.expectedOutput && this.result.codeOutput && this.result.expectedOutput !== this.result.codeOutput) {
-            const diff: string[] = diffLines(this.result.expectedOutput, this.result.codeOutput)
-                .slice(0, 200)
-                .map((line: IDiffLine) => `${line.type === "add" ? "+" : line.type === "remove" ? "-" : " "}${line.text}`);
-            lines.push("", `### ${l10n.t("Diff")}`, "```diff", ...diff, "```");
-        }
-
-        const body: string = markdownEngine.render(lines.join("\n"));
-        const webview = this.webview!;
+    private getWebviewContent(webview: Webview): string {
+        const body: string = this.result
+            ? markdownEngine.render(this.getResultMarkdown(this.result))
+            : markdownEngine.render(l10n.t("Run **Test** or **Submit** in a problem file to see the result here."));
         const styles: string = markdownEngine.getStyles(webview);
         return `
             <!DOCTYPE html>
@@ -87,12 +86,58 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 ${styles}
+                <style>body { background: transparent; padding: 4px 16px 16px; }</style>
             </head>
             <body class="vscode-body 'scrollBeyondLastLine' 'wordWrap' 'showEditorSelection'" style="tab-size:4">
                 ${body}
             </body>
             </html>
         `;
+    }
+
+    private getResultMarkdown(result: ISubmissionResult): string {
+        const status: string = result.statusMessage || result.state;
+        const lines: string[] = [`## ${status}`];
+
+        if (result.runtime || result.memory || result.totalCorrect !== undefined) {
+            const details: string[] = [];
+            if (result.runtime) {
+                details.push(`* ${l10n.t("Runtime")}: ${result.runtime}`);
+            }
+            if (result.memory) {
+                details.push(`* ${l10n.t("Memory")}: ${result.memory}`);
+            }
+            if (result.totalCorrect !== undefined) {
+                const total: string = result.totalTestcases !== undefined
+                    ? ` / ${result.totalTestcases}`
+                    : "";
+                details.push(`* ${l10n.t("Passed")}: ${result.totalCorrect}${total}`);
+            }
+            lines.push("", ...details);
+        }
+
+        if (result.compileError) {
+            lines.push("", `### ${l10n.t("Compile Error")}`, "```text", result.compileError, "```");
+        }
+        if (result.runtimeError) {
+            lines.push("", `### ${l10n.t("Runtime Error")}`, "```text", result.runtimeError, "```");
+        }
+        if (result.lastTestcase) {
+            lines.push("", `### ${l10n.t("Last Testcase")}`, "```text", result.lastTestcase, "```");
+        }
+        if (result.codeOutput) {
+            lines.push("", `### ${l10n.t("Output")}`, "```text", result.codeOutput, "```");
+        }
+        if (result.expectedOutput) {
+            lines.push("", `### ${l10n.t("Expected")}`, "```text", result.expectedOutput, "```");
+        }
+        if (result.expectedOutput && result.codeOutput && result.expectedOutput !== result.codeOutput) {
+            const diff: string[] = diffLines(result.expectedOutput, result.codeOutput)
+                .slice(0, 200)
+                .map((line: IDiffLine) => `${line.type === "add" ? "+" : line.type === "remove" ? "-" : " "}${line.text}`);
+            lines.push("", `### ${l10n.t("Diff")}`, "```diff", ...diff, "```");
+        }
+        return lines.join("\n");
     }
 
     private async showKeybindingsHint(): Promise<void> {

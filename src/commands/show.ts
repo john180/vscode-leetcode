@@ -12,7 +12,6 @@ import { buildProblemFile } from "../api/problemFile";
 import { fetchQuestionDetail } from "../api/question";
 import type { IQuestionDetail } from "../api/question";
 import { getLeetCodeRequest } from "../api/request";
-import { fetchTopSolution } from "../api/solution";
 import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeChannel } from "../leetCodeChannel";
@@ -32,7 +31,6 @@ import {
 } from "../utils/uiUtils";
 import { selectWorkspaceFolder } from "../utils/workspaceUtils";
 import { leetCodePreviewProvider } from "../webview/leetCodePreviewProvider";
-import { leetCodeSolutionProvider } from "../webview/leetCodeSolutionProvider";
 import { getProblemById, getProblemBySlug, getRandomProblem } from "../api/problems";
 import { getLeetCodeEndpoint } from "./plugin";
 
@@ -134,13 +132,7 @@ export async function showSolution(input: LeetCodeNode | vscode.Uri): Promise<vo
         return;
     }
 
-    try {
-        const solution = await fetchTopSolution(getLeetCodeRequest(), node.slug);
-        leetCodeSolutionProvider.show(solution.title || node.name, solution.content);
-    } catch (error) {
-        leetCodeChannel.appendLine(error.toString());
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to fetch the top voted solution. Please open the output channel for details."), DialogType.error);
-    }
+    await leetCodePreviewProvider.show(node, { reveal: true, tab: "solution" });
 }
 
 async function fetchProblemLanguage(): Promise<string | undefined> {

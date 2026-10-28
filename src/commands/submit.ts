@@ -51,7 +51,7 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
             language,
             code,
         );
-        leetCodeSubmissionProvider.show(result);
+        leetCodeSubmissionProvider.show(result, problem);
         if (result.state === "SUCCESS" && scope === getProblemCacheScope()) {
             await recordSubmission(problem, result.statusMessage === "Accepted");
         }

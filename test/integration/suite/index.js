@@ -29,6 +29,8 @@ exports.run = async function run() {
     // The description lives in the LeetCode sidebar; opening it must not add an editor tab.
     const tabs = vscode.window.tabGroups.all.flatMap((group) => group.tabs).length;
     await vscode.commands.executeCommand("leetCodeDetail.focus", { preserveFocus: true });
+    // Results live in the bottom panel, also outside the editor.
+    await vscode.commands.executeCommand("leetCodeResult.focus", { preserveFocus: true });
     assert.equal(vscode.window.tabGroups.all.flatMap((group) => group.tabs).length, tabs);
 
     const notes = await vscode.workspace.openTextDocument(vscode.Uri.joinPath(root, "notes.py"));

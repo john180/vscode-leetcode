@@ -29,8 +29,10 @@ test("submission webview keeps a restrictive CSP without scripts", () => {
 });
 
 test("webview resources are limited to extension-owned roots", () => {
-    const text = source("LeetCodeWebview.ts");
-    assert.match(text, /localResourceRoots: markdownEngine\.localResourceRoots/);
+    for (const name of ["leetCodePreviewProvider.ts", "leetCodeSubmissionProvider.ts"]) {
+        assert.match(source(name), /localResourceRoots: markdownEngine\.localResourceRoots/);
+    }
+    assert.doesNotMatch(source("leetCodeSubmissionProvider.ts"), /enableScripts/);
     assert.doesNotMatch(source("markdownEngine.ts"), /appRoot|markdown-language-features/);
 });
 

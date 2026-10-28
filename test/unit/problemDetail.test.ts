@@ -7,6 +7,7 @@ interface IFetch { slug: string; resolve: (detail: unknown) => void; reject: (er
 const disposable = { dispose: () => undefined };
 const executed: unknown[][] = [];
 const fetches: IFetch[] = [];
+const solutionFetches: IFetch[] = [];
 const shown: Array<[string, unknown]> = [];
 const lookups: Array<{ id: string; resolve: (problem: unknown) => void }> = [];
 let premium = false;
@@ -27,8 +28,12 @@ const providerDependencies: Record<string, unknown> = {
         l10n: { t: (text: string) => text },
         workspace: { onDidChangeConfiguration: () => disposable },
     },
+    "../api/problems": { getProblemCacheScope: () => "scope" },
     "../api/question": {
         fetchQuestionDetail: (_request: unknown, slug: string) => new Promise((resolve, reject) => fetches.push({ slug, resolve, reject })),
+    },
+    "../api/solution": {
+        fetchTopSolution: (_request: unknown, slug: string) => new Promise((resolve, reject) => solutionFetches.push({ slug, resolve, reject })),
     },
     "../api/request": { getLeetCodeRequest: () => ({}) },
     "../commands/plugin": { getLeetCodeEndpoint: () => "leetcode-cn" },
@@ -53,6 +58,7 @@ const showDependencies: Record<string, unknown> = {
     "../utils/problemDocumentContext": { isProblemDocument: (document: { problem: boolean }) => document.problem },
     "../utils/problemUtils": { getNodeIdFromText: (text: string) => text },
     "../explorer/explorerNodeManager": { explorerNodeManager: { getNodeById: () => undefined } },
+    "../explorer/LeetCodeNode": { LeetCodeNode: FakeNode },
     "../api/problems": { getProblemById: (id: string) => new Promise((resolve) => lookups.push({ id, resolve })) },
     "../webview/leetCodePreviewProvider": { leetCodePreviewProvider: {
         get currentProblemId(): string | undefined { return currentProblemId; },
@@ -71,7 +77,7 @@ moduleLoader._load = function (request: string, parent: { filename?: string }, i
     return originalLoad.call(this, request, parent, isMain);
 };
 const { leetCodePreviewProvider } = require("../../src/webview/leetCodePreviewProvider");
-const { followActiveEditor, previewProblem } = require("../../src/commands/show");
+const { followActiveEditor, previewProblem, showSolution } = require("../../src/commands/show");
 moduleLoader._load = originalLoad;
 
 function problem(id: string, slug: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
@@ -106,7 +112,7 @@ function editor(text: string, isProblem: boolean = true): { document: { problem:
 }
 
 beforeEach(() => {
-    executed.length = 0; fetches.length = 0; shown.length = 0; lookups.length = 0;
+    executed.length = 0; fetches.length = 0; solutionFetches.length = 0; shown.length = 0; lookups.length = 0;
     premium = false; user = "user"; currentProblemId = undefined; vscodeWindow.activeTextEditor = undefined;
 });
 
@@ -130,17 +136,67 @@ test("a problem shown before the view opens is revealed and rendered once the vi
 
 test("a slower earlier fetch never replaces the latest problem", async () => {
     const { view } = createView();
-    const first = leetCodePreviewProvider.show(problem("1", "two-sum"));
-    const second = leetCodePreviewProvider.show(problem("2", "add-two-numbers"));
+    const first = leetCodePreviewProvider.show(problem("11", "slow-one"));
+    const second = leetCodePreviewProvider.show(problem("12", "fast-two"));
     assert.match(view.webview.html, /Loading the problem description\.\.\./);
 
-    fetches[1].resolve(detail("add-two-numbers", "<p>second</p>"));
+    fetches[1].resolve(detail("fast-two", "<p>second</p>"));
     await second;
-    fetches[0].resolve(detail("two-sum", "<p>first</p>"));
+    fetches[0].resolve(detail("slow-one", "<p>first</p>"));
     await first;
     assert.match(view.webview.html, /<p>second<\/p>/);
     assert.doesNotMatch(view.webview.html, /<p>first<\/p>/);
-    assert.equal(view.description, "2. add-two-numbers");
+    assert.equal(view.description, "12. fast-two");
+});
+
+test("showing the same problem again reuses its description instead of fetching it", async () => {
+    const { view } = createView();
+    const loading = leetCodePreviewProvider.show(problem("6", "six"));
+    fetches[0].resolve(detail("six", "<p>six</p>"));
+    await loading;
+    await leetCodePreviewProvider.show(problem("6", "six"));
+    assert.equal(fetches.length, 1);
+    assert.match(view.webview.html, /<p>six<\/p>/);
+});
+
+test("the solution tab loads the top solution once and switches back to the description", async () => {
+    const { view, post } = createView();
+    await leetCodePreviewProvider.show(problem("7", "seven"), { detail: detail("seven", "<p>description</p>") });
+    assert.match(view.webview.html, /aria-selected="true" data-command="description"/);
+    assert.equal(solutionFetches.length, 0, "the solution loads only when asked for");
+
+    const opening = post({ command: "solution" });
+    assert.equal(solutionFetches.length, 1);
+    assert.match(view.webview.html, /aria-selected="true" data-command="solution"/);
+    assert.match(view.webview.html, /Loading the solution\.\.\./);
+    solutionFetches[0].resolve({ title: "Hash map", content: "Use a hash map." });
+    await opening;
+    assert.match(view.webview.html, /Use a hash map\./);
+    assert.doesNotMatch(view.webview.html, /<p>description<\/p>/);
+
+    await post({ command: "description" });
+    assert.match(view.webview.html, /<p>description<\/p>/);
+    await post({ command: "solution" });
+    assert.equal(solutionFetches.length, 1);
+});
+
+test("a failed solution offers a retry, and a new problem opens on its description", async () => {
+    const { view, post } = createView();
+    const failed = leetCodePreviewProvider.show(problem("8", "eight"), { detail: detail("eight", "<p>8</p>"), tab: "solution" });
+    solutionFetches[0].reject(new Error("offline"));
+    await failed;
+    assert.match(view.webview.html, /data-command="solution">Loading failed\. Click to retry\./);
+
+    const retry = post({ command: "solution" });
+    assert.equal(solutionFetches.length, 2);
+    assert.match(view.webview.html, /Loading the solution\.\.\./);
+    solutionFetches[1].resolve({ title: "", content: "Two pointers." });
+    await retry;
+    assert.match(view.webview.html, /Two pointers\./);
+
+    await leetCodePreviewProvider.show(problem("9", "nine"), { detail: detail("nine", "<p>9</p>") });
+    assert.match(view.webview.html, /<p>9<\/p>/);
+    assert.equal(solutionFetches.length, 2);
 });
 
 test("locked problems show a premium notice without fetching or coding actions", async () => {
@@ -187,6 +243,11 @@ test("actions run LeetCode commands for the shown problem and ignore anything el
 test("previewing a list item reveals the sidebar description", async () => {
     await previewProblem(problem("42", "trapping-rain-water"));
     assert.deepEqual(shown, [["42", { reveal: true }]]);
+});
+
+test("showing the solution opens the solution tab in the sidebar", async () => {
+    await showSolution(new FakeNode({ id: "42", slug: "trapping-rain-water" }));
+    assert.deepEqual(shown, [["42", { reveal: true, tab: "solution" }]]);
 });
 
 test("editor follow shows the active problem file without revealing the sidebar", async () => {

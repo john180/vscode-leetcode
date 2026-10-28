@@ -27,7 +27,7 @@ code --install-extension ".\vscode-leetcode-$version.vsix" --force
 
 - 浏览 leetcode.cn 全部题目，支持 `LCP`、面试题等特殊题号，显示中文标题、AC 状态、付费锁、标签与公司。
 - 打开题目生成带 `@lc` 头、代码模板与可选描述注释的文件。
-- 在 Webview 中查看题目描述与高赞题解。
+- 侧边栏题目详情中查看题目描述与高赞题解，测试和提交结果显示在底部面板，编辑区只放代码。
 - 运行样例或自定义测试并提交代码。
 - 本地多账号会话，可创建、切换、删除。
 - 搜索、排序、隐藏已做题目、收藏/取消收藏。
@@ -47,8 +47,8 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
    点击标题栏的搜索图标输入题号、标题或 slug，题目列表会只保留匹配的题目并高亮关键字，自动定位到最匹配的一题（只选中，不打开）；按 Enter 跳到下一个，Esc 关闭输入框但保留结果，点击 ✕ 恢复完整列表。`tag:array` 或 `company:google` 只在对应分类中搜索。
    浏览过的题目会保存在本地缓存中，重启后可复用；缓存按站点、登录会话和语言隔离，过期后后台更新。刷新按钮重新加载当前展开的分类，**Delete Cache** 会清除持久化题库缓存。测试、提交和查看历史无需加载完整题库。
    单击题目后，描述显示在侧边栏下方的 **题目详情** 中；点击 **开始写代码**（或题目右侧的代码图标）在编辑区生成并打开代码文件。切换到题目代码文件时，题目详情会自动显示该题；也可点击编辑器标题栏的书本图标回到描述。
-2. 编辑生成的代码文件，用 CodeLens 的 **Test** 运行样例，或 **Submit** 提交。
-3. 需要题解时点击 **Solution**。
+2. 编辑生成的代码文件，用 CodeLens 的 **Test** 运行样例，或 **Submit** 提交；结果显示在代码下方的 **LeetCode 结果** 面板。
+3. 需要题解时切换到题目详情的 **题解** 标签，或点击 CodeLens 的 **Solution**。
 
 ## 常用命令
 
@@ -61,7 +61,7 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 | `LeetCode: Show Description` | 在侧边栏题目详情中查看当前题目文件的描述 |
 | `LeetCode: Test in LeetCode` | 用样例或自定义输入测试 |
 | `LeetCode: Submit to LeetCode` | 提交代码 |
-| `LeetCode: Show Top Voted Solution` | 查看题解 |
+| `LeetCode: Show Top Voted Solution` | 在题目详情的「题解」标签中查看高赞题解 |
 | `LeetCode: Manage Sessions` | 管理本地多账号 |
 | `LeetCode: Delete Cache` | 清除题库缓存 |
 
@@ -79,7 +79,6 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 | `leetcode.useEndpointTranslation` | 使用站点提供的翻译内容 | `true` |
 | `leetcode.enableStatusBar` | 显示 LeetCode 状态栏 | `true` |
 | `leetcode.editor.shortcuts` | CodeLens 操作：`submit`、`test`、`star`、`solution`、`description` | `["submit", "test"]` |
-| `leetcode.enableSideMode` | 在第二编辑列打开题解 | `true` |
 | `leetcode.colorizeProblems` | 按难度着色 | `true` |
 | `leetcode.problems.sortStrategy` | `None`、`Acceptance Rate (Ascending)`、`Acceptance Rate (Descending)` | `None` |
 

@@ -150,6 +150,13 @@
                     "title": "LeetCode",
                     "icon": "resources/LeetCode.svg"
                 }
+            ],
+            "panel": [
+                {
+                    "id": "leetcodeResults",
+                    "title": "%view.results%",
+                    "icon": "resources/LeetCode.svg"
+                }
             ]
         },
         "views": {
@@ -162,6 +169,13 @@
                     "type": "webview",
                     "id": "leetCodeDetail",
                     "name": "%view.detail%"
+                }
+            ],
+            "leetcodeResults": [
+                {
+                    "type": "webview",
+                    "id": "leetCodeResult",
+                    "name": "%view.results%"
                 }
             ]
         },
@@ -712,7 +726,8 @@
                         "type": "boolean",
                         "default": true,
                         "scope": "application",
-                        "description": "%config.enableSideMode%"
+                        "description": "%config.enableSideMode%",
+                        "deprecationMessage": "%config.enableSideMode.deprecated%"
                     },
                     "leetcode.followActiveEditor": {
                         "type": "boolean",

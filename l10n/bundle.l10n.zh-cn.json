@@ -43,7 +43,6 @@
     "Expected": "期望输出",
     "Failed to create the session. Please open the output channel for details.": "创建会话失败，请打开输出面板查看详情。",
     "Failed to delete the session. Please open the output channel for details.": "删除会话失败，请打开输出面板查看详情。",
-    "Failed to fetch the top voted solution. Please open the output channel for details.": "获取高赞题解失败，请打开输出面板查看详情。",
     "Failed to list problems. Please open the output channel for details.": "加载题目列表失败，请打开输出面板查看详情。",
     "Failed to read the language from the @lc header.": "无法从 @lc 头读取语言。",
     "Failed to resolve the current problem file.": "无法确定当前题目文件。",
@@ -78,8 +77,6 @@
     "Select where you would like to save your LeetCode files": "选择 LeetCode 文件保存位置",
     "Sign up": "注册",
     "Solution": "题解",
-    "Solution: {0}": "题解：{0}",
-    "Submission": "提交结果",
     "Successfully set the default language to {0}.": "已将默认语言设置为 {0}。",
     "Switched the endpoint to {0}.": "已切换站点到 {0}。",
     "Test case must not be empty.": "测试用例不能为空。",
@@ -160,5 +157,7 @@
     "{0} matches in {1}.": "{1}中有 {0} 道匹配的题目。",
     "No problems match \"{0}\".": "没有匹配“{0}”的题目。",
     "Search: \"{0}\"": "搜索：“{0}”",
-    "No matching problems": "没有匹配的题目"
+    "No matching problems": "没有匹配的题目",
+    "Loading the solution...": "正在加载题解...",
+    "Run **Test** or **Submit** in a problem file to see the result here.": "在题目代码文件中点击 **Test** 或 **Submit**，运行结果会显示在这里。"
 }
