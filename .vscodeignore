@@ -19,5 +19,6 @@ ACKNOWLEDGEMENTS.md
 scripts/**
 node_modules/**
 .idea/**
+qodana.yaml
 .npm/**
 **/*.log
