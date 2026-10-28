@@ -27,10 +27,13 @@ test("submitSolution posts the submission and maps a successful judge result", a
         return response({
             state: "SUCCESS",
             status_msg: "Accepted",
-            runtime: "3",
+            status_runtime: "3 ms",
             memory: 8388608,
+            runtime_percentile: 91.234,
+            memory_percentile: null,
             total_correct: 66,
             total_testcases: 66,
+            std_output: "debug\n",
         }, config);
     };
     try {
@@ -46,13 +49,16 @@ test("submitSolution posts the submission and maps a successful judge result", a
         assert.equal(result.statusMessage, "Accepted");
         assert.equal(result.runtime, "3 ms");
         assert.equal(result.memory, "8.0 MB");
+        assert.equal(result.runtimePercentile, 91.234);
+        assert.equal(result.memoryPercentile, undefined);
         assert.equal(result.totalCorrect, 66);
+        assert.equal(result.stdout, "debug\n");
     } finally {
         axios.defaults.adapter = originalAdapter;
     }
 });
 
-test("testSolution uses the interpret endpoint and forwards the test input", async () => {
+test("testSolution uses the interpret endpoint and reports a mismatched answer as wrong", async () => {
     const originalAdapter = axios.defaults.adapter;
     let postedBody: any;
     let postedUrl: string = "";
@@ -62,7 +68,20 @@ test("testSolution uses the interpret endpoint and forwards the test input", asy
             postedBody = JSON.parse(config.data);
             return response({ interpret_id: 7 }, config);
         }
-        return response({ state: "SUCCESS", status_msg: "Accepted", code_output: "[0,1]", expected_output: "[0,1]" }, config);
+        return response({
+            state: "SUCCESS",
+            status_msg: "Accepted",
+            status_runtime: "0 ms",
+            status_memory: "16.5 MB",
+            runtime_percentile: null,
+            correct_answer: false,
+            code_answer: ["[0,1]", "[1,2]"],
+            expected_code_answer: ["[0,1]", "[0,2]"],
+            code_output: ["hello"],
+            std_output_list: ["hello", "", ""],
+            total_correct: 1,
+            total_testcases: 2,
+        }, config);
     };
     try {
         const result = await testSolution(request, target, "cpp", "code", "[2,7,11,15]\\n9", {
@@ -71,8 +90,59 @@ test("testSolution uses the interpret endpoint and forwards the test input", asy
         });
         assert.equal(postedUrl, "https://leetcode.com/problems/two-sum/interpret_solution/");
         assert.equal(postedBody.data_input, "[2,7,11,15]\\n9");
-        assert.equal(result.codeOutput, "[0,1]");
-        assert.equal(result.expectedOutput, "[0,1]");
+        assert.equal(result.statusMessage, "Wrong Answer");
+        assert.equal(result.codeOutput, "[0,1]\n[1,2]");
+        assert.equal(result.expectedOutput, "[0,1]\n[0,2]");
+        assert.equal(result.stdout, "hello");
+        assert.equal(result.runtime, "0 ms");
+        assert.equal(result.memory, "16.5 MB");
+        assert.equal(result.runtimePercentile, undefined);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("testSolution keeps a matching answer accepted and drops blank prints", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async (config: any) => config.method === "post"
+        ? response({ interpret_id: 5 }, config)
+        : response({
+            state: "SUCCESS",
+            status_msg: "Accepted",
+            correct_answer: true,
+            code_answer: ["1"],
+            expected_code_answer: ["1"],
+            code_output: [],
+            std_output_list: ["", ""],
+        }, config);
+    try {
+        const result = await testSolution(request, target, "cpp", "code", "1", { pollIntervalMs: 0, pollTimeoutMs: 1000 });
+        assert.equal(result.statusMessage, "Accepted");
+        assert.equal(result.codeOutput, "1");
+        assert.equal(result.stdout, undefined);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("submitSolution omits runtime and memory the judge reports as N/A", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async (config: any) => config.method === "post"
+        ? response({ submission_id: 11 }, config)
+        : response({
+            state: "SUCCESS",
+            status_msg: "Compile Error",
+            status_runtime: "N/A",
+            status_memory: "N/A",
+            memory: 0,
+            full_compile_error: "Line 1: error",
+        }, config);
+    try {
+        const result = await submitSolution(request, target, "cpp", "code", { pollIntervalMs: 0, pollTimeoutMs: 1000 });
+        assert.equal(result.statusMessage, "Compile Error");
+        assert.equal(result.runtime, undefined);
+        assert.equal(result.memory, undefined);
+        assert.equal(result.compileError, "Line 1: error");
     } finally {
         axios.defaults.adapter = originalAdapter;
     }

@@ -44,14 +44,15 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
         if (scope !== getProblemCacheScope()) { return; }
 
         const request = getLeetCodeRequest();
-        const detail = await fetchQuestionDetail(request, problem.slug);
-        const result = await submitToLeetCode(
-            request,
-            { slug: problem.slug, questionId: detail.questionId },
-            language,
-            code,
-        );
-        leetCodeSubmissionProvider.show(result, problem);
+        const result = await leetCodeSubmissionProvider.judge(problem, async () => {
+            const detail = await fetchQuestionDetail(request, problem.slug);
+            return submitToLeetCode(
+                request,
+                { slug: problem.slug, questionId: detail.questionId },
+                language,
+                code,
+            );
+        });
         if (result.state === "SUCCESS" && scope === getProblemCacheScope()) {
             await recordSubmission(problem, result.statusMessage === "Accepted");
         }

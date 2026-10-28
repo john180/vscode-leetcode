@@ -41,7 +41,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     if (request === "../utils/uiUtils") { return { DialogType: {}, promptForOpenOutputChannel: async () => actions.push("error") }; }
     if (request === "../explorer/explorerNodeManager") { return { explorerNodeManager: { getNodeById: () => undefined } }; }
     if (request === "../explorer/LeetCodeTreeDataProvider") { return { leetCodeTreeDataProvider: { refresh: async (force = false) => actions.push({ refresh: force }) } }; }
-    if (request === "../webview/leetCodeSubmissionProvider") { return { leetCodeSubmissionProvider: { show: () => undefined } }; }
+    if (request === "../webview/leetCodeSubmissionProvider") { return { leetCodeSubmissionProvider: { judge: async (_problem: unknown, judge: () => Promise<unknown>) => judge() } }; }
     if (request === "../globalState") { return { globalState: { getTestCase: () => undefined, saveTestCase: async () => undefined } }; }
     return originalLoad.call(this, request, parent, isMain);
 };

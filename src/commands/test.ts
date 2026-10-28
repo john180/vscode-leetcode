@@ -51,14 +51,13 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
         }
         await globalState.saveTestCase(problem.slug, testInput);
 
-        const result = await testWithLeetCode(
+        await leetCodeSubmissionProvider.judge(problem, () => testWithLeetCode(
             getLeetCodeRequest(),
             { slug: problem.slug, questionId: detail.questionId },
             language,
             code,
             testInput,
-        );
-        leetCodeSubmissionProvider.show(result, problem);
+        ));
     } catch (error) {
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to test the solution. Please open the output channel for details."), DialogType.error);
     }

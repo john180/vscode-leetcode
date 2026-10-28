@@ -1,7 +1,7 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { commands, Disposable, l10n, Webview, WebviewView, WebviewViewProvider, workspace } from "vscode";
+import { commands, Disposable, l10n, Webview, WebviewView, WebviewViewProvider, window, workspace } from "vscode";
 import type { ISubmissionResult } from "../api/submission";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { IProblem } from "../shared";
@@ -14,6 +14,10 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     private view: WebviewView | undefined;
     private result: ISubmissionResult | undefined;
     private problem: IProblem | undefined;
+    /** Set while the latest run has no result yet. */
+    private phase: "judging" | "failed" | undefined;
+    /** Counts shown runs, so an older run that settles late never replaces a newer one. */
+    private run: number = 0;
 
     public resolveWebviewView(view: WebviewView): void {
         this.view = view;
@@ -33,16 +37,43 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     }
 
     public show(result: ISubmissionResult, problem?: IProblem): void {
+        this.run += 1;
         this.result = result;
         this.problem = problem;
+        this.phase = undefined;
         this.render();
         void this.reveal();
         void this.showKeybindingsHint();
     }
 
+    /** Show `problem` as judging until `judge` settles, then its result or failure. */
+    public async judge(problem: IProblem, judge: () => Promise<ISubmissionResult>): Promise<ISubmissionResult> {
+        const run: number = ++this.run;
+        this.result = undefined;
+        this.problem = problem;
+        this.phase = "judging";
+        this.render();
+        void this.reveal();
+        try {
+            const result: ISubmissionResult = await window.withProgress({ location: { viewId: "leetCodeResult" } }, judge);
+            if (run === this.run) {
+                this.show(result, problem);
+            }
+            return result;
+        } catch (error) {
+            leetCodeChannel.appendLine(`[ERROR] Failed to get the judge result: ${error}`);
+            if (run === this.run) {
+                this.phase = "failed";
+                this.render();
+            }
+            throw error;
+        }
+    }
+
     public dispose(): void {
         this.result = undefined;
         this.problem = undefined;
+        this.phase = undefined;
     }
 
     private async reveal(): Promise<void> {
@@ -67,9 +98,7 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     }
 
     private getWebviewContent(webview: Webview): string {
-        const body: string = this.result
-            ? markdownEngine.render(this.getResultMarkdown(this.result))
-            : markdownEngine.render(l10n.t("Run **Test** or **Submit** in a problem file to see the result here."));
+        const body: string = markdownEngine.render(this.getMarkdown());
         const styles: string = markdownEngine.getStyles(webview);
         return `
             <!DOCTYPE html>
@@ -95,17 +124,31 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
         `;
     }
 
+    private getMarkdown(): string {
+        if (this.phase === "judging") {
+            return l10n.t("Judging...");
+        }
+        if (this.phase === "failed") {
+            return l10n.t("Failed to get the judge result. Please open the output channel for details.");
+        }
+        return this.result
+            ? this.getResultMarkdown(this.result)
+            : l10n.t("Run **Test** or **Submit** in a problem file to see the result here.");
+    }
+
     private getResultMarkdown(result: ISubmissionResult): string {
         const status: string = result.statusMessage || result.state;
         const lines: string[] = [`## ${status}`];
+        const beats = (percentile: number | undefined): string =>
+            percentile === undefined ? "" : ` (${l10n.t("beats {0}%", percentile.toFixed(2))})`;
 
         if (result.runtime || result.memory || result.totalCorrect !== undefined) {
             const details: string[] = [];
             if (result.runtime) {
-                details.push(`* ${l10n.t("Runtime")}: ${result.runtime}`);
+                details.push(`* ${l10n.t("Runtime")}: ${result.runtime}${beats(result.runtimePercentile)}`);
             }
             if (result.memory) {
-                details.push(`* ${l10n.t("Memory")}: ${result.memory}`);
+                details.push(`* ${l10n.t("Memory")}: ${result.memory}${beats(result.memoryPercentile)}`);
             }
             if (result.totalCorrect !== undefined) {
                 const total: string = result.totalTestcases !== undefined
@@ -127,6 +170,9 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
         }
         if (result.codeOutput) {
             lines.push("", `### ${l10n.t("Output")}`, "```text", result.codeOutput, "```");
+        }
+        if (result.stdout) {
+            lines.push("", `### ${l10n.t("Stdout")}`, "```text", result.stdout, "```");
         }
         if (result.expectedOutput) {
             lines.push("", `### ${l10n.t("Expected")}`, "```text", result.expectedOutput, "```");

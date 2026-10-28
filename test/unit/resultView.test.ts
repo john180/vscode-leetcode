@@ -9,7 +9,8 @@ const shown: boolean[] = [];
 const dependencies: Record<string, unknown> = {
     "vscode": {
         commands: { executeCommand: async (...args: unknown[]) => { executed.push(args); } },
-        l10n: { t: (text: string) => text },
+        l10n: { t: (text: string, ...args: unknown[]) => text.replace(/\{(\d+)\}/g, (_: string, index: string) => String(args[+index])) },
+        window: { withProgress: (_options: unknown, task: () => Promise<unknown>) => task() },
         workspace: { onDidChangeConfiguration: () => disposable },
     },
     "../leetCodeChannel": { leetCodeChannel: { appendLine: () => undefined } },
@@ -65,4 +66,49 @@ test("an open panel is brought forward for each new result", () => {
     assert.match(view.webview.html, /## Accepted/);
     assert.match(view.webview.html, /Runtime: 52 ms/);
     assert.equal(view.description, "2. Add Two Numbers");
+});
+
+test("a result shows how much of the field it beats and what the code printed", () => {
+    const { view } = createView();
+    leetCodeSubmissionProvider.show({
+        state: "SUCCESS", statusMessage: "Accepted", runtime: "3 ms", runtimePercentile: 91.234, memory: "8.0 MB", stdout: "debug",
+    }, { id: "1", name: "Two Sum" });
+    assert.match(view.webview.html, /Runtime: 3 ms \(beats 91\.23%\)/);
+    assert.match(view.webview.html, /Memory: 8\.0 MB\n/);
+    assert.match(view.webview.html, /### Stdout\n```text\ndebug\n```/);
+});
+
+test("the panel shows the judge working until the result arrives", async () => {
+    const { view } = createView();
+    let settle: (result: unknown) => void = () => undefined;
+    const judged = leetCodeSubmissionProvider.judge({ id: "3", name: "Longest Substring" }, () => new Promise((resolve) => { settle = resolve; }));
+    assert.match(view.webview.html, /Judging\.\.\./);
+    assert.equal(view.description, "3. Longest Substring");
+
+    settle({ state: "SUCCESS", statusMessage: "Accepted" });
+    await judged;
+    assert.match(view.webview.html, /## Accepted/);
+    assert.doesNotMatch(view.webview.html, /Judging/);
+});
+
+test("an older run that settles late does not replace a newer one", async () => {
+    const { view } = createView();
+    let settleOld: (result: unknown) => void = () => undefined;
+    const old = leetCodeSubmissionProvider.judge({ id: "1", name: "Two Sum" }, () => new Promise((resolve) => { settleOld = resolve; }));
+    await leetCodeSubmissionProvider.judge({ id: "2", name: "Add Two Numbers" }, async () => ({ state: "SUCCESS", statusMessage: "Accepted" }));
+
+    settleOld({ state: "SUCCESS", statusMessage: "Wrong Answer" });
+    assert.equal((await old).statusMessage, "Wrong Answer");
+    assert.match(view.webview.html, /## Accepted/);
+    assert.equal(view.description, "2. Add Two Numbers");
+});
+
+test("a failed run leaves the panel saying so and rethrows", async () => {
+    const { view } = createView();
+    await assert.rejects(
+        leetCodeSubmissionProvider.judge({ id: "1", name: "Two Sum" }, async () => { throw new Error("offline"); }),
+        /offline/,
+    );
+    assert.match(view.webview.html, /Failed to get the judge result/);
+    assert.doesNotMatch(view.webview.html, /Judging/);
 });

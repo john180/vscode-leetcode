@@ -159,5 +159,9 @@
     "Search: \"{0}\"": "搜索：“{0}”",
     "No matching problems": "没有匹配的题目",
     "Loading the solution...": "正在加载题解...",
-    "Run **Test** or **Submit** in a problem file to see the result here.": "在题目代码文件中点击 **Test** 或 **Submit**，运行结果会显示在这里。"
+    "Run **Test** or **Submit** in a problem file to see the result here.": "在题目代码文件中点击 **Test** 或 **Submit**，运行结果会显示在这里。",
+    "Judging...": "正在判题...",
+    "Failed to get the judge result. Please open the output channel for details.": "未能获取判题结果，请打开输出面板查看详情。",
+    "beats {0}%": "击败 {0}%",
+    "Stdout": "标准输出"
 }

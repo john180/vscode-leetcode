@@ -24,26 +24,43 @@ export interface ISubmissionResult {
     statusMessage: string;
     runtime?: string;
     memory?: string;
+    /** Share of accepted submissions this one beats, in percent. */
+    runtimePercentile?: number;
+    memoryPercentile?: number;
     totalCorrect?: number;
     totalTestcases?: number;
     compileError?: string;
     runtimeError?: string;
+    /** The answer returned by the code; one line per test case for a test run. */
     codeOutput?: string;
     expectedOutput?: string;
+    /** What the code printed. */
+    stdout?: string;
     lastTestcase?: string;
 }
 
+type JudgeMode = "test" | "submit";
+
+/** The judge's check response. A test run reports answers in `code_answer` and prints in `code_output`. */
 interface ICheckResponse {
     state?: string;
     status_msg?: string;
-    runtime?: string | number;
+    status_runtime?: string;
+    status_memory?: string;
     memory?: string | number;
+    runtime_percentile?: number | null;
+    memory_percentile?: number | null;
     total_correct?: number;
     total_testcases?: number;
+    correct_answer?: boolean;
     full_compile_error?: string;
     full_runtime_error?: string;
+    code_answer?: string[];
+    expected_code_answer?: string[];
     code_output?: string | string[];
     expected_output?: string | string[];
+    std_output?: string;
+    std_output_list?: string[];
     last_testcase?: string;
 }
 
@@ -85,8 +102,18 @@ function toStringValue(value: string | string[] | undefined): string | undefined
     return Array.isArray(value) ? value.join("\n") : value;
 }
 
+/** Printed output, or undefined when nothing but whitespace was printed. */
+function toPrinted(value: string | string[] | undefined): string | undefined {
+    const text: string | undefined = toStringValue(value);
+    return text?.trim() ? text : undefined;
+}
+
+function toPercentile(value: number | null | undefined): number | undefined {
+    return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
 function formatRuntime(value: string | number | undefined): string | undefined {
-    if (value === undefined || value === null || value === "") {
+    if (value === undefined || value === null || value === "" || value === "N/A") {
         return undefined;
     }
     const text: string = String(value);
@@ -94,7 +121,7 @@ function formatRuntime(value: string | number | undefined): string | undefined {
 }
 
 function formatMemory(value: string | number | undefined): string | undefined {
-    if (value === undefined || value === null || value === "") {
+    if (value === undefined || value === null || value === "" || value === "N/A") {
         return undefined;
     }
     const text: string = String(value);
@@ -108,18 +135,24 @@ function formatMemory(value: string | number | undefined): string | undefined {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function mapResult(data: ICheckResponse): ISubmissionResult {
+function mapResult(data: ICheckResponse, mode: JudgeMode): ISubmissionResult {
+    const test: boolean = mode === "test";
+    const statusMessage: string = data.status_msg || data.state || "Unknown result";
     return {
         state: data.state || "UNKNOWN",
-        statusMessage: data.status_msg || data.state || "Unknown result",
-        runtime: formatRuntime(data.runtime),
-        memory: formatMemory(data.memory),
+        // A test run is "Accepted" once the code runs, whether or not its answers match.
+        statusMessage: test && data.correct_answer === false && statusMessage === "Accepted" ? "Wrong Answer" : statusMessage,
+        runtime: formatRuntime(data.status_runtime),
+        memory: formatMemory(data.status_memory || data.memory),
+        runtimePercentile: toPercentile(data.runtime_percentile),
+        memoryPercentile: toPercentile(data.memory_percentile),
         totalCorrect: data.total_correct,
         totalTestcases: data.total_testcases,
         compileError: data.full_compile_error || undefined,
         runtimeError: data.full_runtime_error || undefined,
-        codeOutput: toStringValue(data.code_output),
-        expectedOutput: toStringValue(data.expected_output),
+        codeOutput: toStringValue(test ? data.code_answer : data.code_output),
+        expectedOutput: toStringValue(test ? data.expected_code_answer : data.expected_output),
+        stdout: test ? toPrinted(data.code_output) ?? toPrinted(data.std_output_list) : toPrinted(data.std_output),
         lastTestcase: data.last_testcase,
     };
 }
@@ -134,6 +167,7 @@ async function pollResult(
     request: IGraphQLRequest,
     checkId: string,
     slug: string,
+    mode: JudgeMode,
     options: ISubmissionOptions = {},
 ): Promise<ISubmissionResult> {
     const headers: { [key: string]: string } = getHeaders(request, slug);
@@ -147,7 +181,7 @@ async function pollResult(
         );
         const state: string = response.data.state || "";
         if (state && state !== "PENDING" && state !== "STARTED") {
-            return mapResult(response.data);
+            return mapResult(response.data, mode);
         }
         await delay(intervalMs);
     }
@@ -211,7 +245,7 @@ export async function submitSolution(
     if (submissionId === undefined || submissionId === null) {
         throw new Error("LeetCode did not return a submission id.");
     }
-    return pollResult(request, String(submissionId), target.slug, options);
+    return pollResult(request, String(submissionId), target.slug, "submit", options);
 }
 
 export async function testSolution(
@@ -233,5 +267,5 @@ export async function testSolution(
     if (interpretId === undefined || interpretId === null) {
         throw new Error("LeetCode did not return an interpret id.");
     }
-    return pollResult(request, String(interpretId), target.slug, options);
+    return pollResult(request, String(interpretId), target.slug, "test", options);
 }
