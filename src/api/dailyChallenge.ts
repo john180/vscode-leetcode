@@ -1,7 +1,6 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import axios from "axios";
 import type { IProblem } from "../shared";
 import { graphql, IGraphQLRequest } from "./client";
 
@@ -19,17 +18,31 @@ interface IDailyQuestion {
     topicTags?: Array<{ name?: string; slug?: string }>;
 }
 
-interface IGlobalDailyResponse {
-    data?: {
-        activeDailyCodingChallengeQuestion?: {
-            question?: IDailyQuestion;
-        };
+interface IGlobalDailyData {
+    activeDailyCodingChallengeQuestion?: {
+        question?: IDailyQuestion;
     };
 }
 
 interface ICnDailyData {
     todayRecord?: Array<{ question?: IDailyQuestion }>;
 }
+
+const GLOBAL_DAILY_QUERY: string = `query questionOfToday {
+    activeDailyCodingChallengeQuestion {
+        question {
+            questionId
+            questionFrontendId
+            title
+            titleSlug
+            difficulty
+            isPaidOnly
+            acRate
+            status
+            topicTags { name slug }
+        }
+    }
+}`;
 
 const CN_DAILY_QUERY: string = `query questionOfToday {
     todayRecord {
@@ -51,8 +64,9 @@ const CN_DAILY_QUERY: string = `query questionOfToday {
 const CACHE_TTL_MS = 5 * 60 * 1000;
 let dailyCache: { origin: string; at: number; value: IProblem | undefined } | undefined;
 
+/** Reads the `data` of leetcode.com's activeDailyCodingChallengeQuestion query. */
 export function parseGlobalDailyChallenge(data: unknown): IProblem | undefined {
-    return mapDailyQuestion((data as IGlobalDailyResponse | undefined)?.data?.activeDailyCodingChallengeQuestion?.question);
+    return mapDailyQuestion((data as IGlobalDailyData | undefined)?.activeDailyCodingChallengeQuestion?.question);
 }
 
 /** Reads the `data` of LeetCode CN's todayRecord query. */
@@ -94,36 +108,7 @@ export async function fetchDailyChallenge(request: IGraphQLRequest, forceRefresh
     }
     let value: IProblem | undefined;
     if (request.origin.includes("leetcode.com")) {
-        const response = await axios.post<IGlobalDailyResponse>(
-            `${request.origin}/graphql`,
-            {
-                query: `query questionOfToday {
-                    activeDailyCodingChallengeQuestion {
-                        question {
-                            questionFrontendId
-                            title
-                            titleSlug
-                            difficulty
-                            isPaidOnly
-                            acRate
-                            status
-                            topicTags { name slug }
-                        }
-                    }
-                }`,
-                variables: {},
-            },
-            {
-                timeout: 20000,
-                headers: {
-                    "cookie": request.cookie,
-                    "origin": request.origin,
-                    "referer": `${request.origin}/problemset/`,
-                    "x-requested-with": "XMLHttpRequest",
-                },
-            },
-        );
-        value = parseGlobalDailyChallenge(response.data);
+        value = parseGlobalDailyChallenge(await graphql<IGlobalDailyData>(request, GLOBAL_DAILY_QUERY));
     } else {
         value = parseCnDailyChallenge(await graphql<ICnDailyData>(request, CN_DAILY_QUERY));
     }

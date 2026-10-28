@@ -19,6 +19,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - A request that LeetCode rejects with 401 or 403 no longer deletes the saved session unless LeetCode confirms that the session is signed out; a 403 can also come from a CAPTCHA or CSRF check.
 - When LeetCode rejects a query, the output channel shows LeetCode's reason instead of "Request failed with status code 400", and a CAPTCHA or proxy page is reported as such.
 - A brief network failure while waiting for a judge result no longer loses the result of a test or submission that LeetCode already accepted.
+- A brief network failure while checking the saved session at startup, or while loading favorite lists or submission history, is retried instead of failing.
 
 ### Changed
 - Commands and views are registered before the stored session is restored, so a failure there no longer leaves the commands missing.
@@ -27,6 +28,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Problem Details is no longer kept alive while hidden; it reloads its content when shown again.
 - Links open with `env.openExternal`.
 - TypeScript `strict` mode is enabled, and CI also runs the integration test on the minimum supported VS Code.
+- Every request to LeetCode goes through one HTTP layer, so all of them send the same headers, including the CSRF token and a User-Agent with the extension's real version and platform instead of a fixed "0.19 on Windows".
 
 ## [0.25.0] - 2026-10-28
 ### Changed

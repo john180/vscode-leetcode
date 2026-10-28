@@ -30,11 +30,13 @@ import { compileDiagnostics } from "./utils/compileDiagnostics";
 import { markdownEngine } from "./webview/markdownEngine";
 import { globalState } from "./globalState";
 import { problemCache } from "./api/problemCache";
+import { setClientVersion } from "./api/http";
 import { registerProblemDocumentContext } from "./utils/problemDocumentContext";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     try {
         setExtensionId(context.extension.id);
+        setClientVersion(context.extension.packageJSON?.version);
         markdownEngine.initialize(context.extensionUri);
         registerProblemDocumentContext(context);
         sessionEvents.on("expired", () => {

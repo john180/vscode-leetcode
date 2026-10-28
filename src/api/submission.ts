@@ -1,9 +1,8 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import axios from "axios";
 import { IGraphQLRequest } from "./client";
-import { isRetryableError, MAX_RETRIES, retryDelayMs } from "./retry";
+import { getCsrfToken, send } from "./http";
 
 const DEFAULT_POLL_INTERVAL_MS = 1000;
 const DEFAULT_POLL_TIMEOUT_MS = 90000;
@@ -95,27 +94,18 @@ interface ITestResponse {
     interpret_id?: string | number;
 }
 
-function getCsrfToken(cookie: string | undefined): string {
-    const match: RegExpMatchArray | null = (cookie || "").match(/(?:^|;\s*)csrftoken=([^;]+)/);
-    if (!match) {
-        throw new Error("The cookie does not contain csrftoken.");
-    }
-    return match[1];
-}
-
-function getHeaders(request: IGraphQLRequest, slug: string): { [key: string]: string } {
+/** The judge needs the session and its CSRF token; check both before sending anything. */
+function assertCanJudge(request: IGraphQLRequest): void {
     if (!request.cookie) {
         throw new Error("Not signed in. Please sign in to LeetCode first.");
     }
-    return {
-        "cookie": request.cookie,
-        "x-csrftoken": getCsrfToken(request.cookie),
-        "x-requested-with": "XMLHttpRequest",
-        "origin": request.origin,
-        "referer": `${request.origin}/problems/${slug}/`,
-        "content-type": "application/json",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) vscode-leetcode/0.19",
-    };
+    if (!getCsrfToken(request.cookie)) {
+        throw new Error("The cookie does not contain csrftoken.");
+    }
+}
+
+function problemPage(slug: string): string {
+    return `/problems/${encodeURIComponent(slug)}/`;
 }
 
 function toStringValue(value: string | string[] | undefined): string | undefined {
@@ -235,31 +225,19 @@ async function pollResult(
     slug: string,
     options: ISubmissionOptions = {},
 ): Promise<ICheckResponse> {
-    const headers: { [key: string]: string } = getHeaders(request, slug);
     const intervalMs: number = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
     const timeoutMs: number = options.pollTimeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
     const startedAt: number = Date.now();
-    let failures: number = 0;
     while (Date.now() - startedAt < timeoutMs) {
-        let data: ICheckResponse;
-        try {
-            data = (await axios.get<ICheckResponse>(
-                `${request.origin}/submissions/detail/${checkId}/check/`,
-                { headers, timeout: 15000 },
-            )).data;
-            failures = 0;
-        } catch (error) {
-            // The code is already judged; one failed check must not lose its result.
-            if (failures >= MAX_RETRIES || !isRetryableError(error)) {
-                throw error;
-            }
-            await delay(retryDelayMs(failures, error));
-            failures += 1;
-            continue;
-        }
-        const state: string = data.state || "";
+        // A check is a GET, which send retries, so one failed check does not lose the judged result.
+        const response = await send<ICheckResponse>(
+            request,
+            { url: `${request.origin}/submissions/detail/${checkId}/check/`, timeout: 15000 },
+            { referer: problemPage(slug) },
+        );
+        const state: string = response.data.state || "";
         if (state && state !== "PENDING" && state !== "STARTED") {
-            return data;
+            return response.data;
         }
         await delay(intervalMs);
     }
@@ -273,14 +251,15 @@ async function postJson(
     body: { [key: string]: string | number | boolean },
     options: ISubmissionOptions = {},
 ): Promise<{ [key: string]: unknown }> {
-    const headers: { [key: string]: string } = getHeaders(request, slug);
+    assertCanJudge(request);
     const rateLimitDelayMs: number = options.rateLimitDelayMs ?? DEFAULT_RATE_LIMIT_DELAY_MS;
     for (let attempt: number = 0; attempt < 3; attempt += 1) {
         try {
-            const response = await axios.post<{ [key: string]: unknown }>(
-                `${request.origin}${path}`,
-                body,
-                { headers, timeout: 20000 },
+            // send does not retry a POST: a request that failed may still have reached the judge.
+            const response = await send<{ [key: string]: unknown }>(
+                request,
+                { method: "POST", url: `${request.origin}${path}`, data: body },
+                { referer: problemPage(slug) },
             );
             const data: { [key: string]: unknown } = response.data;
             const bodyError: string = typeof data.error === "string" ? data.error : "";

@@ -1,8 +1,8 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import axios from "axios";
 import { IGraphQLRequest } from "./client";
+import { send } from "./http";
 
 export interface IFavoriteQuestion {
     id: string;
@@ -78,16 +78,7 @@ export function mapHot100List(data: unknown): IFavoriteList | undefined {
 }
 
 async function fetchFavoritePayload(request: IGraphQLRequest): Promise<IFavoriteListResponse> {
-    const response = await axios.get<IFavoriteListResponse>(`${request.origin}/list/api/questions`, {
-        timeout: 20000,
-        headers: {
-            "cookie": request.cookie,
-            "origin": request.origin,
-            "referer": `${request.origin}/problemset/`,
-            "x-requested-with": "XMLHttpRequest",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) vscode-leetcode/0.20",
-        },
-    });
+    const response = await send<IFavoriteListResponse>(request, { url: `${request.origin}/list/api/questions` });
     return response.data;
 }
 

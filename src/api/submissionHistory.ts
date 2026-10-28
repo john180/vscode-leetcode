@@ -1,8 +1,8 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import axios from "axios";
 import { IGraphQLRequest } from "./client";
+import { send } from "./http";
 
 export interface ISubmissionHistoryItem {
     id: string;
@@ -73,19 +73,10 @@ export async function fetchSubmissionHistory(
     if (!request.cookie) {
         throw new Error("Not signed in. Please sign in to LeetCode first.");
     }
-    const response = await axios.get<ISubmissionHistoryResponse>(
-        `${request.origin}/api/submissions/${encodeURIComponent(slug)}/`,
-        {
-            timeout: 20000,
-            params: { offset, limit },
-            headers: {
-                "cookie": request.cookie,
-                "origin": request.origin,
-                "referer": `${request.origin}/problems/${encodeURIComponent(slug)}/`,
-                "x-requested-with": "XMLHttpRequest",
-                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) vscode-leetcode/0.19",
-            },
-        },
+    const response = await send<ISubmissionHistoryResponse>(
+        request,
+        { url: `${request.origin}/api/submissions/${encodeURIComponent(slug)}/`, params: { offset, limit } },
+        { referer: `/problems/${encodeURIComponent(slug)}/` },
     );
     return {
         items: mapSubmissionDump(response.data),

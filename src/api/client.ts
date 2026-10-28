@@ -1,8 +1,8 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import axios, { AxiosResponse } from "axios";
-import { isRetryableError, MAX_RETRIES, retryDelayMs, sleep } from "./retry";
+import type { AxiosResponse } from "axios";
+import { send } from "./http";
 
 export interface IGraphQLRequest {
     endpoint: string;
@@ -31,7 +31,8 @@ export async function graphql<T>(
 
     let response: AxiosResponse<IGraphQLResponse<T>>;
     try {
-        response = await postWithRetry<T>(request, query, variables);
+        // Queries are safe to retry, and so are LeetCode's favorite mutations.
+        response = await send<IGraphQLResponse<T>>(request, { method: "POST", url: request.endpoint, data: { query, variables } }, { retry: true });
     } catch (error) {
         throw describeFailure(error);
     }
@@ -76,39 +77,4 @@ function isPage(body: unknown): boolean {
 
 function pageMessage(status: number | undefined): string {
     return `LeetCode answered HTTP ${status} with a web page instead of JSON; a CAPTCHA, proxy or firewall may be blocking the request.`;
-}
-
-async function postWithRetry<T>(
-    request: IGraphQLRequest,
-    query: string,
-    variables: { [key: string]: unknown },
-): Promise<AxiosResponse<IGraphQLResponse<T>>> {
-    const csrfMatch: RegExpMatchArray | null = request.cookie
-        ? request.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)
-        : null;
-
-    for (let attempt: number = 0; ; attempt += 1) {
-        try {
-            return await axios.post<IGraphQLResponse<T>>(
-                request.endpoint,
-                { query, variables },
-                {
-                    timeout: 20000,
-                    headers: {
-                        ...(request.cookie ? { cookie: request.cookie } : {}),
-                        ...(csrfMatch ? { "x-csrftoken": csrfMatch[1], "x-requested-with": "XMLHttpRequest" } : {}),
-                        "origin": request.origin,
-                        "referer": `${request.origin}/problemset/`,
-                        "content-type": "application/json",
-                        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) vscode-leetcode/0.19",
-                    },
-                },
-            );
-        } catch (error) {
-            if (attempt >= MAX_RETRIES || !isRetryableError(error)) {
-                throw error;
-            }
-            await sleep(retryDelayMs(attempt, error));
-        }
-    }
 }

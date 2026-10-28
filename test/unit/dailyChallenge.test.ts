@@ -56,18 +56,16 @@ test("fetchDailyChallenge asks LeetCode CN's GraphQL endpoint for todayRecord", 
 
 test("parseGlobalDailyChallenge maps the GraphQL daily question", () => {
     const daily = parseGlobalDailyChallenge({
-        data: {
-            activeDailyCodingChallengeQuestion: {
-                question: {
-                    questionFrontendId: "3863",
-                    title: "Minimum Operations to Sort a String",
-                    titleSlug: "minimum-operations-to-sort-a-string",
-                    difficulty: "Medium",
-                    acRate: 0.3497,
-                    status: "SOLVED",
-                    paidOnly: false,
-                    topicTags: [{ name: "String", slug: "string" }],
-                },
+        activeDailyCodingChallengeQuestion: {
+            question: {
+                questionFrontendId: "3863",
+                title: "Minimum Operations to Sort a String",
+                titleSlug: "minimum-operations-to-sort-a-string",
+                difficulty: "Medium",
+                acRate: 0.3497,
+                status: "SOLVED",
+                paidOnly: false,
+                topicTags: [{ name: "String", slug: "string" }],
             },
         },
     });

@@ -1,6 +1,6 @@
+import { graphql, IGraphQLRequest } from "../api/client";
+import { getLeetCodeRequest } from "../api/request";
 import { UserDataType } from "../globalState";
-import { getUrl } from "../shared";
-import { LcAxios } from "../utils/httpUtils";
 
 const graphqlStr = `
     query globalData {
@@ -14,24 +14,14 @@ const graphqlStr = `
     }
 `;
 
-interface IUserStatusResponse {
-    data?: {
-        userStatus?: UserDataType;
-    };
-}
-
 export const queryUserData = async (cookie?: string): Promise<UserDataType> => {
-    const response = await LcAxios<IUserStatusResponse>(getUrl("userGraphql"), {
-        method: "POST",
-        data: {
-            query: graphqlStr,
-            variables: {},
-        },
-    }, cookie);
-
-    const userStatus: UserDataType | undefined = response.data?.data?.userStatus;
-    if (!userStatus) {
+    const request: IGraphQLRequest = getLeetCodeRequest(cookie);
+    if (!request.cookie) {
+        throw new Error("Failed to obtain the cookie. Please log in again.");
+    }
+    const data = await graphql<{ userStatus?: UserDataType }>(request, graphqlStr);
+    if (!data.userStatus) {
         throw new Error("LeetCode did not return user status.");
     }
-    return userStatus;
+    return data.userStatus;
 };

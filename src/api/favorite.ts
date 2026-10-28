@@ -1,8 +1,8 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import axios from "axios";
 import { graphql, IGraphQLRequest } from "./client";
+import { send } from "./http";
 
 interface IFavoriteEntry {
     name: string;
@@ -30,16 +30,7 @@ async function getFavoriteHash(request: IGraphQLRequest): Promise<string> {
         throw new Error("Not signed in. Please sign in to LeetCode first.");
     }
 
-    const response = await axios.get<IFavoriteListResponse>(`${request.origin}/list/api/questions`, {
-        timeout: 20000,
-        headers: {
-            "cookie": request.cookie,
-            "origin": request.origin,
-            "referer": `${request.origin}/problemset/`,
-            "x-requested-with": "XMLHttpRequest",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) vscode-leetcode/0.19",
-        },
-    });
+    const response = await send<IFavoriteListResponse>(request, { url: `${request.origin}/list/api/questions` });
 
     const favorites: IFavoriteEntry[] = response.data?.favorites?.private_favorites || [];
     const favorite: IFavoriteEntry | undefined = favorites.find((item: IFavoriteEntry) => item.name === "Favorite") || favorites[0];
