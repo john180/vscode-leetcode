@@ -2,9 +2,9 @@
 // Licensed under the MIT license.
 
 import { setFavorite } from "../api/favorite";
-import { fetchFavoriteLists, IFavoriteList } from "../api/favoriteLists";
+import { getDefaultFavoriteList, IFavoriteList } from "../api/favoriteLists";
 import { getLeetCodeRequest } from "../api/request";
-import { getProblemBySlug, getProblemCacheScope, updateCachedFavorite } from "../api/problems";
+import { getFavoriteData, getProblemBySlug, getProblemCacheScope, updateCachedFavorite } from "../api/problems";
 import { customCodeLensProvider } from "../codelens/CustomCodeLensProvider";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeTreeDataProvider } from "../explorer/LeetCodeTreeDataProvider";
@@ -23,7 +23,7 @@ export async function removeFavorite(node: LeetCodeNode): Promise<void> {
 
 export async function addToFavoriteList(node: LeetCodeNode): Promise<void> {
     try {
-        const lists: IFavoriteList[] = await fetchFavoriteLists(getLeetCodeRequest());
+        const lists: IFavoriteList[] = (await getFavoriteData()).lists;
         if (lists.length === 0) {
             await addFavorite(node);
             return;
@@ -57,7 +57,11 @@ async function toggleFavorite(node: LeetCodeNode, favorite: boolean, favoriteIdH
         if (!problem?.questionId) {
             throw new Error(`Problem not found: ${node.slug}`);
         }
-        await setFavorite(request, { slug: node.slug, questionId: problem.questionId }, favorite, favoriteIdHash);
+        const listHash: string | undefined = favoriteIdHash ?? getDefaultFavoriteList((await getFavoriteData()).lists)?.idHash;
+        if (!listHash) {
+            throw new Error("LeetCode did not return a favorite list.");
+        }
+        await setFavorite(request, { slug: node.slug, questionId: problem.questionId }, favorite, listHash);
         if (scope !== getProblemCacheScope()) { return; }
         await updateCachedFavorite(node.id, favorite);
         await leetCodeTreeDataProvider.refresh();

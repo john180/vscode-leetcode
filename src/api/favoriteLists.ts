@@ -36,14 +36,10 @@ interface IFavoriteListResponse {
     };
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
-interface IFavoriteData {
+export interface IFavoriteData {
     lists: IFavoriteList[];
     hot100?: IFavoriteList;
 }
-
-let cache: { key: string; at: number; data: IFavoriteData } | undefined;
 
 export function mapFavoriteLists(data: unknown): IFavoriteList[] {
     const favorites = (data as IFavoriteListResponse | undefined)?.favorites;
@@ -77,35 +73,19 @@ export function mapHot100List(data: unknown): IFavoriteList | undefined {
     return mapFavoriteLists({ favorites: { private_favorites: [hot100] } })[0];
 }
 
-async function fetchFavoritePayload(request: IGraphQLRequest): Promise<IFavoriteListResponse> {
-    const response = await send<IFavoriteListResponse>(request, { url: `${request.origin}/list/api/questions` });
-    return response.data;
+/** The list a favorite goes to when none is chosen. */
+export function getDefaultFavoriteList(lists: IFavoriteList[]): IFavoriteList | undefined {
+    return lists.find((list: IFavoriteList) => list.name === "Favorite") || lists[0];
 }
 
-export async function fetchFavoriteData(
-    request: IGraphQLRequest,
-    forceRefresh: boolean = false,
-): Promise<IFavoriteData> {
+/** Uncached; the problem cache keeps the result. */
+export async function fetchFavoriteData(request: IGraphQLRequest): Promise<IFavoriteData> {
     if (!request.cookie) {
         return { lists: [] };
     }
-    const key: string = `${request.origin}|${request.cookie}`;
-    if (!forceRefresh && cache && cache.key === key && Date.now() - cache.at < CACHE_TTL_MS) {
-        return cache.data;
-    }
-    const payload = await fetchFavoritePayload(request);
-    const data: IFavoriteData = {
-        lists: mapFavoriteLists(payload),
-        hot100: mapHot100List(payload),
+    const response = await send<IFavoriteListResponse>(request, { url: `${request.origin}/list/api/questions` });
+    return {
+        lists: mapFavoriteLists(response.data),
+        hot100: mapHot100List(response.data),
     };
-    cache = { key, at: Date.now(), data };
-    return data;
-}
-
-export async function fetchFavoriteLists(request: IGraphQLRequest): Promise<IFavoriteList[]> {
-    return (await fetchFavoriteData(request)).lists;
-}
-
-export async function fetchHot100List(request: IGraphQLRequest): Promise<IFavoriteList | undefined> {
-    return (await fetchFavoriteData(request)).hot100;
 }

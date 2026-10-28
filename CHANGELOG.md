@@ -20,6 +20,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - When LeetCode rejects a query, the output channel shows LeetCode's reason instead of "Request failed with status code 400", and a CAPTCHA or proxy page is reported as such.
 - A brief network failure while waiting for a judge result no longer loses the result of a test or submission that LeetCode already accepted.
 - A brief network failure while checking the saved session at startup, or while loading favorite lists or submission history, is retried instead of failing.
+- `Add to Favorite List` shows each list's current number of problems right after a favorite changes, instead of counts up to five minutes old.
 
 ### Changed
 - Commands and views are registered before the stored session is restored, so a failure there no longer leaves the commands missing.
@@ -32,6 +33,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - "Default test cases" tests with all of the problem's examples, like Run on LeetCode, instead of only the first one.
 - Testing and submitting ask LeetCode only for the problem's id, examples and parameter names instead of its whole description and code templates. Adding to or removing from favorites reuses the problem's cached metadata and the cached favorite lists, so it usually sends only the change itself.
 - Hot 100 and favorite lists load each page of up to 20 problems with one request instead of one request per problem.
+- Favorite lists and the daily problem are kept in the same cache as the problem lists, which the tree and the commands share.
+- Starting a test stops waiting for the result of the test it replaces, and switching the account, site or language stops what is still loading for the old one. A replaced submission still records its verdict.
 
 ## [0.25.0] - 2026-10-28
 ### Changed

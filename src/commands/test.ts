@@ -4,6 +4,7 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { fetchJudgeInfo, getParamNames } from "../api/question";
+import { isCanceled } from "../api/http";
 import { getLeetCodeRequest } from "../api/request";
 import { testSolution as testWithLeetCode } from "../api/submission";
 import { leetCodeManager } from "../leetCodeManager";
@@ -54,9 +55,10 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
         }
         await globalState.saveTestCase(problem.slug, testInput);
 
-        await leetCodeSubmissionProvider.judge(problem, document, async () => ({
+        // A newer run aborts this one: a test's result only matters while the panel shows it.
+        await leetCodeSubmissionProvider.judge(problem, document, async (signal: AbortSignal) => ({
             ...await testWithLeetCode(
-                getLeetCodeRequest(),
+                { ...getLeetCodeRequest(), signal },
                 { slug: problem.slug, questionId: judgeInfo.questionId },
                 language,
                 code,
@@ -65,6 +67,9 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
             paramNames: getParamNames(judgeInfo),
         }));
     } catch (error) {
+        if (isCanceled(error)) {
+            return;
+        }
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to test the solution. Please open the output channel for details."), DialogType.error, error);
     }
 }

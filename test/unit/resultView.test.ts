@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { beforeEach, test } from "node:test";
+import axios from "axios";
 import Module = require("node:module");
 
 const disposable = { dispose: () => undefined };
@@ -244,6 +245,25 @@ test("an older run that settles late does not replace a newer one", async () => 
     assert.equal((await old).statusMessage, "Wrong Answer");
     assert.match(view.webview.html, /<h2>Accepted<\/h2>/);
     assert.equal(view.description, "2. Add Two Numbers");
+});
+
+test("a newer run aborts the run it replaces without marking itself failed", async () => {
+    const { view } = createView();
+    let oldSignal: AbortSignal | undefined;
+    let newSignal: AbortSignal | undefined;
+    const old = leetCodeSubmissionProvider.judge({ id: "1", name: "Two Sum" }, document, (signal: AbortSignal) => {
+        oldSignal = signal;
+        return new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(new axios.CanceledError())));
+    });
+    const oldRejected = assert.rejects(old, (error: unknown) => axios.isCancel(error));
+    await leetCodeSubmissionProvider.judge({ id: "2", name: "Add Two Numbers" }, document, async (signal: AbortSignal) => {
+        newSignal = signal;
+        return { state: "SUCCESS", statusMessage: "Accepted" };
+    });
+    await oldRejected;
+    assert.equal(oldSignal?.aborted, true);
+    assert.equal(newSignal?.aborted, false);
+    assert.match(view.webview.html, /<h2>Accepted<\/h2>/);
 });
 
 test("a failed run leaves the panel saying so and rethrows", async () => {

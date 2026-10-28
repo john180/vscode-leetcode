@@ -22,6 +22,11 @@ export function getUserAgent(): string {
     return `Mozilla/5.0 (${platform}) vscode-leetcode${clientVersion ? `/${clientVersion}` : ""}`;
 }
 
+/** Whether a request failed only because its signal aborted it, which callers do not report as a failure. */
+export function isCanceled(error: unknown): boolean {
+    return axios.isCancel(error);
+}
+
 export function getCsrfToken(cookie: string | undefined): string | undefined {
     return cookie?.match(/(?:^|;\s*)csrftoken=([^;]+)/)?.[1];
 }
@@ -45,13 +50,13 @@ export interface ISendOptions {
     retry?: boolean;
 }
 
-/** Every request to LeetCode goes through here, so all of them share headers, timeout and retries. */
+/** Every request to LeetCode goes through here, so all of them share headers, timeout, retries and cancellation. */
 export async function send<T>(request: IGraphQLRequest, config: AxiosRequestConfig, options: ISendOptions = {}): Promise<AxiosResponse<T>> {
     const retry: boolean = options.retry ?? (config.method || "GET").toUpperCase() === "GET";
     const headers: { [key: string]: string } = getLeetCodeHeaders(request, options.referer);
     for (let attempt: number = 0; ; attempt += 1) {
         try {
-            return await axios.request<T>({ timeout: 20000, ...config, headers });
+            return await axios.request<T>({ timeout: 20000, signal: request.signal, ...config, headers });
         } catch (error) {
             if (!retry || attempt >= MAX_RETRIES || !isRetryableError(error)) {
                 throw error;

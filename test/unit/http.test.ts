@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import axios from "axios";
-import { getCsrfToken, getLeetCodeHeaders, getUserAgent, send, setClientVersion } from "../../src/api/http";
+import { getCsrfToken, getLeetCodeHeaders, getUserAgent, isCanceled, send, setClientVersion } from "../../src/api/http";
 
 const request = {
     endpoint: "https://leetcode.com/graphql",
@@ -71,6 +71,29 @@ test("send retries a GET but not a POST unless asked", async () => {
         const posted = await send<{ ok: boolean }>(request, { method: "POST", url: `${request.origin}/graphql`, data: {} }, { retry: true });
         assert.equal(posted.data.ok, true);
         assert.equal(calls, 2);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("send stops at an aborted signal instead of retrying", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let calls = 0;
+    let seenSignal: unknown;
+    axios.defaults.adapter = async (config: any): Promise<any> => {
+        calls += 1;
+        seenSignal = config.signal;
+        return { data: {}, status: 200, statusText: "OK", headers: {}, config };
+    };
+    try {
+        const controller = new AbortController();
+        await send({ ...request, signal: controller.signal }, { url: `${request.origin}/check/` });
+        assert.equal(seenSignal, controller.signal);
+
+        calls = 0;
+        controller.abort();
+        await assert.rejects(send({ ...request, signal: controller.signal }, { url: `${request.origin}/check/` }), (error: unknown) => isCanceled(error));
+        assert.equal(calls, 0, "an aborted GET is not retried");
     } finally {
         axios.defaults.adapter = originalAdapter;
     }

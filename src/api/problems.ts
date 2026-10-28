@@ -2,13 +2,15 @@
 // Licensed under the MIT license.
 
 import { createHash } from "node:crypto";
-import { globalState } from "../globalState";
-import { getUrl, IProblem, ProblemState, SortingStrategy } from "../shared";
+import { IProblem, ProblemState, SortingStrategy } from "../shared";
 import { shouldUseEndpointTranslation } from "../utils/settingUtils";
-import { graphql, IGraphQLRequest } from "./client";
+import { graphql, IGraphQLRequest, isCnSite } from "./client";
 import { fetchCompanyTagNames } from "./companyTags";
+import { fetchDailyChallenge } from "./dailyChallenge";
+import { fetchFavoriteData, IFavoriteData } from "./favoriteLists";
 import { mapQuestion, IQuestionNode, ICompanyTag } from "./problemMapper";
 import { problemCache } from "./problemCache";
+import { getLeetCodeRequest } from "./request";
 
 export interface IProblemQuery {
     skip?: number;
@@ -34,16 +36,20 @@ interface IRawProblem extends Omit<IQuestionNode, "frontendQuestionId"> {
     translatedTitle?: string;
 }
 
+let current: { scope: string; controller: AbortController } | undefined;
+
 function context(): { request: IGraphQLRequest; scope: string; translated: boolean; cn: boolean } {
-    const endpoint = getUrl("graphql");
-    const cookie = globalState.getCookie() || "";
+    const request = getLeetCodeRequest();
     const translated = shouldUseEndpointTranslation();
     // A session hash isolates account data without persisting credentials.
-    const identity = createHash("sha256").update(cookie || "anonymous").digest("hex");
-    return {
-        request: { endpoint, origin: endpoint.replace(/\/graphql\/?$/, ""), cookie },
-        scope: `${endpoint}:${identity}:${translated}:`, translated, cn: endpoint.includes("leetcode.cn"),
-    };
+    const identity = createHash("sha256").update(request.cookie || "anonymous").digest("hex");
+    const scope = `${request.endpoint}:${identity}:${translated}:`;
+    if (current?.scope !== scope) {
+        // Whatever is still loading for another account, site or language would be thrown away; stop it.
+        current?.controller.abort();
+        current = { scope, controller: new AbortController() };
+    }
+    return { request: { ...request, signal: current.controller.signal }, scope, translated, cn: isCnSite(request) };
 }
 
 export function getProblemCacheScope(): string { return context().scope; }
@@ -192,6 +198,19 @@ export async function getRandomProblem(): Promise<IProblem | undefined> {
     if (!first.total) { return undefined; }
     const page = await getProblemPage({ limit: 1, skip: Math.floor(Math.random() * first.total) }, false, false);
     return page.problems[0];
+}
+
+/** The account's favorite lists and LeetCode's Hot 100; changing a favorite drops them, see updateCachedFavorite. */
+export async function getFavoriteData(force: boolean = false): Promise<IFavoriteData> {
+    const ctx = context();
+    return problemCache.get(`${ctx.scope}favorites`, () => fetchFavoriteData(ctx.request), force);
+}
+
+/** Today's problem, or undefined when LeetCode has none. */
+export async function getDailyProblem(force: boolean = false): Promise<IProblem | undefined> {
+    const ctx = context();
+    const daily = await problemCache.get<IProblem | null>(`${ctx.scope}daily`, async () => await fetchDailyChallenge(ctx.request) || null, force);
+    return daily || undefined;
 }
 
 export function invalidateProblemCache(): void { problemCache.reset(); }

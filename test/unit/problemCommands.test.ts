@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test, beforeEach } from "node:test";
+import { CanceledError } from "axios";
 import Module = require("node:module");
 
 const resolved: string[] = [];
@@ -7,6 +8,7 @@ const actions: unknown[] = [];
 const judged: unknown[] = [];
 const pickedInputs: string[] = [];
 let failLookup = false;
+let cancelTest = false;
 let status = 1;
 const problem ={ id: "42", slug: "trapping-rain-water", name: "Trapping Rain Water" };
 const moduleLoader: any = Module;
@@ -35,6 +37,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     }; }
     if (request === "../api/submission") { return {
         testSolution: async (_request: unknown, target: unknown, _language: string, _code: string, input: string) => {
+            if (cancelTest) { throw new CanceledError(); }
             actions.push(target);
             pickedInputs.push(input);
             return {};
@@ -66,7 +69,7 @@ const { submitSolution } = require("../../src/commands/submit");
 const { showSubmissionHistory } = require("../../src/commands/submissions");
 moduleLoader._load = originalLoad;
 
-beforeEach(() => { actions.length = 0; resolved.length = 0; judged.length = 0; pickedInputs.length = 0; failLookup = false; status = 1; });
+beforeEach(() => { actions.length = 0; resolved.length = 0; judged.length = 0; pickedInputs.length = 0; failLookup = false; cancelTest = false; status = 1; });
 
 test("testing resolves only the current problem and submits its internal question id", async () => {
     await testSolution();
@@ -74,6 +77,12 @@ test("testing resolves only the current problem and submits its internal questio
     assert.deepEqual(actions, [{ slug: problem.slug, questionId: "123" }]);
     assert.deepEqual(pickedInputs, ["picker", "[1,2]\n[3,4]"], "the default cases are all of the examples");
     assert.deepEqual(judged, [{ paramNames: ["nums"] }]);
+});
+
+test("a test run that a newer run aborted reports nothing", async () => {
+    cancelTest = true;
+    await testSolution(undefined, "[3,4]");
+    assert.deepEqual(actions, []);
 });
 
 test("testing with a given input skips the test case picker", async () => {

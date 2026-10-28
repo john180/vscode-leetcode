@@ -2,6 +2,7 @@
 // Licensed under the MIT license.
 
 import { commands, Disposable, env, l10n, TextDocument, Webview, WebviewView, WebviewViewProvider, window, workspace } from "vscode";
+import { isCanceled } from "../api/http";
 import type { ISubmissionResult, ITestCaseResult } from "../api/submission";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeChannel } from "../leetCodeChannel";
@@ -102,6 +103,8 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     private phase: "judging" | "failed" | undefined;
     /** Counts shown runs, so an older run that settles late never replaces a newer one. */
     private run: number = 0;
+    /** Aborts the requests of the run being judged. */
+    private judging: AbortController | undefined;
     /** The texts the panel's links copy or test with, by index. */
     private texts: string[] = [];
 
@@ -133,9 +136,15 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
         void this.showKeybindingsHint();
     }
 
-    /** Show `problem` as judging until `judge` settles, then its result or failure. */
-    public async judge(problem: IProblem, document: TextDocument, judge: () => Promise<ISubmissionResult>): Promise<ISubmissionResult> {
+    /**
+     * Show `problem` as judging until `judge` settles, then its result or failure. A newer run aborts
+     * `judge`'s signal, since the panel would no longer show the result; a judge that still needs
+     * its result, such as a submission that updates the problem's state, can ignore the signal.
+     */
+    public async judge(problem: IProblem, document: TextDocument, judge: (signal: AbortSignal) => Promise<ISubmissionResult>): Promise<ISubmissionResult> {
         const run: number = ++this.run;
+        this.judging?.abort();
+        const controller: AbortController = this.judging = new AbortController();
         this.result = undefined;
         this.problem = problem;
         this.document = document;
@@ -144,19 +153,27 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
         this.render();
         void this.reveal();
         try {
-            const result: ISubmissionResult = await window.withProgress({ location: { viewId: "leetCodeResult" } }, judge);
+            const result: ISubmissionResult = await window.withProgress({ location: { viewId: "leetCodeResult" } }, () => judge(controller.signal));
             if (run === this.run) {
                 compileDiagnostics.update(document, result.compileError);
                 this.show(result, problem, document);
             }
             return result;
         } catch (error) {
-            leetCodeChannel.error(`Failed to get the judge result: ${error}`);
+            if (isCanceled(error)) {
+                leetCodeChannel.info("Stopped waiting for a judge result that a newer run replaced.");
+            } else {
+                leetCodeChannel.error(`Failed to get the judge result: ${error}`);
+            }
             if (run === this.run) {
                 this.phase = "failed";
                 this.render();
             }
             throw error;
+        } finally {
+            if (this.judging === controller) {
+                this.judging = undefined;
+            }
         }
     }
 
@@ -192,6 +209,8 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     }
 
     public dispose(): void {
+        this.judging?.abort();
+        this.judging = undefined;
         this.result = undefined;
         this.problem = undefined;
         this.document = undefined;

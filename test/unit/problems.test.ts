@@ -247,6 +247,25 @@ test('problem lookups made together share requests of at most 20 problems', asyn
     assert.deepEqual(calls.at(-1)!.variables, {s0: 'problem-25'}, 'cached problems are not asked for again');
 });
 
+test('switching the account aborts what is still loading for the old one', async () => {
+    let release!: () => void; gate = new Promise<void>((resolve) => { release = resolve; });
+    const loading = api.getProblemPage();
+    const aborted = assert.rejects(loading, (error: unknown) => axios.isCancel(error));
+    cookie = 'account-b'; api.getProblemCacheScope(); release();
+    await aborted;
+    gate = undefined;
+    assert.equal((await api.getProblemPage()).problems.length, 50, 'the new account loads normally');
+});
+
+test('favorite lists are cached once for the tree and the commands, and a favorite change drops them', async () => {
+    const favoriteRequests = () => calls.filter((call) => call.query === 'favorites').length;
+    const first = await api.getFavoriteData(); await api.getFavoriteData();
+    assert.equal(favoriteRequests(), 1); assert.equal(first.hot100?.questions.length, 3);
+    await api.updateCachedFavorite('1', true);
+    await api.getFavoriteData();
+    assert.equal(favoriteRequests(), 2);
+});
+
 test('matches follow the expanded categories in tree order', async () => {
     explorer.setSearch('two');
     await explorer.getChildren('All'); await explorer.getChildren('Difficulty'); await explorer.getChildren('Difficulty.Easy');

@@ -10,6 +10,7 @@ test("isRetryableError retries transient failures only", () => {
     assert.equal(isRetryableError({ response: { status: 400 } }), false);
     assert.equal(isRetryableError({ response: { status: 401 } }), false);
     assert.equal(isRetryableError({ response: { status: 403 } }), false);
+    assert.equal(isRetryableError({ code: "ERR_CANCELED" }), false, "an aborted request has no response but is not a network failure");
 });
 
 test("retryDelayMs honors Retry-After seconds", () => {

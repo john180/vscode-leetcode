@@ -8,6 +8,17 @@ export interface IGraphQLRequest {
     endpoint: string;
     origin: string;
     cookie?: string;
+    /** Aborts the request, including any retries still to come. */
+    signal?: AbortSignal;
+}
+
+/** Whether a request goes to leetcode.cn, whose API differs from leetcode.com's in places. */
+export function isCnSite(request: Pick<IGraphQLRequest, "origin">): boolean {
+    try {
+        return new URL(request.origin).hostname.endsWith("leetcode.cn");
+    } catch {
+        return false;
+    }
 }
 
 interface IGraphQLResponse<T> {

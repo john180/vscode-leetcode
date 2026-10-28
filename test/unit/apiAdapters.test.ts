@@ -47,50 +47,18 @@ test("setFavorite posts the selected favorite list and question id", async () =>
     }
 });
 
-test("setFavorite resolves the default favorite list when no hash is provided", async () => {
+test("setFavorite removes from the given list with one request", async () => {
     const originalAdapter = axios.defaults.adapter;
-    let calls: number = 0;
-    let payload: any;
+    const payloads: any[] = [];
     axios.defaults.adapter = async (config: any) => {
-        calls += 1;
-        if (config.method === "get") {
-            return response({
-                favorites: {
-                    private_favorites: [
-                        { name: "Favorite", id_hash: "default-hash" },
-                        { name: "Other", id_hash: "other-hash" },
-                    ],
-                },
-            }, config);
-        }
-        payload = JSON.parse(config.data);
+        payloads.push(JSON.parse(config.data));
         return response({ data: { removeQuestionFromFavorite: { ok: true } } }, config);
     };
     try {
-        await setFavorite(request, target, false);
-        assert.equal(calls, 2);
-        assert.deepEqual(payload.variables, { favoriteIdHash: "default-hash", questionId: "1" });
-        assert.match(payload.query, /removeQuestionFromFavorite/);
-    } finally {
-        axios.defaults.adapter = originalAdapter;
-    }
-});
-
-test("setFavorite reuses the cached favorite lists to find the default list", async () => {
-    const originalAdapter = axios.defaults.adapter;
-    const requests: string[] = [];
-    axios.defaults.adapter = async (config: any) => {
-        requests.push(config.method);
-        if (config.method === "get") {
-            return response({ favorites: { private_favorites: [{ name: "Favorite", id_hash: "default-hash" }] } }, config);
-        }
-        return response({ data: { addQuestionToFavorite: { ok: true } } }, config);
-    };
-    try {
-        const signedIn = { ...request, cookie: "LEETCODE_SESSION=cached; csrftoken=cached" };
-        await setFavorite(signedIn, target, true);
-        await setFavorite(signedIn, { slug: "add-two-numbers", questionId: "2" }, true);
-        assert.deepEqual(requests, ["get", "post", "post"]);
+        await setFavorite(request, target, false, "default-hash");
+        assert.equal(payloads.length, 1);
+        assert.deepEqual(payloads[0].variables, { favoriteIdHash: "default-hash", questionId: "1" });
+        assert.match(payloads[0].query, /removeQuestionFromFavorite/);
     } finally {
         axios.defaults.adapter = originalAdapter;
     }
@@ -106,13 +74,6 @@ test("setFavorite surfaces a mutation error", async () => {
     } finally {
         axios.defaults.adapter = originalAdapter;
     }
-});
-
-test("setFavorite rejects without a cookie when it must resolve the default list", async () => {
-    await assert.rejects(
-        setFavorite({ ...request, cookie: "" }, target, true),
-        /Not signed in/,
-    );
 });
 
 test("fetchQuestionDetail returns the question and passes the slug", async () => {

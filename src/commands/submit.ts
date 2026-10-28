@@ -44,6 +44,7 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
         if (scope !== getProblemCacheScope()) { return; }
 
         const request = getLeetCodeRequest();
+        // Not aborted by a newer run: the verdict still updates the problem's state.
         const result = await leetCodeSubmissionProvider.judge(problem, document, async () => {
             const judgeInfo = await fetchJudgeInfo(request, problem.slug);
             return {

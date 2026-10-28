@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import type { IProblem } from "../shared";
-import { graphql, IGraphQLRequest } from "./client";
+import { graphql, IGraphQLRequest, isCnSite } from "./client";
 
 interface IDailyQuestion {
     questionId?: string;
@@ -61,9 +61,6 @@ const CN_DAILY_QUERY: string = `query questionOfToday {
     }
 }`;
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
-let dailyCache: { origin: string; at: number; value: IProblem | undefined } | undefined;
-
 /** Reads the `data` of leetcode.com's activeDailyCodingChallengeQuestion query. */
 export function parseGlobalDailyChallenge(data: unknown): IProblem | undefined {
     return mapDailyQuestion((data as IGlobalDailyData | undefined)?.activeDailyCodingChallengeQuestion?.question);
@@ -102,16 +99,9 @@ function mapDailyQuestion(question: IDailyQuestion | undefined): IProblem | unde
     } as IProblem;
 }
 
-export async function fetchDailyChallenge(request: IGraphQLRequest, forceRefresh: boolean = false): Promise<IProblem | undefined> {
-    if (!forceRefresh && dailyCache && dailyCache.origin === request.origin && Date.now() - dailyCache.at < CACHE_TTL_MS) {
-        return dailyCache.value;
-    }
-    let value: IProblem | undefined;
-    if (request.origin.includes("leetcode.com")) {
-        value = parseGlobalDailyChallenge(await graphql<IGlobalDailyData>(request, GLOBAL_DAILY_QUERY));
-    } else {
-        value = parseCnDailyChallenge(await graphql<ICnDailyData>(request, CN_DAILY_QUERY));
-    }
-    dailyCache = { origin: request.origin, at: Date.now(), value };
-    return value;
+/** Uncached; the problem cache keeps the result. */
+export async function fetchDailyChallenge(request: IGraphQLRequest): Promise<IProblem | undefined> {
+    return isCnSite(request)
+        ? parseCnDailyChallenge(await graphql<ICnDailyData>(request, CN_DAILY_QUERY))
+        : parseGlobalDailyChallenge(await graphql<IGlobalDailyData>(request, GLOBAL_DAILY_QUERY));
 }

@@ -4,6 +4,7 @@
 export const MAX_RETRIES: number = 2;
 
 interface IRetryError {
+    code?: string;
     response?: {
         status?: number;
         headers?: { [key: string]: string | undefined };
@@ -11,6 +12,10 @@ interface IRetryError {
 }
 
 export function isRetryableError(error: unknown): boolean {
+    if ((error as IRetryError | undefined)?.code === "ERR_CANCELED") {
+        // Aborted on purpose, not by the network.
+        return false;
+    }
     const status: number | undefined = (error as IRetryError | undefined)?.response?.status;
     if (status === undefined) {
         // Network errors and timeouts have no response.

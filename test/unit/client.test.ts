@@ -1,12 +1,19 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import axios from "axios";
-import { graphql } from "../../src/api/client";
+import { graphql, isCnSite } from "../../src/api/client";
 
 const request = {
     endpoint: "https://leetcode.cn/graphql/",
     origin: "https://leetcode.cn",
 };
+
+test("isCnSite reads the site from the origin's host", () => {
+    assert.equal(isCnSite({ origin: "https://leetcode.cn" }), true);
+    assert.equal(isCnSite({ origin: "https://leetcode.com" }), false);
+    assert.equal(isCnSite({ origin: "https://example.com/leetcode.cn" }), false);
+    assert.equal(isCnSite({ origin: "" }), false);
+});
 
 test("graphql retries a 429 response and then succeeds", async () => {
     const originalAdapter = axios.defaults.adapter;

@@ -37,18 +37,27 @@ test("parseCnDailyChallenge ignores missing data", () => {
     assert.equal(parseCnDailyChallenge({ todayRecord: [{ question: { title: "No slug" } }] }), undefined);
 });
 
-test("fetchDailyChallenge asks LeetCode CN's GraphQL endpoint for todayRecord", async () => {
+test("fetchDailyChallenge asks each site for its own daily question", async () => {
     const originalAdapter = axios.defaults.adapter;
     let posted: any;
     axios.defaults.adapter = async (config: any): Promise<any> => {
         posted = { url: config.url, body: JSON.parse(config.data) };
-        return { data: { data: cnToday }, status: 200, statusText: "OK", headers: {}, config };
+        const data = posted.body.query.includes("todayRecord")
+            ? cnToday
+            : { activeDailyCodingChallengeQuestion: { question: { ...cnToday.todayRecord[0].question, translatedTitle: undefined } } };
+        return { data: { data }, status: 200, statusText: "OK", headers: {}, config };
     };
     try {
-        const daily = await fetchDailyChallenge({ endpoint: "https://leetcode.cn/graphql", origin: "https://leetcode.cn" }, true);
+        const cn = await fetchDailyChallenge({ endpoint: "https://leetcode.cn/graphql", origin: "https://leetcode.cn" });
         assert.equal(posted.url, "https://leetcode.cn/graphql");
         assert.match(posted.body.query, /todayRecord/);
-        assert.equal(daily?.slug, "minimum-xor-path-in-a-grid");
+        assert.equal(cn?.name, "网格图中最小异或路径");
+
+        const global = await fetchDailyChallenge({ endpoint: "https://leetcode.com/graphql", origin: "https://leetcode.com" });
+        assert.equal(posted.url, "https://leetcode.com/graphql");
+        assert.match(posted.body.query, /activeDailyCodingChallengeQuestion/);
+        assert.equal(global?.name, "Minimum XOR Path in a Grid");
+        assert.equal(global?.questionId, "4205");
     } finally {
         axios.defaults.adapter = originalAdapter;
     }

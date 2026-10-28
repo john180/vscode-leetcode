@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import axios from "axios";
-import { fetchFavoriteData, mapFavoriteLists, mapHot100List } from "../../src/api/favoriteLists";
+import { fetchFavoriteData, getDefaultFavoriteList, mapFavoriteLists, mapHot100List } from "../../src/api/favoriteLists";
 
 test("mapFavoriteLists keeps private and public lists", () => {
     const lists = mapFavoriteLists({
@@ -101,7 +101,7 @@ test("fetchFavoriteData maps an empty payload", async () => {
             endpoint: "https://empty.example/graphql",
             origin: "https://empty.example",
             cookie: "LEETCODE_SESSION=empty; csrftoken=empty",
-        }, true);
+        });
         assert.deepEqual(data.lists, []);
         assert.equal(data.hot100, undefined);
     } finally {
@@ -109,38 +109,9 @@ test("fetchFavoriteData maps an empty payload", async () => {
     }
 });
 
-test("fetchFavoriteData caches per origin and cookie and respects forceRefresh", async () => {
-    const originalAdapter = axios.defaults.adapter;
-    let calls: number = 0;
-    axios.defaults.adapter = async (config: any) => {
-        calls += 1;
-        return {
-            data: {
-                favorites: {
-                    private_favorites: [{ id_hash: "cached", name: "Cached", questions: [] }],
-                },
-            },
-            status: 200,
-            statusText: "OK",
-            headers: {},
-            config,
-        };
-    };
-    try {
-        const request = {
-            endpoint: "https://cache.example/graphql",
-            origin: "https://cache.example",
-            cookie: "LEETCODE_SESSION=cache; csrftoken=cache",
-        };
-        const first = await fetchFavoriteData(request, true);
-        const second = await fetchFavoriteData(request);
-        assert.equal(calls, 1);
-        assert.equal(first.lists.length, 1);
-        assert.equal(second.lists[0].name, "Cached");
-
-        await fetchFavoriteData(request, true);
-        assert.equal(calls, 2);
-    } finally {
-        axios.defaults.adapter = originalAdapter;
-    }
+test("getDefaultFavoriteList prefers the list named Favorite", () => {
+    const list = (idHash: string, name: string) => ({ idHash, name, questions: [] });
+    assert.equal(getDefaultFavoriteList([list("a", "Interview"), list("b", "Favorite")])?.idHash, "b");
+    assert.equal(getDefaultFavoriteList([list("a", "Interview"), list("c", "Other")])?.idHash, "a");
+    assert.equal(getDefaultFavoriteList([]), undefined);
 });

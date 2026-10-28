@@ -3,10 +3,10 @@
 
 import { Disposable, l10n } from "vscode";
 import { getSortingStrategy } from "../commands/plugin";
-import { getLeetCodeRequest } from "../api/request";
-import { fetchDailyChallenge } from "../api/dailyChallenge";
-import { fetchFavoriteData, IFavoriteList, IFavoriteQuestion } from "../api/favoriteLists";
-import { getProblemBySlug, getProblemCacheScope, getProblemPage, getProblemTags, IProblemPage, IProblemQuery } from "../api/problems";
+import { IFavoriteData, IFavoriteList, IFavoriteQuestion } from "../api/favoriteLists";
+import {
+    getDailyProblem, getFavoriteData, getProblemBySlug, getProblemCacheScope, getProblemPage, getProblemTags, IProblemPage, IProblemQuery,
+} from "../api/problems";
 import { problemCache } from "../api/problemCache";
 import { Category, defaultProblem, IProblem, ProblemState, SortingStrategy } from "../shared";
 import { shouldHideSolvedProblem } from "../utils/settingUtils";
@@ -165,8 +165,7 @@ class ExplorerNodeManager implements Disposable {
                 return this.remember(key, data.lists.map((list) => this.category(`${id}.${list.idHash}`, list.name === "Favorite" ? l10n.t("Favorite") : list.name, id)));
             }
             if (id === Category.Daily) {
-                const request = getLeetCodeRequest();
-                const daily = await problemCache.get(`${getProblemCacheScope()}daily`, () => fetchDailyChallenge(request, true).then((value) => value || null), this.needsRefresh(id));
+                const daily = await getDailyProblem(this.needsRefresh(id));
                 if (!this.isCurrent(generation)) { return []; }
                 const problem = daily ? await getProblemBySlug(daily.slug, this.needsRefresh(id)) : undefined;
                 if (!this.isCurrent(generation)) { return []; }
@@ -293,9 +292,8 @@ class ExplorerNodeManager implements Disposable {
         });
     }
 
-    private favorites(force: boolean = false): ReturnType<typeof fetchFavoriteData> {
-        const request = getLeetCodeRequest();
-        return problemCache.get(`${getProblemCacheScope()}favorites`, () => fetchFavoriteData(request, true), force);
+    private favorites(force: boolean = false): Promise<IFavoriteData> {
+        return getFavoriteData(force);
     }
 
     private render(id: string, view: IView): LeetCodeNode[] {
