@@ -4,17 +4,20 @@ import { ProblemCache } from "../../src/api/problemCache";
 
 function storage() {
     const data = new Map<string, unknown>();
-    return {
+    const disk = {
+        writes: 0,
         get: (key: string) => structuredClone(data.get(key)),
-        update: async (key: string, value: unknown) => { data.set(key, structuredClone(value)); },
+        update: async (key: string, value: unknown) => { disk.writes++; data.set(key, structuredClone(value)); },
         keys: () => [...data.keys()],
-    } as any;
+    };
+    return disk as any;
 }
 
 test("disk cache survives a new instance, clear removes persisted data", async () => {
     const disk = storage();
     const cache = new ProblemCache(); cache.initialize(disk);
     await cache.get("a", async () => ({ value: 1 }));
+    await cache.flush();
     const restored = new ProblemCache(); restored.initialize(disk);
     assert.deepEqual(await restored.get("a", async () => { throw new Error("offline"); }), { value: 1 });
     await restored.clear();
@@ -75,4 +78,40 @@ test("cache ignores malformed envelopes and limits retention", async () => {
     assert.deepEqual(cache.values(""), []);
     for (let i = 0; i < 305; i++) { await cache.get(`key:${i}`, async () => i); }
     assert.equal(cache.values("").length, 300);
+});
+
+test("a burst of loads is written to disk once", async () => {
+    const oldSetTimeout = global.setTimeout;
+    const timers: Array<() => void> = [];
+    (global as any).setTimeout = (callback: () => void) => { timers.push(callback); return { unref: () => undefined }; };
+    try {
+        const disk = storage();
+        const cache = new ProblemCache(); cache.initialize(disk);
+        await Promise.all(Array.from({ length: 20 }, (_, i) => cache.get(`single:${i}`, async () => i)));
+        assert.equal(disk.writes, 0);
+        assert.equal(timers.length, 1, "one write is scheduled for the whole burst");
+        timers[0]();
+        await cache.flush();
+        const restored = new ProblemCache(); restored.initialize(disk);
+        assert.equal(restored.values("single:").length, 20);
+    } finally { (global as any).setTimeout = oldSetTimeout; }
+});
+
+test("memory-only results are reusable but never stored, announced or kept over browsed pages", async () => {
+    const disk = storage();
+    const cache = new ProblemCache(); cache.initialize(disk);
+    const announced: string[] = [];
+    cache.events.on("updated", (key: string) => announced.push(key));
+    await cache.get("page:browse", async () => "browse");
+    assert.equal(await cache.get("page:search", async () => "search", false, false), "search");
+    assert.equal(await cache.get("page:search", async () => "again", false, false), "search");
+    assert.deepEqual(announced, ["page:browse"]);
+    await cache.flush();
+    assert.deepEqual(Object.keys(disk.get("leetcode.problemCache.v1")), ["page:browse"]);
+
+    for (let i = 0; i < 300; i++) { await cache.get(`search:${i}`, async () => i, false, false); }
+    assert.deepEqual(cache.values("page:browse"), ["browse"], "searches evict each other first");
+    cache.reset();
+    assert.deepEqual(cache.values("search:"), []);
+    assert.deepEqual(cache.values("page:browse"), ["browse"]);
 });

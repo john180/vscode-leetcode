@@ -136,7 +136,7 @@ export async function searchProblem(): Promise<void> {
         const options = query();
         picker.busy = true;
         try {
-            const page = await getProblemPage({ ...options, skip: append ? next : 0 }, force);
+            const page = await getProblemPage({ ...options, skip: append ? next : 0 }, force, false);
             if (disposed || current !== version || scope !== getProblemCacheScope()) { return; }
             const incoming = parseProblemsToPicks(page.problems).map((pick) => ({ ...pick, alwaysShow: true }));
             picks = append ? [...picks, ...incoming] : incoming;

@@ -22,13 +22,20 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
 
     public initialize(context: vscode.ExtensionContext): void {
         this.context = context;
+        // A category page can resolve many cache entries; redraw the tree once for the burst.
+        let timer: ReturnType<typeof setTimeout> | undefined;
         const updated = (key: string) => {
-            if (key.startsWith(getProblemCacheScope())) { this.onDidChangeTreeDataEvent.fire(null); }
+            if (!key.startsWith(getProblemCacheScope()) || timer) { return; }
+            timer = setTimeout(() => {
+                timer = undefined;
+                this.onDidChangeTreeDataEvent.fire(null);
+            }, 100);
         };
         const cleared = () => { explorerNodeManager.dispose(); this.onDidChangeTreeDataEvent.fire(null); };
         problemCache.events.on("updated", updated);
         problemCache.events.on("cleared", cleared);
         context.subscriptions.push({ dispose: () => {
+            clearTimeout(timer);
             problemCache.events.off("updated", updated);
             problemCache.events.off("cleared", cleared);
         } });

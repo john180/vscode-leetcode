@@ -125,6 +125,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 }
 
-export function deactivate(): void {
-    // Do nothing.
+export function deactivate(): Promise<void> {
+    // Problem pages are written to disk lazily; keep the latest ones.
+    return problemCache.flush();
 }

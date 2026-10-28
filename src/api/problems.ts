@@ -61,8 +61,11 @@ function normalize(query: IProblemQuery): Required<IProblemQuery> {
     };
 }
 
-/** One server-filtered page; never scans the rest of the question bank. */
-export async function getProblemPage(query: IProblemQuery = {}, force: boolean = false): Promise<IProblemPage> {
+/**
+ * One server-filtered page; never scans the rest of the question bank.
+ * Pass `persist: false` for one-off queries that should not be written to disk.
+ */
+export async function getProblemPage(query: IProblemQuery = {}, force: boolean = false, persist: boolean = true): Promise<IProblemPage> {
     const ctx = context();
     const options = normalize(query);
     const key = `${ctx.scope}page:${JSON.stringify(options)}`;
@@ -92,7 +95,7 @@ export async function getProblemPage(query: IProblemQuery = {}, force: boolean =
         }, ctx.translated));
         const next = options.skip + page.questions.length;
         return { problems, total: page.totalLength, next, hasMore: page.questions.length > 0 && next < page.totalLength };
-    }, force);
+    }, force, persist);
 }
 
 export async function getProblemTags(kind: "tag" | "company", force: boolean = false): Promise<IProblemTag[]> {
@@ -145,15 +148,15 @@ export async function getProblemById(id: string): Promise<IProblem | undefined> 
     const pages = problemCache.values<IProblemPage>(`${scope}page:`);
     const cached = singles.find((problem) => problem?.id === id) || pages.flatMap((page) => page.problems).find((problem) => problem.id === id);
     if (cached) { return cached; }
-    const page = await getProblemPage({ search: id, limit: 100 });
+    const page = await getProblemPage({ search: id, limit: 100 }, false, false);
     // Never substitute a fuzzy match for the requested frontend id (including LCR/LCP ids).
     return scope === getProblemCacheScope() ? page.problems.find((problem) => problem.id === id) : undefined;
 }
 
 export async function getRandomProblem(): Promise<IProblem | undefined> {
-    const first = await getProblemPage({ limit: 1 });
+    const first = await getProblemPage({ limit: 1 }, false, false);
     if (!first.total) { return undefined; }
-    const page = await getProblemPage({ limit: 1, skip: Math.floor(Math.random() * first.total) });
+    const page = await getProblemPage({ limit: 1, skip: Math.floor(Math.random() * first.total) }, false, false);
     return page.problems[0];
 }
 

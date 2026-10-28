@@ -115,6 +115,7 @@ test('filters, pagination, sorting, and translations are sent to both endpoints'
 test('account, endpoint and language changes use isolated cache entries with no credentials on disk', async () => {
     await api.getProblemPage(); cookie = 'account-b'; await api.getProblemPage(); endpoint = 'leetcode-cn'; await api.getProblemPage(); translated = false; await api.getProblemPage();
     assert.equal(calls.length, 4);
+    await problemCache.flush();
     const saved = JSON.stringify([...disk]); assert.equal(saved.includes('account-a'), false); assert.equal(saved.includes('account-b'), false);
     cookie = 'account-a'; endpoint = 'leetcode'; translated = true;
     await api.getProblemPage(); assert.equal(calls.length, 4);
@@ -125,6 +126,8 @@ test('single id lookup searches one bounded page, requires an exact match and re
     assert.equal(problem?.id, 'LCR 123'); assert.equal(calls.length, 1); assert.equal(calls[0].variables.searchKeyword, 'LCR 123');
     assert.equal(calls[0].variables.limit, 100);
     await api.getProblemById('LCR 123'); assert.equal(calls.length, 1);
+    await problemCache.flush();
+    assert.equal(JSON.stringify([...disk]).includes('LCR 123'), false, 'id lookups are not written to disk');
     const detail = await api.getProblemBySlug('some-problem');
     assert.equal(detail?.questionId, '123'); assert.equal(detail?.passRate, '50.0 %');
     await api.getProblemById('42'); assert.equal(calls.length, 2);
