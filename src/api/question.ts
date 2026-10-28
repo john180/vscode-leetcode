@@ -30,10 +30,52 @@ export interface IQuestionDetail {
     metaData?: string;
     codeSnippets: ICodeSnippet[];
     topicTags: IQuestionTag[];
+    /** HTML, one hint per entry. */
+    hints?: string[];
+    /** JSON: an array of ISimilarQuestion. */
+    similarQuestions?: string;
+    /** JSON with "acRate", "totalAccepted" and "totalSubmission". */
+    stats?: string;
+    likes?: number;
+    dislikes?: number;
+}
+
+export interface ISimilarQuestion {
+    title: string;
+    translatedTitle?: string;
+    titleSlug: string;
+    difficulty: string;
+}
+
+function parseJson(text: string | undefined): unknown {
+    try {
+        return text ? JSON.parse(text) : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+export function getSimilarQuestions(detail: Pick<IQuestionDetail, "similarQuestions">): ISimilarQuestion[] {
+    const questions: unknown = parseJson(detail.similarQuestions);
+    return Array.isArray(questions)
+        ? questions.filter((question: ISimilarQuestion) => typeof question?.titleSlug === "string" && typeof question.title === "string")
+        : [];
+}
+
+/** Like "55.2%". */
+export function getAcceptanceRate(detail: Pick<IQuestionDetail, "stats">): string | undefined {
+    const stats = parseJson(detail.stats) as { acRate?: unknown } | undefined;
+    return typeof stats?.acRate === "string" && stats.acRate ? stats.acRate : undefined;
 }
 
 interface IQuestionResponse {
     question: IQuestionDetail | null;
+}
+
+/** The function's parameter names, one per input line of a test case; empty for problems without a function. */
+export function getParamNames(detail: Pick<IQuestionDetail, "metaData">): string[] {
+    const params: unknown = (parseJson(detail.metaData) as { params?: unknown } | undefined)?.params;
+    return Array.isArray(params) ? params.map((param: { name?: unknown }) => String(param?.name ?? "")) : [];
 }
 
 export async function fetchQuestionDetail(

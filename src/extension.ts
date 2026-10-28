@@ -25,7 +25,8 @@ import { resolveEndpoint } from "./auth/endpointResolver";
 import { sessionEvents } from "./auth/session";
 import { DialogType, promptForOpenOutputChannel } from "./utils/uiUtils";
 import { leetCodePreviewProvider } from "./webview/leetCodePreviewProvider";
-import { leetCodeSubmissionProvider } from "./webview/leetCodeSubmissionProvider";
+import { leetCodeSubmissionProvider, RESULT_ACTION_COMMAND } from "./webview/leetCodeSubmissionProvider";
+import { compileDiagnostics } from "./utils/compileDiagnostics";
 import { markdownEngine } from "./webview/markdownEngine";
 import { globalState } from "./globalState";
 import { problemCache } from "./api/problemCache";
@@ -82,6 +83,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             leetCodeChannel,
             leetCodePreviewProvider,
             leetCodeSubmissionProvider,
+            compileDiagnostics,
             markdownEngine,
             codeLensController,
             explorerNodeManager,
@@ -111,9 +113,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 }
                 await leetCodeTreeDataProvider.refresh(true);
             }),
-            vscode.commands.registerCommand("leetcode.testSolution", (uri?: vscode.Uri) => {
-                return test.testSolution(uri);
+            vscode.commands.registerCommand("leetcode.testSolution", (uri?: vscode.Uri, input?: unknown) => {
+                // Menus pass their context as the second argument; only the result view passes an input.
+                return test.testSolution(uri, typeof input === "string" ? input : undefined);
             }),
+            vscode.commands.registerCommand(RESULT_ACTION_COMMAND, (run: unknown, action: unknown, index?: unknown) => leetCodeSubmissionProvider.runAction(run, action, index)),
             vscode.commands.registerCommand("leetcode.submitSolution", (uri?: vscode.Uri) => {
                 return submit.submitSolution(uri);
             }),

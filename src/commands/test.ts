@@ -3,7 +3,7 @@
 
 import * as path from "path";
 import * as vscode from "vscode";
-import { fetchQuestionDetail } from "../api/question";
+import { fetchQuestionDetail, getParamNames } from "../api/question";
 import { getLeetCodeRequest } from "../api/request";
 import { testSolution as testWithLeetCode } from "../api/submission";
 import { leetCodeManager } from "../leetCodeManager";
@@ -15,7 +15,8 @@ import { getActiveDocument } from "../utils/workspaceUtils";
 import { leetCodeSubmissionProvider } from "../webview/leetCodeSubmissionProvider";
 import { getProblemById } from "../api/problems";
 
-export async function testSolution(uri?: vscode.Uri): Promise<void> {
+/** Test the solution file, with `input` when given and otherwise with the test case the user picks. */
+export async function testSolution(uri?: vscode.Uri, input?: string): Promise<void> {
     try {
         if (leetCodeManager.getStatus() === UserStatus.SignedOut) {
             return;
@@ -41,7 +42,7 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
         }
 
         const detail = await fetchQuestionDetail(getLeetCodeRequest(), problem.slug);
-        const testInput: string | undefined = await pickTestInput(document, detail.sampleTestCase, problem.slug);
+        const testInput: string | undefined = input ?? await pickTestInput(document, detail.sampleTestCase, problem.slug);
         if (testInput === undefined) {
             return;
         }
@@ -51,13 +52,16 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
         }
         await globalState.saveTestCase(problem.slug, testInput);
 
-        await leetCodeSubmissionProvider.judge(problem, () => testWithLeetCode(
-            getLeetCodeRequest(),
-            { slug: problem.slug, questionId: detail.questionId },
-            language,
-            code,
-            testInput,
-        ));
+        await leetCodeSubmissionProvider.judge(problem, document, async () => ({
+            ...await testWithLeetCode(
+                getLeetCodeRequest(),
+                { slug: problem.slug, questionId: detail.questionId },
+                language,
+                code,
+                testInput,
+            ),
+            paramNames: getParamNames(detail),
+        }));
     } catch (error) {
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to test the solution. Please open the output channel for details."), DialogType.error);
     }

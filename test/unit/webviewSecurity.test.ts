@@ -53,6 +53,17 @@ test("problem HTML preserves formatting but removes active content and UI overri
     assert.doesNotMatch(html, /<script|<style|<iframe|<form|<input|<svg|onerror|onclick|style=|id=|javascript:|command:|file:|data:|src="\/\//i);
 });
 
+test("problem HTML keeps LeetCode's example layout classes and monospace fonts only", () => {
+    const html = sanitizeProblemHtml(`
+        <div class="example-block evil"><p><strong>Input:</strong> <span class="example-io">nums = [1]</span></p></div>
+        <font face="monospace">n</font><font color="red">red</font><span class="hljs-keyword">x</span>
+    `);
+    assert.match(html, /<div class="example-block">/);
+    assert.match(html, /<span class="example-io">nums = \[1\]<\/span>/);
+    assert.match(html, /<code>n<\/code><span>red<\/span><span>x<\/span>/);
+    assert.doesNotMatch(html, /evil|color=|<font/);
+});
+
 test("font families cannot break out of a CSS declaration or style element", () => {
     assert.equal(safeFontFamily("'Cascadia Code', 微软雅黑, monospace"), "'Cascadia Code', 微软雅黑, monospace");
     for (const value of ['</style><img src="https://example.com">', 'a; color:red', 'a}body{display:none}', 'url(https://example.com)', '\\3c /style>']) {

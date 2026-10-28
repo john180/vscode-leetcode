@@ -2,23 +2,24 @@
 // Licensed under the MIT license.
 
 import { randomBytes } from "node:crypto";
-import { commands, Disposable, l10n, Webview, WebviewView, WebviewViewProvider, workspace } from "vscode";
-import { getProblemCacheScope } from "../api/problems";
-import { fetchQuestionDetail } from "../api/question";
-import type { IQuestionDetail } from "../api/question";
+import { commands, Disposable, env, l10n, Webview, WebviewView, WebviewViewProvider, window, workspace } from "vscode";
+import { getProblemBySlug, getProblemCacheScope } from "../api/problems";
+import { fetchQuestionDetail, getAcceptanceRate, getSimilarQuestions } from "../api/question";
+import type { IQuestionDetail, ISimilarQuestion } from "../api/question";
 import { getLeetCodeRequest } from "../api/request";
 import { fetchTopSolution } from "../api/solution";
 import type { ISolution } from "../api/solution";
 import { getLeetCodeEndpoint } from "../commands/plugin";
+import { searchFor } from "../commands/search";
 import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { globalState } from "../globalState";
 import { leetCodeChannel } from "../leetCodeChannel";
-import { Endpoint, IProblem, PREMIUM_URL_CN, PREMIUM_URL_GLOBAL } from "../shared";
+import { Endpoint, IProblem, PREMIUM_URL_CN, PREMIUM_URL_GLOBAL, ProblemState } from "../shared";
 import { shouldUseEndpointTranslation } from "../utils/settingUtils";
 import { openSettingsEditor, openUrl, promptHintMessage } from "../utils/uiUtils";
 import { markdownEngine } from "./markdownEngine";
-import { sanitizeProblemHtml } from "./sanitize";
+import { escapeHtml, sanitizeProblemHtml } from "./sanitize";
 
 export type DetailTab = "description" | "solution";
 
@@ -29,7 +30,8 @@ interface IDetailState {
     tab: DetailTab;
     detail?: IQuestionDetail;
     failed?: boolean;
-    solution?: ISolution;
+    /** Null when the problem has no solution to show. */
+    solution?: ISolution | null;
     solutionFailed?: boolean;
     solutionPending?: Promise<void>;
 }
@@ -45,25 +47,157 @@ export interface IShowOptions {
 const style: string = `
     body { background: transparent; padding: 0 12px 24px; }
     header { position: sticky; top: 0; z-index: 1; padding: 8px 0 0; background: var(--vscode-sideBar-background); border-bottom: 1px solid var(--vscode-panel-border); }
-    header h2 { margin: 0 0 4px; font-size: 1.15em; }
+    header h2 { margin: 0 0 2px; font-size: 1.15em; }
+    .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font-size: 0.9em; color: var(--vscode-descriptionForeground); }
     .difficulty { font-weight: 600; }
     .difficulty.easy { color: var(--vscode-charts-green); }
     .difficulty.medium { color: var(--vscode-charts-yellow); }
     .difficulty.hard { color: var(--vscode-charts-red); }
-    .actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-    button { border: 0; padding: 4px 10px; cursor: pointer; }
+    .solved { color: var(--vscode-testing-iconPassed); }
+    .toolbar { display: flex; flex-wrap: wrap-reverse; align-items: flex-end; justify-content: space-between; gap: 4px 12px; margin-top: 6px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 4px; }
+    button { border: 0; padding: 3px 8px; border-radius: 2px; cursor: pointer; }
     button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
     button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
     .tabs { display: flex; gap: 16px; }
-    .tabs button, .tabs button:hover { padding: 4px 0; color: var(--vscode-foreground); background: none; border-bottom: 2px solid transparent; opacity: 0.7; }
+    .tabs button, .tabs button:hover { padding: 4px 0; color: var(--vscode-foreground); background: none; border-radius: 0; border-bottom: 2px solid transparent; opacity: 0.7; }
     .tabs button:hover, .tabs button[aria-selected="true"] { opacity: 1; }
     .tabs button[aria-selected="true"] { border-bottom-color: var(--vscode-focusBorder); font-weight: 600; }
     .status { color: var(--vscode-descriptionForeground); }
     table { display: block; overflow-x: auto; }
+    .extra { margin-top: 16px; border-top: 1px solid var(--vscode-panel-border); }
+    .extra details { margin: 8px 0; }
+    .extra summary { font-weight: 600; cursor: pointer; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+    .chip, .chip:hover { padding: 1px 8px; border-radius: 10px; font-size: 0.9em; color: var(--vscode-badge-foreground); background: var(--vscode-badge-background); }
+    button.chip:hover { text-decoration: underline; }
+    .similar { margin: 6px 0; padding-left: 0; list-style: none; }
+    .similar li { display: flex; gap: 8px; align-items: baseline; margin: 2px 0; }
+    button.link, button.link:hover { padding: 0; color: var(--vscode-textLink-foreground); background: none; text-align: left; }
+    button.link:hover { color: var(--vscode-textLink-activeForeground); text-decoration: underline; }
+    .code-block { position: relative; }
+    .code-block > .copy { position: absolute; top: 4px; right: 4px; padding: 1px 6px; font-size: 0.85em; opacity: 0; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+    .code-block:hover > .copy, .code-block > .copy:focus { opacity: 1; }
+    .code-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 8px; }
+    .code-tabs button, .code-tabs button:hover { padding: 3px 10px; color: var(--vscode-foreground); background: none; border-radius: 0; border-bottom: 2px solid transparent; opacity: 0.7; }
+    .code-tabs button[aria-selected="true"] { opacity: 1; border-bottom-color: var(--vscode-focusBorder); }
+    .code-group.tabbed > details > summary { display: none; }
+    .code-group.tabbed > details:not([open]) { display: none; }
+    .code-group > details > pre, .code-group > details > .code-block > pre { margin-top: 0; }
 `;
 
-function escapeHtml(text: string): string {
-    return text.replace(/[&<>"']/g, (char: string) => `&#${char.charCodeAt(0)};`);
+/**
+ * Runs in the view. The page is rendered once, and later content arrives by message so that updates keep
+ * scroll positions and open sections instead of reloading the page.
+ */
+const script: string = `
+    const vscode = acquireVsCodeApi();
+    const root = document.getElementById("root");
+    const pages = (vscode.getState() || {}).pages || {};
+    let { version, page } = JSON.parse(document.getElementById("initial").textContent);
+    // A position to keep while images above it load, until the user scrolls.
+    let target = null;
+
+    function restore(y) {
+        target = y;
+        window.scrollTo(0, y);
+        for (const image of root.querySelectorAll("img")) {
+            if (!image.complete) {
+                image.addEventListener("load", () => { if (target !== null) { window.scrollTo(0, target); } }, { once: true });
+            }
+        }
+    }
+
+    function enhance() {
+        for (const pre of root.querySelectorAll("pre")) {
+            if (pre.parentElement.classList.contains("code-block")) {
+                continue;
+            }
+            const block = document.createElement("div");
+            block.className = "code-block";
+            const copy = document.createElement("button");
+            copy.className = "copy";
+            copy.type = "button";
+            copy.textContent = root.dataset.copy;
+            copy.addEventListener("click", () => vscode.postMessage({ command: "copy", text: pre.innerText }));
+            pre.replaceWith(block);
+            block.append(pre, copy);
+        }
+        for (const group of root.querySelectorAll(".code-group:not(.tabbed)")) {
+            const panels = [...group.children].filter((child) => child.tagName === "DETAILS");
+            const bar = document.createElement("div");
+            bar.className = "code-tabs";
+            bar.setAttribute("role", "tablist");
+            const select = (index) => panels.forEach((panel, i) => {
+                panel.open = i === index;
+                bar.children[i].setAttribute("aria-selected", String(i === index));
+            });
+            panels.forEach((panel, index) => {
+                const tab = document.createElement("button");
+                tab.type = "button";
+                tab.setAttribute("role", "tab");
+                tab.textContent = panel.querySelector("summary")?.textContent || String(index + 1);
+                tab.addEventListener("click", () => select(index));
+                bar.append(tab);
+            });
+            group.prepend(bar);
+            group.classList.add("tabbed");
+            select(Math.max(0, panels.findIndex((panel) => panel.open)));
+        }
+    }
+
+    // Sanitized problem HTML and rendered markdown cannot contain buttons, so these are ours.
+    document.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-command]");
+        if (button) {
+            vscode.postMessage({ command: button.dataset.command, arg: button.dataset.arg });
+        }
+    });
+    for (const type of ["wheel", "keydown", "pointerdown", "touchstart"]) {
+        window.addEventListener(type, () => { target = null; }, { passive: true });
+    }
+    let frame = 0;
+    window.addEventListener("scroll", () => {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+            delete pages[page];
+            pages[page] = window.scrollY;
+            const keys = Object.keys(pages);
+            if (keys.length > 50) {
+                delete pages[keys[0]];
+            }
+            vscode.setState({ pages });
+        });
+    });
+    window.addEventListener("message", (event) => {
+        const message = event.data;
+        if (!message || message.type !== "render" || message.version <= version) {
+            return;
+        }
+        // Keep the sections the user opened when the same page updates, as long as its layout is unchanged.
+        const opened = message.page === page ? [...root.querySelectorAll("details")].map((details) => details.open) : [];
+        pages[page] = window.scrollY;
+        ({ version, page } = message);
+        root.innerHTML = message.html;
+        const details = root.querySelectorAll("details");
+        if (opened.length === details.length) {
+            details.forEach((section, index) => { section.open = opened[index]; });
+        }
+        enhance();
+        restore(pages[page] || 0);
+    });
+    enhance();
+    restore(pages[page] || 0);
+    vscode.postMessage({ command: "ready" });
+`;
+
+/** LeetCode-only markup: the [TOC] marker, and slideshows and playground frames that only work on the site. */
+function cleanSolutionMarkdown(content: string, url: string): string {
+    const onLeetCode = (label: string): string => `[${label}](${url})`;
+    return content
+        .replace(/^[ \t]*\[TOC\][ \t]*$/gim, "")
+        .replace(/!\?!.*?!\?!/g, () => onLeetCode(l10n.t("View the slideshow on LeetCode")))
+        .replace(/<iframe\b[^>]*>(?:\s*<\/iframe>)?/gi, () => onLeetCode(l10n.t("View the code on LeetCode")));
 }
 
 /** The problem description and top solution, shown in the LeetCode sidebar beside the problem list. */
@@ -71,6 +205,10 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
     private view: WebviewView | undefined;
     private state: IDetailState | undefined;
     private hinted: boolean = false;
+    /** Counts renders; the view drops content older than what it shows. */
+    private version: number = 0;
+    /** The render the page was created with. */
+    private pageVersion: number = 0;
 
     public get currentProblemId(): string | undefined {
         return this.state?.scope === getProblemCacheScope() ? this.state.problem.id : undefined;
@@ -88,7 +226,10 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         const listeners: Disposable[] = [
             view.webview.onDidReceiveMessage(this.onDidReceiveMessage, this),
             workspace.onDidChangeConfiguration((event) => {
-                if (event.affectsConfiguration("markdown") || event.affectsConfiguration("leetcode.useEndpointTranslation")) {
+                if (event.affectsConfiguration("markdown")) {
+                    // Styles come with the page, so it is created again.
+                    this.createPage();
+                } else if (event.affectsConfiguration("leetcode.useEndpointTranslation")) {
                     this.render();
                 }
             }),
@@ -99,7 +240,7 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
                 this.view = undefined;
             }
         });
-        this.render();
+        this.createPage();
     }
 
     public async show(problem: IProblem, options: IShowOptions = {}): Promise<void> {
@@ -143,12 +284,12 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
     }
 
     private loadSolution(state: IDetailState): Promise<void> {
-        if (state.solution) {
+        if (state.solution !== undefined) {
             return Promise.resolve();
         }
         state.solutionFailed = false;
-        state.solutionPending ??= fetchTopSolution(getLeetCodeRequest(), state.problem.slug).then((solution: ISolution) => {
-            state.solution = solution;
+        state.solutionPending ??= fetchTopSolution(getLeetCodeRequest(), state.problem.slug).then((solution: ISolution | undefined) => {
+            state.solution = solution ?? null;
         }, (error: unknown) => {
             leetCodeChannel.appendLine(`[ERROR] Failed to fetch the top voted solution: ${error}`);
             state.solutionFailed = true;
@@ -178,13 +319,32 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         return problem.locked && !globalState.getUserStatus()?.isPremium;
     }
 
+    /** Scroll positions are kept per problem and tab. */
+    private getPage(): string {
+        return this.state ? `${this.state.problem.slug}#${this.state.tab}` : "";
+    }
+
+    private createPage(): void {
+        if (!this.view) {
+            return;
+        }
+        this.updateTitle();
+        this.pageVersion = ++this.version;
+        this.view.webview.html = this.getWebviewContent(this.view.webview);
+    }
+
+    /** Send the current content to the page, which swaps it in place. */
     private render(): void {
         if (!this.view) {
             return;
         }
+        this.updateTitle();
+        void this.view.webview.postMessage({ type: "render", version: ++this.version, page: this.getPage(), html: this.getBody() });
+    }
+
+    private updateTitle(): void {
         const problem: IProblem | undefined = this.state?.problem;
-        this.view.description = problem ? `${problem.id}. ${problem.name}` : undefined;
-        this.view.webview.html = this.getWebviewContent(this.view.webview);
+        this.view!.description = problem ? `${problem.id}. ${problem.name}` : undefined;
         if (this.state?.detail && !this.hinted) {
             this.hinted = true;
             void promptHintMessage(
@@ -198,8 +358,7 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
 
     private getWebviewContent(webview: Webview): string {
         const nonce: string = randomBytes(24).toString("base64");
-        // Scroll positions are kept per problem and tab.
-        const page: string = JSON.stringify(this.state ? `${this.state.problem.slug}#${this.state.tab}` : "").replace(/</g, "\\u003c");
+        const initial: string = JSON.stringify({ version: this.version, page: this.getPage() }).replace(/</g, "\\u003c");
         return `
             <!DOCTYPE html>
             <html>
@@ -217,27 +376,18 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
                 <style>${style}</style>
             </head>
             <body>
-                ${this.state ? this.getProblemContent(this.state) : `<p class="status">${escapeHtml(l10n.t("Select a problem in the list above, or open a problem file to see its description."))}</p>`}
-                <script nonce="${nonce}">
-                    const vscode = acquireVsCodeApi();
-                    // Sanitized problem HTML and rendered markdown cannot contain buttons, so these are ours.
-                    for (const button of document.querySelectorAll("button[data-command]")) {
-                        button.addEventListener("click", () => vscode.postMessage({ command: button.dataset.command }));
-                    }
-                    const page = ${page};
-                    const saved = vscode.getState();
-                    if (saved && saved.page === page) {
-                        window.scrollTo(0, saved.y);
-                    }
-                    let frame = 0;
-                    window.addEventListener("scroll", () => {
-                        cancelAnimationFrame(frame);
-                        frame = requestAnimationFrame(() => vscode.setState({ page, y: window.scrollY }));
-                    });
-                </script>
+                <div id="root" data-copy="${escapeHtml(l10n.t("Copy"))}">${this.getBody()}</div>
+                <script type="application/json" id="initial">${initial}</script>
+                <script nonce="${nonce}">${script}</script>
             </body>
             </html>
         `;
+    }
+
+    private getBody(): string {
+        return this.state
+            ? this.getProblemContent(this.state)
+            : `<p class="status">${escapeHtml(l10n.t("Select a problem in the list above, or open a problem file to see its description."))}</p>`;
     }
 
     private getProblemContent(state: IDetailState): string {
@@ -246,14 +396,13 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         const title: string = detail
             ? (useTranslation ? (detail.translatedTitle || detail.title) : detail.title)
             : problem.name;
-        const difficulty: string = detail?.difficulty || problem.difficulty;
         const locked: boolean = this.isLocked(problem);
         const actions: string = locked
             ? `<button data-command="premium">${escapeHtml(l10n.t("Get Premium"))}</button>`
             : [
                 `<button data-command="code">${escapeHtml(l10n.t("Code Now"))}</button>`,
                 `<button class="secondary" data-command="submissions">${escapeHtml(l10n.t("Submissions"))}</button>`,
-                `<button class="secondary" data-command="${problem.isFavorite ? "unstar" : "star"}">${escapeHtml(problem.isFavorite ? l10n.t("Unstar") : l10n.t("Star"))}</button>`,
+                this.getStarButton(problem),
             ].join("");
         const tab = (id: DetailTab, label: string): string =>
             `<button role="tab" aria-selected="${state.tab === id}" data-command="${id}">${escapeHtml(label)}</button>`;
@@ -261,15 +410,40 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         const header: string = `
             <header>
                 <h2><a href="${escapeHtml(this.getProblemUrl(problem.slug))}">${escapeHtml(`${problem.id}. ${title}`)}</a></h2>
-                ${difficulty ? `<span class="difficulty ${escapeHtml(difficulty.toLowerCase())}">${escapeHtml(l10n.t(difficulty))}</span>` : ""}
-                <div class="actions">${actions}</div>
-                ${tabs}
+                <div class="meta">${this.getMeta(problem, detail)}</div>
+                <div class="toolbar">${tabs}<div class="actions">${actions}</div></div>
             </header>`;
 
         if (locked) {
             return `${header}<p class="status">${escapeHtml(l10n.t("This problem requires a LeetCode Premium subscription."))}</p>`;
         }
         return `${header}${state.tab === "solution" ? this.getSolutionContent(state) : this.getDescriptionContent(state, useTranslation)}`;
+    }
+
+    private getStarButton(problem: IProblem): string {
+        const label: string = problem.isFavorite ? l10n.t("Unstar") : l10n.t("Star");
+        return `<button class="secondary" data-command="${problem.isFavorite ? "unstar" : "star"}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${problem.isFavorite ? "★" : "☆"}</button>`;
+    }
+
+    private getMeta(problem: IProblem, detail: IQuestionDetail | undefined): string {
+        const items: string[] = [];
+        const difficulty: string = detail?.difficulty || problem.difficulty;
+        if (difficulty) {
+            items.push(`<span class="difficulty ${escapeHtml(difficulty.toLowerCase())}">${escapeHtml(l10n.t(difficulty))}</span>`);
+        }
+        const acceptance: string | undefined = problem.passRate || (detail && getAcceptanceRate(detail));
+        if (acceptance) {
+            items.push(`<span>${escapeHtml(l10n.t("Acceptance {0}", acceptance))}</span>`);
+        }
+        if (problem.state === ProblemState.AC) {
+            items.push(`<span class="solved">✓ ${escapeHtml(l10n.t("Solved"))}</span>`);
+        } else if (problem.state === ProblemState.NotAC) {
+            items.push(`<span>${escapeHtml(l10n.t("Attempted"))}</span>`);
+        }
+        if (typeof detail?.likes === "number") {
+            items.push(`<span title="${escapeHtml(l10n.t("Likes"))}">👍 ${detail.likes}</span>`);
+        }
+        return items.join("");
     }
 
     private getDescriptionContent({ problem, detail, failed }: IDetailState, useTranslation: boolean): string {
@@ -280,61 +454,79 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
             return `<p class="status">${escapeHtml(l10n.t("Loading the problem description..."))}</p>`;
         }
 
-        const tagItems: string[] = detail.topicTags.length > 0
-            ? detail.topicTags.map((tag) => {
-                const label: string = useTranslation ? (tag.translatedName || tag.name) : tag.name;
-                return `[\`${label}\`](${this.getTagLink(tag.slug)})`;
-            })
-            : problem.tags.map((tag: string) => `[\`${tag}\`](${this.getTagLink(tag)})`);
-        const tags: string = tagItems.length > 0
-            ? [
-                `<details>`,
-                `<summary><strong>${escapeHtml(l10n.t("Tags"))}</strong></summary>`,
-                markdownEngine.render(tagItems.join(" | ")),
-                `</details>`,
-            ].join("\n")
-            : "";
-        const companies: string = problem.companies.length > 0
-            ? [
-                `<details>`,
-                `<summary><strong>${escapeHtml(l10n.t("Companies"))}</strong></summary>`,
-                markdownEngine.render(problem.companies.map((company: string) => `\`${company}\``).join(" | ")),
-                `</details>`,
-            ].join("\n")
-            : "";
+        const section = (summary: string, content: string): string =>
+            `<details><summary>${escapeHtml(summary)}</summary>${content}</details>`;
+        const sections: string[] = (detail.hints ?? []).map((hint: string, index: number) =>
+            section(l10n.t("Hint {0}", index + 1), sanitizeProblemHtml(hint)));
+
+        const similar: ISimilarQuestion[] = getSimilarQuestions(detail);
+        if (similar.length > 0) {
+            const items: string[] = similar.map((question: ISimilarQuestion) => [
+                `<li><button class="link" data-command="similar" data-arg="${escapeHtml(question.titleSlug)}">`,
+                escapeHtml(useTranslation ? (question.translatedTitle || question.title) : question.title),
+                `</button><span class="difficulty ${escapeHtml(question.difficulty.toLowerCase())}">${escapeHtml(l10n.t(question.difficulty))}</span></li>`,
+            ].join(""));
+            sections.push(section(l10n.t("Similar Questions"), `<ul class="similar">${items.join("")}</ul>`));
+        }
+
+        // Clicking a tag lists its problems; companies have no reliable slug to search by.
+        const tags: Array<{ label: string; slug: string }> = detail.topicTags.length > 0
+            ? detail.topicTags.map((tag) => ({ label: useTranslation ? (tag.translatedName || tag.name) : tag.name, slug: tag.slug }))
+            : problem.tags.map((tag: string) => ({ label: tag, slug: tag }));
+        if (tags.length > 0) {
+            const chips: string[] = tags.map(({ label, slug }) =>
+                `<button class="chip" data-command="tag" data-arg="${escapeHtml(slug)}" title="${escapeHtml(l10n.t("Show the problems with this tag"))}">${escapeHtml(label)}</button>`);
+            sections.push(section(l10n.t("Tags"), `<div class="chips">${chips.join("")}</div>`));
+        }
+        if (problem.companies.length > 0) {
+            const chips: string[] = problem.companies.map((company: string) => `<span class="chip">${escapeHtml(company)}</span>`);
+            sections.push(section(l10n.t("Companies"), `<div class="chips">${chips.join("")}</div>`));
+        }
+
         const body: string = useTranslation ? (detail.translatedContent || detail.content) : detail.content;
-        const url: string = this.getProblemUrl(detail.titleSlug);
-        const links: string = markdownEngine.render(`[${l10n.t("Submissions")}](${this.getSubmissionsLink(url)}) | [${l10n.t("Solution")}](${this.getSolutionsLink(url)})`);
-        return `
-            ${tags}
-            ${companies}
-            ${sanitizeProblemHtml(body)}
-            <hr />
-            ${links}
-        `;
+        return `${sanitizeProblemHtml(body)}${sections.length > 0 ? `<div class="extra">${sections.join("")}</div>` : ""}`;
     }
 
     private getSolutionContent({ problem, solution, solutionFailed }: IDetailState): string {
         if (solutionFailed) {
             return `<p class="status"><button class="secondary" data-command="solution">${escapeHtml(l10n.t("Loading failed. Click to retry."))}</button></p>`;
         }
-        if (!solution) {
+        if (solution === undefined) {
             return `<p class="status">${escapeHtml(l10n.t("Loading the solution..."))}</p>`;
         }
-        const title: string = solution.title ? markdownEngine.render(`### ${solution.title}`) : "";
-        const body: string = markdownEngine.render(solution.content, { lang: "", host: this.getHost() });
         const url: string = this.getSolutionsLink(this.getProblemUrl(problem.slug));
-        return `
-            ${title}
-            ${body}
-            <hr />
-            ${markdownEngine.render(`[${l10n.t("Solution")}](${url})`)}
-        `;
+        const more: string = `<p><a href="${escapeHtml(url)}">${escapeHtml(l10n.t("More solutions on LeetCode"))}</a></p>`;
+        if (solution === null) {
+            return `<p class="status">${escapeHtml(l10n.t("This problem has no solution to show yet."))}</p>${more}`;
+        }
+        const title: string = solution.title ? `<h3>${escapeHtml(solution.title)}</h3>` : "";
+        const body: string = markdownEngine.renderSolution(cleanSolutionMarkdown(solution.content, url), { lang: "", host: this.getHost() });
+        return `${title}${body}<hr />${more}`;
     }
 
     private async onDidReceiveMessage(message: unknown): Promise<void> {
+        if (!message || typeof message !== "object" || !("command" in message)) {
+            return;
+        }
+        const arg: unknown = (message as { arg?: unknown }).arg;
+        switch (message.command) {
+            case "ready":
+                // A render posted while the page was still loading may have been missed.
+                if (this.version !== this.pageVersion) {
+                    this.render();
+                }
+                return;
+            case "copy": {
+                const text: unknown = (message as { text?: unknown }).text;
+                if (typeof text === "string") {
+                    await env.clipboard.writeText(text);
+                    window.setStatusBarMessage(l10n.t("Copied to the clipboard."), 2000);
+                }
+                return;
+            }
+        }
         const state: IDetailState | undefined = this.state;
-        if (!state || !message || typeof message !== "object" || !("command" in message)) {
+        if (!state) {
             return;
         }
         const problem: IProblem = state.problem;
@@ -369,6 +561,27 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
             case "retry":
                 await this.show(problem);
                 break;
+            case "tag":
+                if (typeof arg === "string" && /^[\w-]+$/.test(arg)) {
+                    await searchFor(`tag:${arg}`);
+                }
+                break;
+            case "similar":
+                if (typeof arg === "string") {
+                    await this.showSimilar(arg);
+                }
+                break;
+        }
+    }
+
+    private async showSimilar(slug: string): Promise<void> {
+        try {
+            const target: IProblem | undefined = await getProblemBySlug(slug);
+            if (target) {
+                await this.show(target, { tab: "description" });
+            }
+        } catch (error) {
+            leetCodeChannel.appendLine(`[ERROR] Failed to resolve the problem ${slug}: ${error}`);
         }
     }
 
@@ -382,23 +595,8 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         return `${this.getHost()}/problems/${slug}/description/`;
     }
 
-    private getTagLink(tag: string): string {
-        const endPoint: string = getLeetCodeEndpoint();
-        if (endPoint === Endpoint.LeetCodeCN) {
-            return `https://leetcode.cn/tag/${tag}?source=vscode`;
-        } else if (endPoint === Endpoint.LeetCode) {
-            return `https://leetcode.com/tag/${tag}?source=vscode`;
-        }
-
-        return "https://leetcode.com?source=vscode";
-    }
-
     private getSolutionsLink(url: string): string {
         return url.replace("/description/", "/solutions/") + "?source=vscode";
-    }
-
-    private getSubmissionsLink(url: string): string {
-        return url.replace("/description/", "/submissions/") + "?source=vscode";
     }
 }
 

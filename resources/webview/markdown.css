@@ -6,21 +6,55 @@ body {
     line-height: 1.6;
     padding: 16px 24px 72px;
     overflow-wrap: anywhere;
+    /* Light+ */
+    --hl-keyword: #0000ff;
+    --hl-control: #af00db;
+    --hl-type: #267f99;
+    --hl-function: #795e26;
+    --hl-variable: #001080;
+    --hl-string: #a31515;
+    --hl-number: #098658;
+    --hl-regexp: #811f3f;
+    --hl-comment: #008000;
+}
+body.vscode-dark, body.vscode-high-contrast:not(.vscode-high-contrast-light) {
+    /* Dark+ */
+    --hl-keyword: #569cd6;
+    --hl-control: #c586c0;
+    --hl-type: #4ec9b0;
+    --hl-function: #dcdcaa;
+    --hl-variable: #9cdcfe;
+    --hl-string: #ce9178;
+    --hl-number: #b5cea8;
+    --hl-regexp: #d16969;
+    --hl-comment: #6a9955;
 }
 a { color: var(--vscode-textLink-foreground); }
 a:hover { color: var(--vscode-textLink-activeForeground); }
 a:focus, button:focus, summary:focus { outline: 1px solid var(--vscode-focusBorder); outline-offset: 2px; }
 pre, code { font-family: var(--vscode-editor-font-family); background: var(--vscode-textCodeBlock-background); }
 pre { padding: 12px; overflow: auto; }
-pre code { white-space: pre; }
+pre code { white-space: pre; background: none; }
 code { white-space: pre-wrap; }
 img { max-width: 100%; height: auto; }
+/* Problem diagrams are drawn in black on a transparent background. */
+body.vscode-dark img, body.vscode-high-contrast:not(.vscode-high-contrast-light) img { padding: 2px; border-radius: 4px; background: #fff; }
 table { border-collapse: collapse; }
 th, td { padding: 6px 12px; border: 1px solid var(--vscode-panel-border); }
 blockquote { margin-left: 0; padding-left: 16px; border-left: 3px solid var(--vscode-textBlockQuote-border); }
 hr { border: 0; border-top: 1px solid var(--vscode-panel-border); }
 button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
 button:hover { background: var(--vscode-button-hoverBackground); }
-.hljs-keyword, .hljs-selector-tag, .hljs-literal { color: var(--vscode-symbolIcon-keywordForeground); }
-.hljs-string, .hljs-number { color: var(--vscode-symbolIcon-stringForeground); }
-.hljs-comment { color: var(--vscode-descriptionForeground); }
+.example-block { margin: 8px 0; padding-left: 12px; border-left: 3px solid var(--vscode-textBlockQuote-border); }
+.example-block p { margin: 4px 0; }
+.example-io { font-family: var(--vscode-editor-font-family); }
+math[display="block"] { margin: 8px 0; padding: 2px 0; overflow-x: auto; overflow-y: hidden; }
+.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-meta { color: var(--hl-keyword); }
+.hljs-built_in, .hljs-type, .hljs-title.class_ { color: var(--hl-type); }
+.hljs-title, .hljs-title.function_ { color: var(--hl-function); }
+.hljs-variable, .hljs-params, .hljs-attr, .hljs-property, .hljs-template-variable { color: var(--hl-variable); }
+.hljs-string, .hljs-char, .hljs-meta .hljs-string { color: var(--hl-string); }
+.hljs-number, .hljs-symbol { color: var(--hl-number); }
+.hljs-regexp { color: var(--hl-regexp); }
+.hljs-comment, .hljs-quote, .hljs-doctag { color: var(--hl-comment); }
+.hljs-meta .hljs-keyword { color: var(--hl-control); }

@@ -31,12 +31,12 @@ export interface ISolution {
 
 /**
  * Returns the top solution article for a problem. Falls back to the official
- * solution when no article is available.
+ * solution when no article is available, and to undefined when neither exists.
  */
 export async function fetchTopSolution(
     request: IGraphQLRequest,
     titleSlug: string,
-): Promise<ISolution> {
+): Promise<ISolution | undefined> {
     const data = await graphql<ISolutionListResponse>(request, QUESTION_SOLUTION_QUERY, {
         questionSlug: titleSlug,
         first: 1,
@@ -50,9 +50,5 @@ export async function fetchTopSolution(
         titleSlug,
     });
     const officialContent: string | undefined = fallback.question?.solution?.content;
-    if (officialContent) {
-        return { title: "", content: officialContent };
-    }
-
-    throw new Error("No solution is available for this problem.");
+    return officialContent ? { title: "", content: officialContent } : undefined;
 }

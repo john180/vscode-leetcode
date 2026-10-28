@@ -27,13 +27,21 @@ class FakeUri { }
 const providerDependencies: Record<string, unknown> = {
     "vscode": {
         commands: { executeCommand: async (...args: unknown[]) => { executed.push(args); } },
-        l10n: { t: (text: string) => text },
+        env: { clipboard: { writeText: async (text: string) => { executed.push(["copy", text]); } } },
+        l10n: { t: (text: string, ...args: unknown[]) => text.replace(/\{(\d+)\}/g, (_: string, index: string) => String(args[+index])) },
+        window: { setStatusBarMessage: () => disposable },
         workspace: { onDidChangeConfiguration: () => disposable },
     },
-    "../api/problems": { getProblemCacheScope: () => scope },
+    "../api/problems": {
+        getProblemCacheScope: () => scope,
+        getProblemBySlug: async (slug: string) => problem("15", slug),
+    },
     "../api/question": {
         fetchQuestionDetail: (_request: unknown, slug: string) => new Promise((resolve, reject) => fetches.push({ slug, resolve, reject })),
+        getAcceptanceRate: () => undefined,
+        getSimilarQuestions: (value: { similar?: unknown[] }) => value.similar ?? [],
     },
+    "../commands/search": { searchFor: async (text: string) => { executed.push(["search", text]); } },
     "../api/solution": {
         fetchTopSolution: (_request: unknown, slug: string) => new Promise((resolve, reject) => solutionFetches.push({ slug, resolve, reject })),
     },
@@ -43,14 +51,17 @@ const providerDependencies: Record<string, unknown> = {
     "../explorer/LeetCodeNode": { LeetCodeNode: FakeNode },
     "../globalState": { globalState: { getUserStatus: () => ({ isPremium: premium }) } },
     "../leetCodeChannel": { leetCodeChannel: { appendLine: () => undefined } },
-    "../shared": { Endpoint: { LeetCode: "leetcode", LeetCodeCN: "leetcode-cn" }, PREMIUM_URL_CN: "cn-premium", PREMIUM_URL_GLOBAL: "global-premium" },
+    "../shared": {
+        Endpoint: { LeetCode: "leetcode", LeetCodeCN: "leetcode-cn" }, PREMIUM_URL_CN: "cn-premium", PREMIUM_URL_GLOBAL: "global-premium",
+        ProblemState: { AC: 1, NotAC: 2 },
+    },
     "../utils/settingUtils": { shouldUseEndpointTranslation: () => true },
     "../utils/uiUtils": {
         openSettingsEditor: async () => undefined,
         openUrl: async (url: string) => { executed.push(["open", url]); },
         promptHintMessage: async () => undefined,
     },
-    "./markdownEngine": { markdownEngine: { localResourceRoots: [], getStyles: () => "", render: (text: string) => text } },
+    "./markdownEngine": { markdownEngine: { localResourceRoots: [], getStyles: () => "", render: (text: string) => text, renderSolution: (text: string) => text } },
 };
 const showDependencies: Record<string, unknown> = {
     "vscode": { window: vscodeWindow, l10n: { t: (text: string) => text }, Uri: FakeUri },
@@ -96,17 +107,24 @@ function detail(slug: string, content: string): Record<string, unknown> {
     return { questionId: "1", questionFrontendId: "1", title: slug, titleSlug: slug, difficulty: "Easy", isPaidOnly: false, content, codeSnippets: [], topicTags: [] };
 }
 
+/** What the view shows: the latest content posted to the page, or the page it was created with. */
+function content(view: any): string {
+    return view.posted.at(-1)?.html ?? view.webview.html;
+}
+
 function createView(): { view: any; post: (message: unknown) => Promise<void>; dispose: () => void } {
     let receive: (message: unknown) => Promise<void> = async () => undefined;
     let dispose: () => void = () => undefined;
     const view: any = {
         description: undefined,
+        posted: [] as Array<{ type: string; version: number; page: string; html: string }>,
         webview: {
             cspSource: "vscode-resource:", options: {}, html: "",
             onDidReceiveMessage: (listener: (message: unknown) => Promise<void>, thisArg: unknown) => {
                 receive = (message: unknown) => listener.call(thisArg, message);
                 return disposable;
             },
+            postMessage: async (message: any) => { view.posted.push(message); return true; },
         },
         onDidDispose: (listener: () => void) => { dispose = listener; return disposable; },
         show: () => undefined,
@@ -136,10 +154,10 @@ test("a problem shown before the view opens is revealed and rendered once the vi
     const { view, dispose } = createView();
     assert.equal(view.webview.options.enableScripts, true);
     assert.equal(view.description, "1. two-sum");
-    assert.match(view.webview.html, /<p>Find two numbers<\/p>/);
-    assert.match(view.webview.html, /script-src 'nonce-/);
-    assert.doesNotMatch(view.webview.html, /onerror/);
-    assert.match(view.webview.html, /data-command="code"/);
+    assert.match(content(view), /<p>Find two numbers<\/p>/);
+    assert.match(content(view), /script-src 'nonce-/);
+    assert.doesNotMatch(content(view), /onerror/);
+    assert.match(content(view), /data-command="code"/);
     dispose();
 });
 
@@ -147,14 +165,14 @@ test("a slower earlier fetch never replaces the latest problem", async () => {
     const { view } = createView();
     const first = leetCodePreviewProvider.show(problem("11", "slow-one"));
     const second = leetCodePreviewProvider.show(problem("12", "fast-two"));
-    assert.match(view.webview.html, /Loading the problem description\.\.\./);
+    assert.match(content(view), /Loading the problem description\.\.\./);
 
     fetches[1].resolve(detail("fast-two", "<p>second</p>"));
     await second;
     fetches[0].resolve(detail("slow-one", "<p>first</p>"));
     await first;
-    assert.match(view.webview.html, /<p>second<\/p>/);
-    assert.doesNotMatch(view.webview.html, /<p>first<\/p>/);
+    assert.match(content(view), /<p>second<\/p>/);
+    assert.doesNotMatch(content(view), /<p>first<\/p>/);
     assert.equal(view.description, "12. fast-two");
 });
 
@@ -165,26 +183,26 @@ test("showing the same problem again reuses its description instead of fetching 
     await loading;
     await leetCodePreviewProvider.show(problem("6", "six"));
     assert.equal(fetches.length, 1);
-    assert.match(view.webview.html, /<p>six<\/p>/);
+    assert.match(content(view), /<p>six<\/p>/);
 });
 
 test("the solution tab loads the top solution once and switches back to the description", async () => {
     const { view, post } = createView();
     await leetCodePreviewProvider.show(problem("7", "seven"), { detail: detail("seven", "<p>description</p>") });
-    assert.match(view.webview.html, /aria-selected="true" data-command="description"/);
+    assert.match(content(view), /aria-selected="true" data-command="description"/);
     assert.equal(solutionFetches.length, 0, "the solution loads only when asked for");
 
     const opening = post({ command: "solution" });
     assert.equal(solutionFetches.length, 1);
-    assert.match(view.webview.html, /aria-selected="true" data-command="solution"/);
-    assert.match(view.webview.html, /Loading the solution\.\.\./);
+    assert.match(content(view), /aria-selected="true" data-command="solution"/);
+    assert.match(content(view), /Loading the solution\.\.\./);
     solutionFetches[0].resolve({ title: "Hash map", content: "Use a hash map." });
     await opening;
-    assert.match(view.webview.html, /Use a hash map\./);
-    assert.doesNotMatch(view.webview.html, /<p>description<\/p>/);
+    assert.match(content(view), /Use a hash map\./);
+    assert.doesNotMatch(content(view), /<p>description<\/p>/);
 
     await post({ command: "description" });
-    assert.match(view.webview.html, /<p>description<\/p>/);
+    assert.match(content(view), /<p>description<\/p>/);
     await post({ command: "solution" });
     assert.equal(solutionFetches.length, 1);
 });
@@ -194,17 +212,17 @@ test("a failed solution offers a retry, and a new problem opens on its descripti
     const failed = leetCodePreviewProvider.show(problem("8", "eight"), { detail: detail("eight", "<p>8</p>"), tab: "solution" });
     solutionFetches[0].reject(new Error("offline"));
     await failed;
-    assert.match(view.webview.html, /data-command="solution">Loading failed\. Click to retry\./);
+    assert.match(content(view), /data-command="solution">Loading failed\. Click to retry\./);
 
     const retry = post({ command: "solution" });
     assert.equal(solutionFetches.length, 2);
-    assert.match(view.webview.html, /Loading the solution\.\.\./);
+    assert.match(content(view), /Loading the solution\.\.\./);
     solutionFetches[1].resolve({ title: "", content: "Two pointers." });
     await retry;
-    assert.match(view.webview.html, /Two pointers\./);
+    assert.match(content(view), /Two pointers\./);
 
     await leetCodePreviewProvider.show(problem("9", "nine"), { detail: detail("nine", "<p>9</p>") });
-    assert.match(view.webview.html, /<p>9<\/p>/);
+    assert.match(content(view), /<p>9<\/p>/);
     assert.equal(solutionFetches.length, 2);
 });
 
@@ -212,9 +230,9 @@ test("locked problems show a premium notice without fetching or coding actions",
     const { view, post } = createView();
     await leetCodePreviewProvider.show(problem("3", "locked", { locked: true, name: `<img src=x>` }));
     assert.equal(fetches.length, 0);
-    assert.match(view.webview.html, /This problem requires a LeetCode Premium subscription\./);
-    assert.doesNotMatch(view.webview.html, /data-command="code"/);
-    assert.doesNotMatch(view.webview.html, /<img src=x>/);
+    assert.match(content(view), /This problem requires a LeetCode Premium subscription\./);
+    assert.doesNotMatch(content(view), /data-command="code"/);
+    assert.doesNotMatch(content(view), /<img src=x>/);
 
     await post({ command: "premium" });
     assert.deepEqual(executed, [["open", "cn-premium"]]);
@@ -225,13 +243,13 @@ test("a failed fetch offers a retry that loads the description again", async () 
     const failed = leetCodePreviewProvider.show(problem("4", "four"));
     fetches[0].reject(new Error("offline"));
     await failed;
-    assert.match(view.webview.html, /data-command="retry"/);
+    assert.match(content(view), /data-command="retry"/);
 
     const retry = post({ command: "retry" });
     assert.equal(fetches.length, 2);
     fetches[1].resolve(detail("four", "<p>back online</p>"));
     await retry;
-    assert.match(view.webview.html, /<p>back online<\/p>/);
+    assert.match(content(view), /<p>back online<\/p>/);
 });
 
 test("actions run LeetCode commands for the shown problem and ignore anything else", async () => {
@@ -262,9 +280,9 @@ test("Show Description switches from the solution back to the cached description
     solutionFetches[0].resolve({ title: "", content: "Solution content" });
     await opening;
     await previewProblem(node);
-    assert.match(view.webview.html, /aria-selected="true" data-command="description"/);
-    assert.match(view.webview.html, /<p>Description<\/p>/);
-    assert.doesNotMatch(view.webview.html, /Solution content/);
+    assert.match(content(view), /aria-selected="true" data-command="description"/);
+    assert.match(content(view), /<p>Description<\/p>/);
+    assert.doesNotMatch(content(view), /Solution content/);
     assert.equal(fetches.length, 0);
 });
 
@@ -284,9 +302,9 @@ for (const changedScope of ["another-account", "another-endpoint"]) {
         assert.equal(fetches.length, 1);
         fetches[0].resolve(detail("twenty-one", "<p>New content</p>"));
         await follow;
-        assert.match(view.webview.html, /<p>New content<\/p>/);
-        assert.doesNotMatch(view.webview.html, /Old content/);
-        assert.match(view.webview.html, /data-command="unstar"/);
+        assert.match(content(view), /<p>New content<\/p>/);
+        assert.doesNotMatch(content(view), /Old content/);
+        assert.match(content(view), /data-command="unstar"/);
     });
 }
 
@@ -301,8 +319,8 @@ test("clearing the session removes content and drops pending description and sol
     fetches[0].resolve(detail("twenty-two", "<p>Old description</p>"));
     solutionFetches[0].resolve({ title: "", content: "Old solution" });
     await opening;
-    assert.match(view.webview.html, /Select a problem in the list above/);
-    assert.doesNotMatch(view.webview.html, /Old description|Old solution/);
+    assert.match(content(view), /Select a problem in the list above/);
+    assert.doesNotMatch(content(view), /Old description|Old solution/);
 });
 
 test("showing the solution opens the solution tab in the sidebar", async () => {
@@ -339,6 +357,82 @@ test("editor follow drops a lookup that finishes after the user switched editors
     lookups[0].resolve(problem("42", "trapping-rain-water"));
     await follow;
     assert.deepEqual(shown, []);
+});
+
+test("updates are posted to the page with increasing versions instead of reloading it", async () => {
+    const { view } = createView();
+    const page: string = view.webview.html;
+    const loading = leetCodePreviewProvider.show(problem("30", "thirty"));
+    fetches[0].resolve(detail("thirty", "<p>thirty</p>"));
+    await loading;
+    assert.equal(view.webview.html, page);
+    assert.deepEqual(view.posted.map((message: any) => [message.type, message.page]), [["render", "thirty#description"], ["render", "thirty#description"]]);
+    assert.ok(view.posted[1].version > view.posted[0].version);
+});
+
+test("the header shows acceptance and solved state, and the description lists hints, similar problems and tags", async () => {
+    const { view, post } = createView();
+    await leetCodePreviewProvider.show(problem("31", "thirty-one", { state: 1, passRate: "48.2 %" }), {
+        detail: {
+            ...detail("thirty-one", "<p>31</p>"),
+            likes: 12,
+            hints: ["Try a <code>map</code>.<script>x</script>"],
+            similar: [{ title: "3Sum", translatedTitle: "三数之和", titleSlug: "3sum", difficulty: "Medium" }],
+            topicTags: [{ name: "Array", translatedName: "数组", slug: "array" }],
+        },
+    });
+    const html: string = content(view);
+    assert.match(html, /Acceptance 48\.2 %/);
+    assert.match(html, /✓ Solved/);
+    assert.match(html, /👍 12/);
+    assert.match(html, /<summary>Hint 1<\/summary>Try a <code>map<\/code>\./);
+    assert.doesNotMatch(html, /<script>x/);
+    assert.match(html, /data-command="similar" data-arg="3sum">三数之和<\/button>/);
+    assert.match(html, /data-command="tag" data-arg="array"[^>]*>数组<\/button>/);
+
+    await post({ command: "tag", arg: "array" });
+    await post({ command: "tag", arg: "bad tag" });
+    assert.deepEqual(executed, [["search", "tag:array"]]);
+    // The similar problem's description keeps loading; it is shown right away.
+    void post({ command: "similar", arg: "3sum" });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(view.description, "15. 3sum");
+    assert.deepEqual(fetches.map((fetch) => fetch.slug), ["3sum"]);
+});
+
+test("a problem without a solution says so instead of offering a retry", async () => {
+    const { view } = createView();
+    const opening = leetCodePreviewProvider.show(problem("32", "thirty-two"), { detail: detail("thirty-two", "<p>32</p>"), tab: "solution" });
+    solutionFetches[0].resolve(undefined);
+    await opening;
+    assert.match(content(view), /This problem has no solution to show yet\./);
+    assert.doesNotMatch(content(view), /Loading failed/);
+});
+
+test("solutions drop LeetCode-only markup and link to the site instead", async () => {
+    const { view } = createView();
+    const opening = leetCodePreviewProvider.show(problem("33", "thirty-three"), { detail: detail("thirty-three", "<p>33</p>"), tab: "solution" });
+    solutionFetches[0].resolve({ title: "<b>Approach</b>", content: "[TOC]\n\nIntro\n\n!?!../Documents/1.json:1000,500!?!\n\n<iframe src=\"https://leetcode.com/playground/x/shared\"></iframe>" });
+    await opening;
+    const html: string = content(view);
+    assert.match(html, /<h3>&#60;b&#62;Approach&#60;\/b&#62;<\/h3>/);
+    assert.doesNotMatch(html, /\[TOC\]|!\?!|<iframe/);
+    assert.match(html, /\[View the slideshow on LeetCode\]\(https:\/\/leetcode\.cn\/problems\/thirty-three\/solutions\/\?source=vscode\)/);
+    assert.match(html, /\[View the code on LeetCode\]\(/);
+});
+
+test("the page can copy text and asks for content it may have missed while loading", async () => {
+    const { view, post } = createView();
+    await post({ command: "copy", text: "int x;" });
+    await post({ command: "copy", text: 42 });
+    assert.deepEqual(executed, [["copy", "int x;"]]);
+
+    await post({ command: "ready" });
+    assert.equal(view.posted.length, 0, "nothing changed since the page was created");
+    await leetCodePreviewProvider.show(problem("34", "thirty-four"), { detail: detail("thirty-four", "<p>34</p>") });
+    const posts: number = view.posted.length;
+    await post({ command: "ready" });
+    assert.equal(view.posted.length, posts + 1);
 });
 
 test("editor follow drops a lookup that finishes after the session changes", async () => {

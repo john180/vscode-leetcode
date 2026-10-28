@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import axios from "axios";
 import { setFavorite } from "../../src/api/favorite";
-import { fetchQuestionDetail } from "../../src/api/question";
+import { fetchQuestionDetail, getAcceptanceRate, getParamNames, getSimilarQuestions } from "../../src/api/question";
 import { fetchTopSolution } from "../../src/api/solution";
 import { fetchCompanyTagNames } from "../../src/api/companyTags";
 
@@ -16,6 +16,20 @@ const target = { slug: "two-sum", questionId: "1" };
 function response(data: unknown, config: any) {
     return { data, status: 200, statusText: "OK", headers: {}, config };
 }
+
+test("question JSON fields are read defensively", () => {
+    const metaData = JSON.stringify({ name: "twoSum", params: [{ name: "nums", type: "integer[]" }, { name: "target", type: "integer" }] });
+    assert.deepEqual(getParamNames({ metaData }), ["nums", "target"]);
+    assert.deepEqual(getParamNames({ metaData: JSON.stringify({ database: true }) }), []);
+    assert.deepEqual(getParamNames({ metaData: "{not json" }), []);
+
+    const similarQuestions = JSON.stringify([{ title: "3Sum", titleSlug: "3sum", difficulty: "Medium" }, { bad: true }]);
+    assert.deepEqual(getSimilarQuestions({ similarQuestions }), [{ title: "3Sum", titleSlug: "3sum", difficulty: "Medium" }]);
+    assert.deepEqual(getSimilarQuestions({}), []);
+
+    assert.equal(getAcceptanceRate({ stats: JSON.stringify({ acRate: "55.2%" }) }), "55.2%");
+    assert.equal(getAcceptanceRate({ stats: "oops" }), undefined);
+});
 
 test("setFavorite posts the selected favorite list and question id", async () => {
     const originalAdapter = axios.defaults.adapter;
@@ -151,7 +165,7 @@ test("fetchTopSolution prefers an article and falls back to the official solutio
     }
 });
 
-test("fetchTopSolution rejects when neither source has a solution", async () => {
+test("fetchTopSolution returns nothing when neither source has a solution", async () => {
     const originalAdapter = axios.defaults.adapter;
     axios.defaults.adapter = async (config: any) => {
         const payload = JSON.parse(config.data);
@@ -160,7 +174,7 @@ test("fetchTopSolution rejects when neither source has a solution", async () => 
             : response({ data: { question: { solution: null } } }, config);
     };
     try {
-        await assert.rejects(fetchTopSolution(request, "two-sum"), /No solution/);
+        assert.equal(await fetchTopSolution(request, "two-sum"), undefined);
     } finally {
         axios.defaults.adapter = originalAdapter;
     }

@@ -73,6 +73,12 @@ export async function searchProblem(): Promise<void> {
     input.show();
 }
 
+/** Filter the problem list as if `text` had been typed into the search box. */
+export async function searchFor(text: string): Promise<void> {
+    leetCodeTreeDataProvider.search(text);
+    await locateSearchResult();
+}
+
 /** Reveals the best match of the current search without opening it, and returns where it was found. */
 export async function locateSearchResult(): Promise<string> {
     const search = explorerNodeManager.getSearch();

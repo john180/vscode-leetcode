@@ -75,6 +75,7 @@ test("testSolution uses the interpret endpoint and reports a mismatched answer a
             status_memory: "16.5 MB",
             runtime_percentile: null,
             correct_answer: false,
+            compare_result: "10",
             code_answer: ["[0,1]", "[1,2]"],
             expected_code_answer: ["[0,1]", "[0,2]"],
             code_output: ["hello"],
@@ -84,16 +85,19 @@ test("testSolution uses the interpret endpoint and reports a mismatched answer a
         }, config);
     };
     try {
-        const result = await testSolution(request, target, "cpp", "code", "[2,7,11,15]\\n9", {
+        const result = await testSolution(request, target, "cpp", "code", "[2,7,11,15]\n9\n[3,2,4]\n6\n", {
             pollIntervalMs: 0,
             pollTimeoutMs: 1000,
         });
         assert.equal(postedUrl, "https://leetcode.com/problems/two-sum/interpret_solution/");
-        assert.equal(postedBody.data_input, "[2,7,11,15]\\n9");
+        assert.equal(postedBody.data_input, "[2,7,11,15]\n9\n[3,2,4]\n6\n");
         assert.equal(result.statusMessage, "Wrong Answer");
-        assert.equal(result.codeOutput, "[0,1]\n[1,2]");
-        assert.equal(result.expectedOutput, "[0,1]\n[0,2]");
-        assert.equal(result.stdout, "hello");
+        assert.deepEqual(result.cases, [
+            { input: "[2,7,11,15]\n9", output: "[0,1]", expected: "[0,1]", stdout: "hello", passed: true },
+            { input: "[3,2,4]\n6", output: "[1,2]", expected: "[0,2]", stdout: undefined, passed: false },
+        ]);
+        assert.equal(result.stdout, undefined, "prints are shown per case");
+        assert.equal(result.input, undefined);
         assert.equal(result.runtime, "0 ms");
         assert.equal(result.memory, "16.5 MB");
         assert.equal(result.runtimePercentile, undefined);
@@ -118,8 +122,36 @@ test("testSolution keeps a matching answer accepted and drops blank prints", asy
     try {
         const result = await testSolution(request, target, "cpp", "code", "1", { pollIntervalMs: 0, pollTimeoutMs: 1000 });
         assert.equal(result.statusMessage, "Accepted");
-        assert.equal(result.codeOutput, "1");
+        assert.deepEqual(result.cases, [{ input: "1", output: "1", expected: "1", stdout: undefined, passed: true }]);
         assert.equal(result.stdout, undefined);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("testSolution keeps an input it cannot split into the cases whole", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async (config: any) => config.method === "post"
+        ? response({ interpret_id: 6 }, config)
+        : response({ state: "SUCCESS", status_msg: "Accepted", code_answer: ["1", "2"], expected_code_answer: ["1", "3"], code_output: ["printed"] }, config);
+    try {
+        const result = await testSolution(request, target, "cpp", "code", "a\nb\nc", { pollIntervalMs: 0, pollTimeoutMs: 1000 });
+        assert.equal(result.input, "a\nb\nc");
+        assert.deepEqual(result.cases?.map((testCase) => [testCase.input, testCase.passed]), [[undefined, true], [undefined, false]]);
+        assert.equal(result.stdout, "printed");
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("submitSolution links the submission page", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async (config: any) => config.method === "post"
+        ? response({ submission_id: 12345 }, config)
+        : response({ state: "SUCCESS", status_msg: "Accepted" }, config);
+    try {
+        const result = await submitSolution(request, target, "cpp", "code", { pollIntervalMs: 0, pollTimeoutMs: 1000 });
+        assert.equal(result.submissionUrl, "https://leetcode.com/submissions/detail/12345/");
     } finally {
         axios.defaults.adapter = originalAdapter;
     }

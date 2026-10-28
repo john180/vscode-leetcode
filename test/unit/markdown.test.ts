@@ -4,6 +4,7 @@ import Module = require("node:module");
 
 const moduleLoader: any = Module;
 const originalLoad = moduleLoader._load;
+let defaultLanguage: string | undefined;
 moduleLoader._load = function (request: string, parent: unknown, isMain: boolean): unknown {
     if (request === "vscode") {
         return {
@@ -18,7 +19,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
             },
             workspace: {
                 getConfiguration: () => ({
-                    get: (_key: string, defaultValue: unknown) => defaultValue,
+                    get: (key: string, defaultValue: unknown) => key === "defaultLanguage" ? defaultLanguage ?? defaultValue : defaultValue,
                     inspect: () => ({ defaultValue: "" }),
                 }),
                 onDidChangeConfiguration: () => ({ dispose: () => undefined }),
@@ -69,4 +70,50 @@ test("markdownEngine escapes HTML inside code fences", () => {
 test("markdownEngine prefixes relative image URLs with the host", () => {
     const html: string = markdownEngine.render("![img](/pic.png)", { host: "https://leetcode.cn" });
     assert.match(html, /src="https:\/\/leetcode\.cn\/pic\.png"/);
+});
+
+test("solutions keep safe inline HTML and drop active content", () => {
+    const html: string = markdownEngine.renderSolution([
+        "a<sup>2</sup> and <font face=\"monospace\">x</font><br>",
+        "",
+        "<script>alert(1)</script><img src=\"https://example.com/a.png\" onerror=\"alert(1)\"><a href=\"javascript:alert(1)\">bad</a>",
+        "",
+        "<div style=\"position:fixed\" class=\"evil\">styled</div>",
+    ].join("\n"));
+    assert.match(html, /a<sup>2<\/sup> and <code>x<\/code><br \/>/);
+    assert.match(html, /<img src="https:\/\/example\.com\/a\.png" \/>/);
+    assert.doesNotMatch(html, /<script|onerror|javascript:|style=|evil/);
+});
+
+test("solutions typeset math as MathML and leave prices alone", () => {
+    const html: string = markdownEngine.renderSolution("Time $O(n^2)$, costs $5 and $6.\n\n$$\n\\sum_{i=1}^n i\n$$");
+    assert.match(html, /<math[^>]*><semantics><mrow><mi>O<\/mi>/);
+    assert.match(html, /<msup><mi>n<\/mi><mn>2<\/mn><\/msup>/);
+    assert.match(html, /costs \$5 and \$6\./);
+    assert.match(html, /<math[^>]*display="block"/);
+    assert.match(html, /<munderover><mo>∑<\/mo>/);
+    assert.doesNotMatch(html, /@@math-/);
+});
+
+test("math in code stays code, and solution text cannot forge a math placeholder", () => {
+    const html: string = markdownEngine.renderSolution("`$x$` @@math-0000000000000000-0@@\n\n```\n$$y$$\n```");
+    assert.match(html, /<code>\$x\$<\/code>/);
+    assert.match(html, /@@math-0000000000000000-0@@/);
+    assert.match(html, /\$\$y\$\$/);
+    assert.doesNotMatch(html, /<math/);
+});
+
+test("LeetCode code groups become tabs that open on the default language", () => {
+    const source: string = "```Python [sol1-Python3]\nx = 1\n```\n```C++ [sol1-C++]\nint x = 1;\n```";
+    defaultLanguage = "cpp";
+    try {
+        const html: string = markdownEngine.renderSolution(source);
+        assert.match(html, /^<div class="code-group"><details><summary>Python3<\/summary><pre><code class="language-Python">/);
+        assert.match(html, /<details open><summary>C\+\+<\/summary>/);
+        assert.match(html, /<span class="hljs-type">int<\/span>/);
+    } finally {
+        defaultLanguage = undefined;
+    }
+    assert.match(markdownEngine.renderSolution(source), /<details open><summary>Python3<\/summary>/);
+    assert.doesNotMatch(markdownEngine.renderSolution("```Python [sol1-Python3]\nx = 1\n```"), /code-group/, "a single fence is not a group");
 });

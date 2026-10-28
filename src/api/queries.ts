@@ -54,6 +54,11 @@ query questionData($titleSlug: String!) {
     metaData
     codeSnippets { lang langSlug code }
     topicTags { name translatedName slug }
+    hints
+    similarQuestions
+    stats
+    likes
+    dislikes
   }
 }`;
 
