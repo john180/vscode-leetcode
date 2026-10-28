@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import axios from "axios";
 import { setFavorite } from "../../src/api/favorite";
-import { fetchQuestionDetail, getAcceptanceRate, getParamNames, getSimilarQuestions } from "../../src/api/question";
+import { fetchJudgeInfo, fetchQuestionDetail, getAcceptanceRate, getParamNames, getSimilarQuestions } from "../../src/api/question";
 import { fetchTopSolution } from "../../src/api/solution";
 import { fetchCompanyTagNames } from "../../src/api/companyTags";
 
@@ -76,6 +76,26 @@ test("setFavorite resolves the default favorite list when no hash is provided", 
     }
 });
 
+test("setFavorite reuses the cached favorite lists to find the default list", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    const requests: string[] = [];
+    axios.defaults.adapter = async (config: any) => {
+        requests.push(config.method);
+        if (config.method === "get") {
+            return response({ favorites: { private_favorites: [{ name: "Favorite", id_hash: "default-hash" }] } }, config);
+        }
+        return response({ data: { addQuestionToFavorite: { ok: true } } }, config);
+    };
+    try {
+        const signedIn = { ...request, cookie: "LEETCODE_SESSION=cached; csrftoken=cached" };
+        await setFavorite(signedIn, target, true);
+        await setFavorite(signedIn, { slug: "add-two-numbers", questionId: "2" }, true);
+        assert.deepEqual(requests, ["get", "post", "post"]);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
 test("setFavorite surfaces a mutation error", async () => {
     const originalAdapter = axios.defaults.adapter;
     axios.defaults.adapter = async (config: any) => response({
@@ -130,6 +150,28 @@ test("fetchQuestionDetail rejects a missing question", async () => {
     axios.defaults.adapter = async (config: any) => response({ data: { question: null } }, config);
     try {
         await assert.rejects(fetchQuestionDetail(request, "missing"), /Problem not found/);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("fetchJudgeInfo asks only for what judging needs", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let payload: any;
+    axios.defaults.adapter = async (config: any) => {
+        payload = JSON.parse(config.data);
+        return response({ data: { question: { questionId: "1", metaData: "{}", sampleTestCase: "a", exampleTestcases: "a\nb" } } }, config);
+    };
+    try {
+        const info = await fetchJudgeInfo(request, "two-sum");
+        assert.equal(info.questionId, "1");
+        assert.equal(info.exampleTestcases, "a\nb");
+        assert.deepEqual(payload.variables, { titleSlug: "two-sum" });
+        assert.match(payload.query, /exampleTestcases/);
+        assert.doesNotMatch(payload.query, /content|codeSnippets/, "not the description or the code templates");
+
+        axios.defaults.adapter = async (config: any) => response({ data: { question: null } }, config);
+        await assert.rejects(fetchJudgeInfo(request, "missing"), /Problem not found/);
     } finally {
         axios.defaults.adapter = originalAdapter;
     }

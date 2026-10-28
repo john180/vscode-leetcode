@@ -30,7 +30,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     }; }
     if (request === "../api/request") { return { getLeetCodeRequest: () => ({ origin: "https://leetcode.com" }) }; }
     if (request === "../api/question") { return {
-        fetchQuestionDetail: async () => ({ questionId: "123", sampleTestCase: "[1,2]" }),
+        fetchJudgeInfo: async () => ({ questionId: "123", sampleTestCase: "[1,2]", exampleTestcases: "[1,2]\n[3,4]" }),
         getParamNames: () => ["nums"],
     }; }
     if (request === "../api/submission") { return {
@@ -72,7 +72,7 @@ test("testing resolves only the current problem and submits its internal questio
     await testSolution();
     assert.deepEqual(resolved, ["42"]);
     assert.deepEqual(actions, [{ slug: problem.slug, questionId: "123" }]);
-    assert.deepEqual(pickedInputs, ["picker", "[1,2]"]);
+    assert.deepEqual(pickedInputs, ["picker", "[1,2]\n[3,4]"], "the default cases are all of the examples");
     assert.deepEqual(judged, [{ paramNames: ["nums"] }]);
 });
 

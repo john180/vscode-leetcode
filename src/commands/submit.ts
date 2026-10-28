@@ -3,7 +3,7 @@
 
 import * as path from "path";
 import * as vscode from "vscode";
-import { fetchQuestionDetail, getParamNames } from "../api/question";
+import { fetchJudgeInfo, getParamNames } from "../api/question";
 import { getLeetCodeRequest } from "../api/request";
 import { submitSolution as submitToLeetCode } from "../api/submission";
 import { leetCodeTreeDataProvider } from "../explorer/LeetCodeTreeDataProvider";
@@ -45,15 +45,15 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
 
         const request = getLeetCodeRequest();
         const result = await leetCodeSubmissionProvider.judge(problem, document, async () => {
-            const detail = await fetchQuestionDetail(request, problem.slug);
+            const judgeInfo = await fetchJudgeInfo(request, problem.slug);
             return {
                 ...await submitToLeetCode(
                     request,
-                    { slug: problem.slug, questionId: detail.questionId },
+                    { slug: problem.slug, questionId: judgeInfo.questionId },
                     language,
                     code,
                 ),
-                paramNames: getParamNames(detail),
+                paramNames: getParamNames(judgeInfo),
             };
         });
         if (result.state === "SUCCESS" && scope === getProblemCacheScope()) {

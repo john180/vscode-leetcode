@@ -3,7 +3,7 @@
 
 import * as path from "path";
 import * as vscode from "vscode";
-import { fetchQuestionDetail, getParamNames } from "../api/question";
+import { fetchJudgeInfo, getParamNames } from "../api/question";
 import { getLeetCodeRequest } from "../api/request";
 import { testSolution as testWithLeetCode } from "../api/submission";
 import { leetCodeManager } from "../leetCodeManager";
@@ -42,8 +42,9 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
             return;
         }
 
-        const detail = await fetchQuestionDetail(getLeetCodeRequest(), problem.slug);
-        const testInput: string | undefined = input ?? await pickTestInput(document, detail.sampleTestCase, problem.slug);
+        const judgeInfo = await fetchJudgeInfo(getLeetCodeRequest(), problem.slug);
+        const testInput: string | undefined = input
+            ?? await pickTestInput(document, judgeInfo.exampleTestcases || judgeInfo.sampleTestCase, problem.slug);
         if (testInput === undefined) {
             return;
         }
@@ -56,12 +57,12 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
         await leetCodeSubmissionProvider.judge(problem, document, async () => ({
             ...await testWithLeetCode(
                 getLeetCodeRequest(),
-                { slug: problem.slug, questionId: detail.questionId },
+                { slug: problem.slug, questionId: judgeInfo.questionId },
                 language,
                 code,
                 testInput,
             ),
-            paramNames: getParamNames(detail),
+            paramNames: getParamNames(judgeInfo),
         }));
     } catch (error) {
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to test the solution. Please open the output channel for details."), DialogType.error, error);
@@ -70,7 +71,7 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
 
 async function pickTestInput(
     document: vscode.TextDocument,
-    sampleTestCase: string | undefined,
+    examples: string | undefined,
     slug: string,
 ): Promise<string | undefined> {
     const savedInput: string | undefined = globalState.getTestCase(slug);
@@ -78,7 +79,7 @@ async function pickTestInput(
         {
             label: `$(three-bars) ${vscode.l10n.t("Default test cases")}`,
             description: "",
-            detail: vscode.l10n.t("Test with the problem's sample case"),
+            detail: vscode.l10n.t("Test with the problem's examples"),
             value: ":default",
         },
         ...(savedInput ? [{
@@ -107,7 +108,7 @@ async function pickTestInput(
     }
 
     if (choice.value === ":default") {
-        return sampleTestCase || "";
+        return examples || "";
     }
 
     if (choice.value === ":saved") {

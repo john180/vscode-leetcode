@@ -2,18 +2,7 @@
 // Licensed under the MIT license.
 
 import { graphql, IGraphQLRequest } from "./client";
-import { send } from "./http";
-
-interface IFavoriteEntry {
-    name: string;
-    id_hash: string;
-}
-
-interface IFavoriteListResponse {
-    favorites?: {
-        private_favorites?: IFavoriteEntry[];
-    };
-}
+import { fetchFavoriteLists, IFavoriteList } from "./favoriteLists";
 
 interface IFavoriteMutationResult {
     ok: boolean;
@@ -30,14 +19,13 @@ async function getFavoriteHash(request: IGraphQLRequest): Promise<string> {
         throw new Error("Not signed in. Please sign in to LeetCode first.");
     }
 
-    const response = await send<IFavoriteListResponse>(request, { url: `${request.origin}/list/api/questions` });
-
-    const favorites: IFavoriteEntry[] = response.data?.favorites?.private_favorites || [];
-    const favorite: IFavoriteEntry | undefined = favorites.find((item: IFavoriteEntry) => item.name === "Favorite") || favorites[0];
-    if (!favorite || !favorite.id_hash) {
+    // The lists are cached for a few minutes, which is enough to know the default one.
+    const lists: IFavoriteList[] = await fetchFavoriteLists(request);
+    const favorite: IFavoriteList | undefined = lists.find((list: IFavoriteList) => list.name === "Favorite") || lists[0];
+    if (!favorite) {
         throw new Error("LeetCode did not return a favorite list.");
     }
-    return favorite.id_hash;
+    return favorite.idHash;
 }
 
 export async function setFavorite(

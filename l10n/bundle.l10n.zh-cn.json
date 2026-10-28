@@ -81,7 +81,7 @@
     "Switched the endpoint to {0}.": "已切换站点到 {0}。",
     "Test case must not be empty.": "测试用例不能为空。",
     "Test with test cases in a file": "使用文件中的测试用例",
-    "Test with the problem's sample case": "使用题目的样例测试",
+    "Test with the problem's examples": "使用题目的全部示例测试",
     "The LeetCode workspace folder is not opened in VS Code, would you like to open it?": "LeetCode 工作区目录尚未在 VS Code 中打开，是否打开？",
     "The test input must not be empty.": "测试输入不能为空。",
     "Would you like to set '{0}' as your default language?": "是否将“{0}”设为默认语言？",

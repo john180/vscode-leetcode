@@ -1,11 +1,10 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { fetchQuestionDetail } from "../api/question";
 import { setFavorite } from "../api/favorite";
 import { fetchFavoriteLists, IFavoriteList } from "../api/favoriteLists";
 import { getLeetCodeRequest } from "../api/request";
-import { getProblemCacheScope, updateCachedFavorite } from "../api/problems";
+import { getProblemBySlug, getProblemCacheScope, updateCachedFavorite } from "../api/problems";
 import { customCodeLensProvider } from "../codelens/CustomCodeLensProvider";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeTreeDataProvider } from "../explorer/LeetCodeTreeDataProvider";
@@ -53,8 +52,12 @@ async function toggleFavorite(node: LeetCodeNode, favorite: boolean, favoriteIdH
     try {
         const scope = getProblemCacheScope();
         const request = getLeetCodeRequest();
-        const detail = await fetchQuestionDetail(request, node.slug);
-        await setFavorite(request, { slug: node.slug, questionId: detail.questionId }, favorite, favoriteIdHash);
+        // The cached metadata has the internal id the mutation needs; the full detail is not needed.
+        const problem = await getProblemBySlug(node.slug);
+        if (!problem?.questionId) {
+            throw new Error(`Problem not found: ${node.slug}`);
+        }
+        await setFavorite(request, { slug: node.slug, questionId: problem.questionId }, favorite, favoriteIdHash);
         if (scope !== getProblemCacheScope()) { return; }
         await updateCachedFavorite(node.id, favorite);
         await leetCodeTreeDataProvider.refresh();

@@ -114,23 +114,57 @@ export async function getProblemTags(kind: "tag" | "company", force: boolean = f
     }, force);
 }
 
+interface IProblemMetadata {
+    questionFrontendId: string; questionId: string; title: string; translatedTitle?: string;
+    titleSlug: string; difficulty: string; isPaidOnly: boolean; acRate: number; status?: string; isFavor?: boolean;
+    extra?: { topCompanyTags?: ICompanyTag[] };
+    companyTags?: ICompanyTag[];
+    topicTags: Array<{ name: string; slug: string; translatedName?: string }>;
+}
+type Context = ReturnType<typeof context>;
+interface ILookup { slug: string; resolve: (question: IProblemMetadata | null) => void; reject: (error: unknown) => void; }
+
+/** The most problems one request asks for; a favorites page lists 20. */
+const LOOKUP_BATCH_SIZE = 20;
+const lookups = new Map<string, { ctx: Context; waiting: ILookup[] }>();
+
+/** Lookups made in the same tick share one request, with one aliased `question` field per problem. */
+function lookUpProblem(ctx: Context, slug: string): Promise<IProblemMetadata | null> {
+    return new Promise((resolve, reject) => {
+        let batch = lookups.get(ctx.scope);
+        if (!batch) {
+            const created = { ctx, waiting: [] as ILookup[] };
+            lookups.set(ctx.scope, batch = created);
+            setTimeout(() => {
+                lookups.delete(ctx.scope);
+                for (let i = 0; i < created.waiting.length; i += LOOKUP_BATCH_SIZE) {
+                    void sendLookups(ctx, created.waiting.slice(i, i + LOOKUP_BATCH_SIZE));
+                }
+            }, 0);
+        }
+        batch.waiting.push({ slug, resolve, reject });
+    });
+}
+
+async function sendLookups(ctx: Context, batch: ILookup[]): Promise<void> {
+    const fields = `questionFrontendId questionId title translatedTitle titleSlug difficulty isPaidOnly acRate status isFavor
+        topicTags { name slug translatedName }
+        ${ctx.cn ? "extra { topCompanyTags { name slug } }" : "companyTags { name slug }"}`;
+    try {
+        const data = await graphql<Record<string, IProblemMetadata | null>>(ctx.request, `
+            query problemMetadata(${batch.map((_, i) => `$s${i}: String!`).join(", ")}) {
+                ${batch.map((_, i) => `q${i}: question(titleSlug: $s${i}) { ${fields} }`).join("\n")}
+            }`, Object.fromEntries(batch.map((lookup, i) => [`s${i}`, lookup.slug])));
+        batch.forEach((lookup, i) => lookup.resolve(data[`q${i}`] ?? null));
+    } catch (error) {
+        batch.forEach((lookup) => lookup.reject(error));
+    }
+}
+
 export async function getProblemBySlug(slug: string, force: boolean = false): Promise<IProblem | undefined> {
     const ctx = context();
     const result = await problemCache.get<IProblem | null>(`${ctx.scope}single:${slug}`, async () => {
-        const data = await graphql<{ question: {
-            questionFrontendId: string; questionId: string; title: string; translatedTitle?: string;
-            titleSlug: string; difficulty: string; isPaidOnly: boolean; acRate: number; status?: string; isFavor?: boolean;
-            extra?: { topCompanyTags?: ICompanyTag[] };
-            companyTags?: ICompanyTag[];
-            topicTags: Array<{ name: string; slug: string; translatedName?: string }>;
-        } | null }>(ctx.request, `query problemMetadata($titleSlug: String!) {
-            question(titleSlug: $titleSlug) {
-                questionFrontendId questionId title translatedTitle titleSlug difficulty isPaidOnly acRate status isFavor
-                topicTags { name slug translatedName }
-                ${ctx.cn ? "extra { topCompanyTags { name slug } }" : "companyTags { name slug }"}
-            }
-        }`, { titleSlug: slug });
-        const q = data.question;
+        const q = await lookUpProblem(ctx, slug);
         if (!q) { return null; }
         return { ...mapQuestion({
             ...q, frontendQuestionId: q.questionFrontendId, titleCn: q.translatedTitle, paidOnly: q.isPaidOnly,

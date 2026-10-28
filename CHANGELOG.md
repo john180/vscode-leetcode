@@ -29,6 +29,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Links open with `env.openExternal`.
 - TypeScript `strict` mode is enabled, and CI also runs the integration test on the minimum supported VS Code.
 - Every request to LeetCode goes through one HTTP layer, so all of them send the same headers, including the CSRF token and a User-Agent with the extension's real version and platform instead of a fixed "0.19 on Windows".
+- "Default test cases" tests with all of the problem's examples, like Run on LeetCode, instead of only the first one.
+- Testing and submitting ask LeetCode only for the problem's id, examples and parameter names instead of its whole description and code templates. Adding to or removing from favorites reuses the problem's cached metadata and the cached favorite lists, so it usually sends only the change itself.
+- Hot 100 and favorite lists load each page of up to 20 problems with one request instead of one request per problem.
 
 ## [0.25.0] - 2026-10-28
 ### Changed

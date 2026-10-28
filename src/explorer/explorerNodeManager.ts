@@ -267,14 +267,11 @@ class ExplorerNodeManager implements Disposable {
             if (scope !== getProblemCacheScope()) { throw new Error("Account changed while loading problems."); }
             const list: IFavoriteList | undefined = id === Category.Hot100 ? data.hot100 : data.lists.find((item) => item.idHash === id.slice(Category.Favorite.length + 1));
             const questions = search ? this.filterQuestions(list?.questions || [], search) : list?.questions || [];
-            const problems: IProblem[] = [];
             const slice = questions.slice(skip, skip + 20);
-            // Bound requests for list entries that have never been visited before.
-            for (let i = 0; i < slice.length; i += 4) {
-                if (scope !== getProblemCacheScope()) { throw new Error("Account changed while loading problems."); }
-                const batch = await Promise.all(slice.slice(i, i + 4).map((question) => getProblemBySlug(question.titleSlug, force)));
-                problems.push(...batch.filter((problem): problem is IProblem => Boolean(problem)));
-            }
+            // Looked up together, the entries not cached yet share one request.
+            const found = await Promise.all(slice.map((question) => getProblemBySlug(question.titleSlug, force)));
+            if (scope !== getProblemCacheScope()) { throw new Error("Account changed while loading problems."); }
+            const problems = found.filter((problem): problem is IProblem => Boolean(problem));
             const next = skip + slice.length;
             return { problems, next, total: questions.length, hasMore: next < questions.length };
         }

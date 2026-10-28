@@ -60,6 +60,16 @@ query questionData($titleSlug: String!) {
   }
 }`;
 
+export const QUESTION_JUDGE_QUERY: string = `
+query questionJudgeData($titleSlug: String!) {
+  question(titleSlug: $titleSlug) {
+    questionId
+    metaData
+    sampleTestCase
+    exampleTestcases
+  }
+}`;
+
 export const QUESTION_SOLUTION_QUERY: string = `
 query questionSolutionArticles($questionSlug: String!, $first: Int) {
   questionSolutionArticles(questionSlug: $questionSlug, first: $first) {

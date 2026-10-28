@@ -85,8 +85,9 @@ beforeEach(async () => {
                 : Array.from({length: Math.min(limit, 125 - skip)}, (_, i) => question(String(skip + i + 1)));
             data = { problemsetQuestionListV2: { questions, totalLength: searchKeyword ? 2 : 125 } };
         } else if (payload.query.includes('problemMetadata')) {
-            data = { question: { ...question('42'), questionId: '123', titleSlug: payload.variables.titleSlug,
-                acRate: endpoint === 'leetcode' ? 50 : 0.5, extra: { topCompanyTags: [{name: '谷歌', slug: 'google'}] } } };
+            data = Object.fromEntries(Object.entries(payload.variables).map(([name, slug]) => [`q${name.slice(1)}`,
+                { ...question('42'), questionId: '123', titleSlug: slug,
+                    acRate: endpoint === 'leetcode' ? 50 : 0.5, extra: { topCompanyTags: [{name: '谷歌', slug: 'google'}] } }]));
         } else if (payload.query.includes('questionTopicTags')) {
             data = { questionTopicTags: { edges: [{ node: { name: 'Array', slug: 'array', translatedName: '数组' } }] } };
         } else { throw new Error('Unexpected API: ' + payload.query); }
@@ -226,15 +227,24 @@ test('search results carry category-scoped ids and resolve their parents up to t
 });
 
 test('favorite lists are searched locally by title and by names of problems seen before', async () => {
-    const metadata = () => calls.filter((call) => call.query.includes('problemMetadata')).map((call) => call.variables.titleSlug);
+    const metadata = () => calls.filter((call) => call.query.includes('problemMetadata')).map((call) => Object.values(call.variables));
     explorer.setSearch('two');
     await explorer.getChildren('Hot100');
-    assert.deepEqual(metadata(), ['two-sum', 'add-two-numbers']); assert.equal(explorer.getTotal('Hot100'), 2);
+    assert.deepEqual(metadata(), [['two-sum', 'add-two-numbers']], 'one request for the page'); assert.equal(explorer.getTotal('Hot100'), 2);
     // Both visited problems are now cached under the translated name "题目 42".
     explorer.setSearch('题目 42');
     await explorer.getChildren('Hot100'); assert.equal(explorer.getTotal('Hot100'), 2);
     explorer.setSearch('zzz');
     assert.deepEqual((await explorer.getChildren('Hot100')).map((node: any) => node.action?.kind), ['empty']);
+});
+
+test('problem lookups made together share requests of at most 20 problems', async () => {
+    const slugs = Array.from({length: 25}, (_, i) => `problem-${i}`);
+    const problems = await Promise.all(slugs.map((slug) => api.getProblemBySlug(slug)));
+    assert.deepEqual(problems.map((problem) => problem?.slug), slugs);
+    assert.deepEqual(calls.map((call) => Object.keys(call.variables).length), [20, 5]);
+    await Promise.all([api.getProblemBySlug('problem-0'), api.getProblemBySlug('problem-25')]);
+    assert.deepEqual(calls.at(-1)!.variables, {s0: 'problem-25'}, 'cached problems are not asked for again');
 });
 
 test('matches follow the expanded categories in tree order', async () => {

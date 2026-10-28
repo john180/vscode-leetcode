@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import { graphql, IGraphQLRequest } from "./client";
-import { QUESTION_DETAIL_QUERY } from "./queries";
+import { QUESTION_DETAIL_QUERY, QUESTION_JUDGE_QUERY } from "./queries";
 
 export interface ICodeSnippet {
     lang: string;
@@ -81,6 +81,24 @@ export async function fetchQuestionDetail(
     titleSlug: string,
 ): Promise<IQuestionDetail> {
     const data = await graphql<IQuestionResponse>(request, QUESTION_DETAIL_QUERY, { titleSlug });
+    if (!data.question) {
+        throw new Error(`Problem not found: ${titleSlug}`);
+    }
+    return data.question;
+}
+
+/** What testing and submitting need, without the description and code templates of the full detail. */
+export interface IJudgeInfo {
+    questionId: string;
+    metaData?: string;
+    /** The first example's input. */
+    sampleTestCase?: string;
+    /** Every example's input, one after another, as LeetCode's Run uses them. */
+    exampleTestcases?: string;
+}
+
+export async function fetchJudgeInfo(request: IGraphQLRequest, titleSlug: string): Promise<IJudgeInfo> {
+    const data = await graphql<{ question: IJudgeInfo | null }>(request, QUESTION_JUDGE_QUERY, { titleSlug });
     if (!data.question) {
         throw new Error(`Problem not found: ${titleSlug}`);
     }
