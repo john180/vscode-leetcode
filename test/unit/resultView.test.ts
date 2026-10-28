@@ -24,7 +24,7 @@ const dependencies: Record<string, unknown> = {
         workspace: { onDidChangeConfiguration: () => disposable },
     },
     "../explorer/LeetCodeNode": { LeetCodeNode: FakeNode },
-    "../leetCodeChannel": { leetCodeChannel: { appendLine: () => undefined } },
+    "../leetCodeChannel": { leetCodeChannel: { info: () => undefined, warn: () => undefined, error: () => undefined } },
     "../utils/compileDiagnostics": { compileDiagnostics: { update: (document: unknown, error?: string) => diagnostics.push([document, error]) } },
     "../utils/uiUtils": { openKeybindingsEditor: async () => undefined, promptHintMessage: async () => undefined },
     "./markdownEngine": { markdownEngine: { localResourceRoots: [], getStyles: () => "", render: (text: string) => text } },

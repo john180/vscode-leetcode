@@ -92,7 +92,7 @@ class LeetCodeManager extends EventEmitter {
                     if (revision !== this.authRevision) {
                         return;
                     }
-                    leetCodeChannel.appendLine(`[WARN] Failed to validate the stored cookie: ${error}`);
+                    leetCodeChannel.warn(`Failed to validate the stored cookie: ${error}`);
                     // A transport failure is not evidence that the credential expired.
                     const status = (error as { response?: { status?: number } }).response?.status;
                     if (status !== 401) {
@@ -127,12 +127,12 @@ class LeetCodeManager extends EventEmitter {
         }
         const normalizedCookie: string = normalizeCookie(cookie);
         const endpoint: string = getUrl("userGraphql");
-        leetCodeChannel.appendLine(`[INFO] Validating cookie against ${endpoint}`);
+        leetCodeChannel.info(`Validating cookie against ${endpoint}`);
 
         this.authenticating = true;
         try {
             const data = await queryUserData(normalizedCookie);
-            leetCodeChannel.appendLine(`[INFO] Sign-in result: signedIn=${data.isSignedIn}, username=${data.username ? "present" : "missing"}`);
+            leetCodeChannel.info(`Sign-in result: signedIn=${data.isSignedIn}, username=${data.username ? "present" : "missing"}`);
             if (!data.isSignedIn || !data.username) {
                 throw new Error(vscode.l10n.t("The cookie is not signed in for {0}. Check that leetcode.endpoint matches the cookie's site, then copy a fresh cookie.", endpoint));
             }
@@ -183,7 +183,7 @@ class LeetCodeManager extends EventEmitter {
         try {
             const callback = parseAuthCallback(uri.query);
             if (callback.error) {
-                leetCodeChannel.appendLine(`[ERROR] Web authorization failed: ${callback.error}`);
+                leetCodeChannel.error(`Web authorization failed: ${callback.error}`);
                 await promptForOpenOutputChannel(
                     vscode.l10n.t("Login was not completed: {0}", callback.error),
                     DialogType.error,
@@ -191,7 +191,7 @@ class LeetCodeManager extends EventEmitter {
                 return;
             }
             if (!callback.cookie) {
-                leetCodeChannel.appendLine("[ERROR] The sign-in callback did not include a cookie.");
+                leetCodeChannel.error("The sign-in callback did not include a cookie.");
                 await promptForOpenOutputChannel(vscode.l10n.t("Failed to get the cookie. Please sign in again."), DialogType.error);
                 return;
             }
@@ -205,7 +205,7 @@ class LeetCodeManager extends EventEmitter {
                 },
             );
         } catch (error) {
-            leetCodeChannel.appendLine(`[ERROR] URI sign-in failed: ${error}`);
+            leetCodeChannel.error(`URI sign-in failed: ${error}`);
             const detail: string = error instanceof Error ? error.message : String(error);
             await promptForOpenOutputChannel(vscode.l10n.t("Failed to log in: {0}", detail), DialogType.error);
         } finally {
@@ -282,7 +282,7 @@ class LeetCodeManager extends EventEmitter {
                 },
             );
         } catch (error) {
-            leetCodeChannel.appendLine(`[ERROR] Cookie sign-in failed: ${error}`);
+            leetCodeChannel.error(`Cookie sign-in failed: ${error}`);
             const detail: string = error instanceof Error ? error.message : String(error);
             await promptForOpenOutputChannel(vscode.l10n.t("Failed to log in: {0}", detail), DialogType.error);
         }
@@ -307,7 +307,7 @@ class LeetCodeManager extends EventEmitter {
         ++this.authRevision;
         this.pendingWebLogin = undefined;
         try {
-            leetCodeChannel.appendLine("[WARN] LeetCode session expired; signing out.");
+            leetCodeChannel.warn("LeetCode session expired; signing out.");
             this.currentUser = undefined;
             this.userStatus = UserStatus.SignedOut;
             await this.clearAuth();
@@ -384,7 +384,7 @@ class LeetCodeManager extends EventEmitter {
         if (restoring && globalState.getCookie()) {
             // Deleting another session interrupted restoring the current one; resume it.
             void this.getLoginStatus().catch((error: unknown) => {
-                leetCodeChannel.appendLine(`[WARN] Session restoration failed: ${error}`);
+                leetCodeChannel.warn(`Session restoration failed: ${error}`);
             });
         }
     }

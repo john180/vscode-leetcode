@@ -6,6 +6,16 @@ const { runTests } = require("@vscode/test-electron");
 // launch arguments. Remove it before spawning the Extension Host.
 delete process.env.ELECTRON_RUN_AS_NODE;
 
+/** "minimum" stands for the oldest VS Code that package.json declares support for. */
+function resolveVersion(extensionDevelopmentPath) {
+    const version = process.env.VSCODE_TEST_VERSION || "stable";
+    if (version !== "minimum") {
+        return version;
+    }
+    const { engines } = JSON.parse(fs.readFileSync(path.join(extensionDevelopmentPath, "package.json"), "utf8"));
+    return engines.vscode.replace(/^[^\d]*/, "");
+}
+
 async function main() {
     const extensionDevelopmentPath = path.resolve(__dirname, "../..");
     const extensionTestsPath = path.resolve(__dirname, "suite/index");
@@ -17,7 +27,7 @@ async function main() {
     fs.writeFileSync(path.join(workspace, "1.two-sum.py"), "# @lc app=leetcode.com id=1 lang=python3\n# @lc code=start\nx = 1\n# @lc code=end\n");
     fs.writeFileSync(path.join(workspace, "notes.py"), "x = 1\n");
     await runTests({
-        version: process.env.VSCODE_TEST_VERSION || "stable",
+        version: resolveVersion(extensionDevelopmentPath),
         extensionDevelopmentPath,
         extensionTestsPath,
         vscodeExecutablePath: process.env.VSCODE_EXECUTABLE_PATH || undefined,

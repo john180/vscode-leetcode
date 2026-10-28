@@ -36,6 +36,9 @@ export function getProblemFile(id: string): vscode.Uri | undefined {
 
 /** Remember recognized files so Explorer actions also work after their editor closes. */
 export function registerProblemDocumentContext(context: vscode.ExtensionContext): void {
+    // Edits arrive per keystroke, so the context keys are sent only when they change.
+    let resources: string | undefined;
+    let isProblem: boolean | undefined;
     const update = (document?: vscode.TextDocument): void => {
         if (document) {
             const uri = document.uri.toString();
@@ -49,9 +52,17 @@ export function registerProblemDocumentContext(context: vscode.ExtensionContext)
                 problemFileEvents.emit("changed");
             }
         }
-        void vscode.commands.executeCommand("setContext", "leetcode.problemResources", [...problemFiles.keys()]);
+        const keys: string[] = [...problemFiles.keys()];
+        if (keys.join("\n") !== resources) {
+            resources = keys.join("\n");
+            void vscode.commands.executeCommand("setContext", "leetcode.problemResources", keys);
+        }
         const active = vscode.window.activeTextEditor?.document;
-        void vscode.commands.executeCommand("setContext", "leetcode.isProblem", Boolean(active && isProblemDocument(active)));
+        const activeIsProblem: boolean = Boolean(active && isProblemDocument(active));
+        if (activeIsProblem !== isProblem) {
+            isProblem = activeIsProblem;
+            void vscode.commands.executeCommand("setContext", "leetcode.isProblem", activeIsProblem);
+        }
     };
     for (const document of vscode.workspace.textDocuments) {
         update(document);

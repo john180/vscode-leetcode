@@ -10,12 +10,10 @@
         "types": ["node", "vscode"],
         "sourceMap": true,
         "rootDir": ".",
+        "strict": true,
         "noUnusedLocals": true,
-        "noImplicitThis": true,
         "noImplicitReturns": true,
-        "strictNullChecks": true,
-        "noUnusedParameters": true,
-        "alwaysStrict": true
+        "noUnusedParameters": true
     },
     "exclude": [
         "node_modules",

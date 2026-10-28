@@ -87,7 +87,7 @@ export async function followActiveEditor(editor: vscode.TextEditor | undefined):
     try {
         problem = await findProblemById(id);
     } catch (error) {
-        leetCodeChannel.appendLine(`[WARN] Failed to resolve the problem with id ${id}: ${error}`);
+        leetCodeChannel.warn(`Failed to resolve the problem with id ${id}: ${error}`);
         return;
     }
     // Ignore a lookup that finished after the user changed editors, problems or sessions.
@@ -103,7 +103,7 @@ export async function pickOne(): Promise<void> {
         const randomProblem = await getRandomProblem();
         if (randomProblem) { await showProblemInternal(randomProblem); }
     } catch (error) {
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to list problems. Please open the output channel for details."), DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to list problems. Please open the output channel for details."), DialogType.error, error);
     }
 }
 
@@ -197,7 +197,7 @@ async function showProblemInternal(node: IProblem): Promise<void> {
         if (finalPath) {
             finalPath = await resolveRelativePath(finalPath, node, language);
             if (!finalPath) {
-                leetCodeChannel.appendLine("Showing problem canceled by user.");
+                leetCodeChannel.info("Showing problem canceled by user.");
                 return;
             }
         }
@@ -216,6 +216,8 @@ async function showProblemInternal(node: IProblem): Promise<void> {
                 useTranslation: needTranslation,
                 endpoint: endpointName,
             });
+            // The folder setting may name folders that do not exist yet, such as "${difficulty}".
+            await fs.mkdir(path.dirname(finalPath), { recursive: true });
             await fs.writeFile(finalPath, fileContent);
         }
 
@@ -237,7 +239,7 @@ async function showProblemInternal(node: IProblem): Promise<void> {
 
         await Promise.all(promises);
     } catch (error) {
-        await promptForOpenOutputChannel(vscode.l10n.t("{0} Please open the output channel for details.", String(error)), DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("{0} Please open the output channel for details.", String(error)), DialogType.error, error);
     }
 }
 
@@ -281,7 +283,7 @@ async function resolveRelativePath(relativePath: string, node: IProblem, selecte
                 return company;
             default:
                 const errorMsg: string = `The config '${placeholder}' is not supported.`;
-                leetCodeChannel.appendLine(errorMsg);
+                leetCodeChannel.error(errorMsg);
                 throw new Error(errorMsg);
         }
     });

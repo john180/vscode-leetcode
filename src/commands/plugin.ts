@@ -43,7 +43,7 @@ export async function switchEndpoint(): Promise<void> {
         await resolveEndpoint();
         vscode.window.showInformationMessage(vscode.l10n.t("Switched the endpoint to {0}.", endpoint));
     } catch (error) {
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to switch endpoint. Please open the output channel for details."), DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to switch endpoint. Please open the output channel for details."), DialogType.error, error);
     }
 
     try {
@@ -51,7 +51,7 @@ export async function switchEndpoint(): Promise<void> {
         invalidateProblemCache();
         await promptForSignIn();
     } catch (error) {
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to sign in. Please open the output channel for details."), DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to sign in. Please open the output channel for details."), DialogType.error, error);
     }
 }
 

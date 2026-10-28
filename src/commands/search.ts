@@ -111,7 +111,7 @@ export async function locateSearchResult(): Promise<string> {
             leetCodeTreeDataProvider.showSearchResult(vscode.l10n.t('"{0}" · {1} in {2}', search.text, total, category));
             return vscode.l10n.t("{0} matches in {1}.", total, category);
         } catch (error) {
-            leetCodeChannel.appendLine(`[WARN] Failed to locate "${search.text}" in ${id}: ${error}`);
+            leetCodeChannel.warn(`Failed to locate "${search.text}" in ${id}: ${error}`);
         }
     }
     if (explorerNodeManager.getSearch() !== search) {
@@ -147,7 +147,7 @@ export async function clearSearch(): Promise<boolean> {
         try {
             await leetCodeTreeDataProvider.reveal(loaded, revealOptions);
         } catch (error) {
-            leetCodeChannel.appendLine(`[WARN] Failed to reveal problem ${loaded.id}: ${error}`);
+            leetCodeChannel.warn(`Failed to reveal problem ${loaded.id}: ${error}`);
         }
     }
     return true;

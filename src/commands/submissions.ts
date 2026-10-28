@@ -143,6 +143,7 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
         await promptForOpenOutputChannel(
             l10n.t("Failed to load submissions. Please open the output channel for details."),
             DialogType.error,
+            error,
         );
     }
 }

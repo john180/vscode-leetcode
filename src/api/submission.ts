@@ -279,7 +279,7 @@ async function postJson(
             }
             return data;
         } catch (error) {
-            const data: { error?: string } | undefined = error?.response?.data;
+            const data: { error?: string } | undefined = (error as { response?: { data?: { error?: string } } } | undefined)?.response?.data;
             const message: string = data?.error || "";
             if (message.includes("too soon")) {
                 await delay(retryDelayMs * (attempt + 1));

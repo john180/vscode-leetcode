@@ -3,15 +3,20 @@
 
 import * as vscode from "vscode";
 
+/** The LeetCode log; VS Code adds the timestamp and level, and "Developer: Set Log Level..." filters it. */
 class LeetCodeChannel implements vscode.Disposable {
-    private readonly channel: vscode.OutputChannel = vscode.window.createOutputChannel("LeetCode");
+    private readonly channel: vscode.LogOutputChannel = vscode.window.createOutputChannel("LeetCode", { log: true });
 
-    public appendLine(message: string): void {
-        this.channel.appendLine(message);
+    public info(message: string): void {
+        this.channel.info(message);
     }
 
-    public append(message: string): void {
-        this.channel.append(message);
+    public warn(message: string): void {
+        this.channel.warn(message);
+    }
+
+    public error(message: string): void {
+        this.channel.error(message);
     }
 
     public show(): void {

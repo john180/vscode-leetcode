@@ -147,10 +147,11 @@ function groupCodeTabs(state: MarkdownIt.StateCore): void {
 
 class MarkdownEngine implements vscode.Disposable {
 
-    private engine: MarkdownIt;
+    // Assigned by reload(), which the constructor calls.
+    private engine!: MarkdownIt;
     /** Solutions are written by users and may embed HTML and math, so their output is sanitized. */
-    private solutionEngine: MarkdownIt;
-    private config: MarkdownConfiguration;
+    private solutionEngine!: MarkdownIt;
+    private config!: MarkdownConfiguration;
     private listener: vscode.Disposable;
     private resourceRoot: vscode.Uri | undefined;
 

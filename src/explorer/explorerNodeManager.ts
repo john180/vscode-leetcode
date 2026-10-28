@@ -191,7 +191,7 @@ class ExplorerNodeManager implements Disposable {
             return this.remember(key, this.render(id, view));
         } catch (error) {
             if (!this.isCurrent(generation)) { return []; }
-            leetCodeChannel.appendLine(`[WARN] Loading ${id}: ${String(error)}`);
+            leetCodeChannel.warn(`Loading ${id}: ${String(error)}`);
             const view = this.views.get(key);
             if (view) { view.failed = true; return this.remember(key, this.render(id, view)); }
             return [...(this.children.get(key) || []).filter((node) => !node.action), this.action(id, "retry")];
@@ -205,7 +205,7 @@ class ExplorerNodeManager implements Disposable {
         try { await this.load(id, view, view.next, false); }
         catch (error) {
             view.failed = true;
-            leetCodeChannel.appendLine(`[WARN] Loading ${id}: ${String(error)}`);
+            leetCodeChannel.warn(`Loading ${id}: ${String(error)}`);
         }
     }
 
@@ -214,7 +214,7 @@ class ExplorerNodeManager implements Disposable {
         const view = this.views.get(this.key(id));
         if (view) {
             try { await this.load(id, view, view.failedSkip ?? 0, true); }
-            catch (error) { leetCodeChannel.appendLine(`[WARN] Retrying ${id}: ${String(error)}`); }
+            catch (error) { leetCodeChannel.warn(`Retrying ${id}: ${String(error)}`); }
         }
     }
 

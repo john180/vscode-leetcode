@@ -41,6 +41,8 @@
     "config.sortStrategy": "Sorting strategy for problems list.",
     "config.showDescription.enumDescriptions.0": "Show the problem description in the LeetCode sidebar",
     "config.showDescription.enumDescriptions.1": "Show the problem description in the file's comment",
+    "config.showDescription.enumDescriptions.2": "Show the problem description in the LeetCode sidebar and in the file's comment",
+    "config.showDescription.enumDescriptions.3": "Do not show the problem description",
     "command.showSubmissions": "Show Submission History",
     "command.addToFavoriteList": "Add to Favorite List",
     "viewsWelcome.welcome": "Welcome to LeetCode\n\nPreparing your LeetCode workspace...",

@@ -44,6 +44,7 @@ export async function addToFavoriteList(node: LeetCodeNode): Promise<void> {
         await promptForOpenOutputChannel(
             l10n.t("Failed to load favorite lists. Please open the output channel for details."),
             DialogType.error,
+            error,
         );
     }
 }
@@ -62,6 +63,6 @@ async function toggleFavorite(node: LeetCodeNode, favorite: boolean, favoriteIdH
         }
     } catch (error) {
         const action: string = favorite ? l10n.t("add the problem to favorite") : l10n.t("remove the problem from favorite");
-        await promptForOpenOutputChannel(l10n.t("Failed to {0}. Please open the output channel for details.", action), DialogType.error);
+        await promptForOpenOutputChannel(l10n.t("Failed to {0}. Please open the output channel for details.", action), DialogType.error, error);
     }
 }

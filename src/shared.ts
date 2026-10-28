@@ -155,7 +155,7 @@ export function buildAuthLoginUrl(endpoint: string): string {
     return buildAuthLoginUrlFor(endpoint, vscode.env.uriScheme, extensionId);
 }
 
-export const getUrl = (key: string) => {
+export const getUrl = (key: keyof typeof urls): string => {
     const point: Endpoint = getEffectiveEndpoint();
     switch (point) {
         case Endpoint.LeetCodeCN:

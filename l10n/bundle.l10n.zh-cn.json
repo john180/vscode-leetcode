@@ -41,6 +41,7 @@
     "Enable LeetCode US": "启用国际版 LeetCode",
     "Enter the test cases.": "输入测试用例。",
     "Expected": "期望输出",
+    "Extension initialization failed. Please open the output channel for details.": "扩展初始化失败，请打开输出面板查看详情。",
     "Failed to create the session. Please open the output channel for details.": "创建会话失败，请打开输出面板查看详情。",
     "Failed to delete the session. Please open the output channel for details.": "删除会话失败，请打开输出面板查看详情。",
     "Failed to list problems. Please open the output channel for details.": "加载题目列表失败，请打开输出面板查看详情。",

@@ -12,7 +12,7 @@ import { problemCache } from "../api/problemCache";
 import { getProblemCacheScope } from "../api/problems";
 
 export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCodeNode> {
-    private context: vscode.ExtensionContext;
+    private context!: vscode.ExtensionContext;
     private treeView: vscode.TreeView<LeetCodeNode> | undefined;
     private lastProblemParent: string | undefined;
 

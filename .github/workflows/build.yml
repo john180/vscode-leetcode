@@ -47,6 +47,12 @@ jobs:
       - name: Extension Host integration tests
         run: npm run test:integration
 
+      - name: Extension Host integration tests (minimum supported VS Code)
+        # The bundle was built by the previous step; run it on the engines.vscode version.
+        run: node test/integration/runTest.js
+        env:
+          VSCODE_TEST_VERSION: minimum
+
       - name: Package VSIX
         # vsce verifies types and produces the same production bundle tested above.
         run: npx --no-install vsce package

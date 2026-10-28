@@ -8,6 +8,7 @@ const errors: string[] = [];
 const disposable = { dispose: () => undefined };
 const noop = () => undefined;
 let login: Promise<void> = Promise.resolve();
+let initialize = async (): Promise<void> => undefined;
 let refreshes = 0;
 let status = 2;
 const detailEvents: string[] = [];
@@ -46,14 +47,14 @@ moduleLoader._load = function (request: string, parent: { filename?: string }, i
         }
         const dependencies: Record<string, unknown> = {
             "./leetCodeManager": { leetCodeManager: manager },
-            "./leetCodeChannel": { leetCodeChannel: { appendLine: (text: string) => errors.push(text) } },
-            "./globalState": { globalState: { initialize: async () => undefined, getCookie: () => "test-cookie" } },
+            "./leetCodeChannel": { leetCodeChannel: { warn: (text: string) => errors.push(text), error: (text: string) => errors.push(text) } },
+            "./globalState": { globalState: { initialize: () => initialize(), getCookie: () => "test-cookie" } },
             "./shared": { setExtensionId: noop, UserStatus: { SignedIn: 1, SignedOut: 2, SigningIn: 3 } },
             "./api/problemCache": { problemCache: { initialize: noop } },
             "./auth/endpointResolver": { resolveEndpoint: async () => undefined },
             "./auth/session": { sessionEvents: new EventEmitter() },
             "./utils/problemDocumentContext": { registerProblemDocumentContext: noop },
-            "./utils/uiUtils": { promptForOpenOutputChannel: (text: string) => errors.push(text) },
+            "./utils/uiUtils": { DialogType: { error: "error" }, promptForOpenOutputChannel: (text: string) => errors.push(text) },
             "./webview/markdownEngine": { markdownEngine: { initialize: noop } },
             "./webview/leetCodePreviewProvider": { leetCodePreviewProvider: { clear: () => detailEvents.push("clear") } },
             "./commands/show": { followActiveEditor: () => detailEvents.push("follow") },
@@ -108,4 +109,15 @@ test("session changes clear the old detail before following the active editor", 
     status = 2;
     manager.emit("statusChanged");
     assert.deepEqual(detailEvents, ["clear"]);
+});
+
+// Activates again, so it runs last.
+test("commands stay registered when restoring the stored state fails", async () => {
+    registered.clear();
+    errors.length = 0;
+    initialize = async () => { throw new Error("keyring unavailable"); };
+    await activate({ extension: { id: "test" }, subscriptions: [], globalState: {} } as any);
+    assert.ok(registered.has("leetcode.signin"));
+    assert.ok(registered.has("leetcode.refreshExplorer"));
+    assert.deepEqual(errors, ["Extension initialization failed. Please open the output channel for details."]);
 });

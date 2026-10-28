@@ -291,7 +291,7 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         try {
             state.detail = await fetchQuestionDetail(getLeetCodeRequest(), state.problem.slug);
         } catch (error) {
-            leetCodeChannel.appendLine(`[ERROR] Failed to fetch the problem description: ${error}`);
+            leetCodeChannel.error(`Failed to fetch the problem description: ${error}`);
             state.failed = true;
         }
         if (this.state === state) {
@@ -307,7 +307,7 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         state.solutionPending ??= fetchTopSolution(getLeetCodeRequest(), state.problem.slug).then((solution: ISolution | undefined) => {
             state.solution = solution ?? null;
         }, (error: unknown) => {
-            leetCodeChannel.appendLine(`[ERROR] Failed to fetch the top voted solution: ${error}`);
+            leetCodeChannel.error(`Failed to fetch the top voted solution: ${error}`);
             state.solutionFailed = true;
         }).finally(() => {
             state.solutionPending = undefined;
@@ -327,7 +327,7 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
             // The view resolves on first display; the generated focus command opens it.
             await commands.executeCommand("leetCodeDetail.focus", { preserveFocus: true });
         } catch (error) {
-            leetCodeChannel.appendLine(`[WARN] Failed to reveal the problem description: ${error}`);
+            leetCodeChannel.warn(`Failed to reveal the problem description: ${error}`);
         }
     }
 
@@ -608,7 +608,7 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
                 await this.show(target, { tab: "description" });
             }
         } catch (error) {
-            leetCodeChannel.appendLine(`[ERROR] Failed to resolve the problem ${slug}: ${error}`);
+            leetCodeChannel.error(`Failed to resolve the problem ${slug}: ${error}`);
         }
     }
 

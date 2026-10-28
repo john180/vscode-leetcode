@@ -29,7 +29,7 @@ export async function manageSessions(): Promise<void> {
     const choice: IQuickItemEx<ISession | string> | undefined = await vscode.window.showQuickPick(
         parseSessionsToPicks(true),
     );
-    if (!choice || choice.description === "Active") {
+    if (!choice || (typeof choice.value !== "string" && choice.value.active)) {
         return;
     }
     if (choice.value === ":createSession") {
@@ -45,7 +45,7 @@ export async function manageSessions(): Promise<void> {
         await leetCodeManager.switchProfile((choice.value as ISession).name);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to switch session. Please open the output channel for details."), DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to switch session. Please open the output channel for details."), DialogType.error, error);
     }
 }
 
@@ -101,7 +101,7 @@ async function createSession(): Promise<void> {
         await leetCodeManager.createProfile(name.trim(), cookie);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to create the session. Please open the output channel for details."), DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to create the session. Please open the output channel for details."), DialogType.error, error);
     }
 }
 
@@ -133,6 +133,6 @@ async function deleteSession(): Promise<void> {
         await leetCodeManager.deleteProfile(selectedSession.name);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to delete the session. Please open the output channel for details."), DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to delete the session. Please open the output channel for details."), DialogType.error, error);
     }
 }

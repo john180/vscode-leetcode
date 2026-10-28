@@ -73,7 +73,7 @@ const dependencies: Record<string, unknown> = {
     },
     "../explorer/explorerNodeManager": { explorerNodeManager: manager },
     "../explorer/LeetCodeTreeDataProvider": { leetCodeTreeDataProvider: provider },
-    "../leetCodeChannel": { leetCodeChannel: { appendLine: () => undefined } },
+    "../leetCodeChannel": { leetCodeChannel: { info: () => undefined, warn: () => undefined, error: () => undefined } },
     "../leetCodeManager": { leetCodeManager: { getUser: () => "user" } },
     "../shared": { Category: { All: "All", Tag: "Tag", Company: "Company" } },
     "../utils/uiUtils": { promptForSignIn: async () => undefined },

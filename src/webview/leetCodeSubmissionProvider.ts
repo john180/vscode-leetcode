@@ -151,7 +151,7 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
             }
             return result;
         } catch (error) {
-            leetCodeChannel.appendLine(`[ERROR] Failed to get the judge result: ${error}`);
+            leetCodeChannel.error(`Failed to get the judge result: ${error}`);
             if (run === this.run) {
                 this.phase = "failed";
                 this.render();
@@ -207,7 +207,7 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
         try {
             await commands.executeCommand("leetCodeResult.focus", { preserveFocus: true });
         } catch (error) {
-            leetCodeChannel.appendLine(`[WARN] Failed to reveal the result view: ${error}`);
+            leetCodeChannel.warn(`Failed to reveal the result view: ${error}`);
         }
     }
 

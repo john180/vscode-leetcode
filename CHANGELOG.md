@@ -7,6 +7,22 @@ All notable changes to the "leetcode" extension will be documented in this file.
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
 ## [Unreleased]
+### Fixed
+- "Sign up" now opens the site of the current endpoint instead of always opening leetcode.cn.
+- Failures that ask you to open the output channel now write the error there.
+- Opening a problem creates the folders named by `leetcode.filePath`, such as `${difficulty}`, instead of failing.
+- Testing while signed out asks you to sign in instead of doing nothing.
+- `Add to Favorite List` is hidden from the Command Palette, where it had no problem to act on.
+- Every `leetcode.showDescription` value has a description in Settings.
+- Choosing the active session in `Manage Sessions` no longer switches to it again in the Chinese UI.
+
+### Changed
+- Commands and views are registered before the stored session is restored, so a failure there no longer leaves the commands missing.
+- The output channel is a log channel with levels and timestamps; use "Developer: Set Log Level..." to filter it.
+- Problem files update the menu context keys only when they change, not on every keystroke.
+- Problem Details is no longer kept alive while hidden; it reloads its content when shown again.
+- Links open with `env.openExternal`.
+- TypeScript `strict` mode is enabled, and CI also runs the integration test on the minimum supported VS Code.
 
 ## [0.25.0] - 2026-10-28
 ### Changed

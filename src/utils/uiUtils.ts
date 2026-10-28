@@ -4,6 +4,7 @@
 import * as vscode from "vscode";
 import { getLeetCodeEndpoint } from "../commands/plugin";
 import { leetCodeChannel } from "../leetCodeChannel";
+import { Endpoint } from "../shared";
 import { getWorkspaceConfiguration } from "./settingUtils";
 
 export namespace DialogOptions {
@@ -14,7 +15,11 @@ export namespace DialogOptions {
     export const singUp: vscode.MessageItem = { title: vscode.l10n.t("Sign up") };
 }
 
-export async function promptForOpenOutputChannel(message: string, type: DialogType): Promise<void> {
+/** Show `message` with a button that opens the output channel; `error` is logged there first so the details exist. */
+export async function promptForOpenOutputChannel(message: string, type: DialogType, error?: unknown): Promise<void> {
+    if (error !== undefined) {
+        leetCodeChannel.error(`${message} ${error}`);
+    }
     let result: vscode.MessageItem | undefined;
     switch (type) {
         case DialogType.info:
@@ -47,11 +52,7 @@ export async function promptForSignIn(): Promise<void> {
             await vscode.commands.executeCommand("leetcode.signin");
             break;
         case DialogOptions.singUp:
-            if (getLeetCodeEndpoint()) {
-                openUrl("https://leetcode.cn");
-            } else {
-                openUrl("https://leetcode.com");
-            }
+            await openUrl(getLeetCodeEndpoint() === Endpoint.LeetCodeCN ? "https://leetcode.cn" : "https://leetcode.com");
             break;
         default:
             break;
@@ -116,7 +117,7 @@ export async function showDirectorySelectDialog(fsPath?: string): Promise<vscode
 }
 
 export async function openUrl(url: string): Promise<void> {
-    vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(url));
+    await vscode.env.openExternal(vscode.Uri.parse(url));
 }
 
 export enum DialogType {

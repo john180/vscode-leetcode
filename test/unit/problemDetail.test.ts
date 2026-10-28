@@ -53,7 +53,7 @@ const providerDependencies: Record<string, unknown> = {
     "../explorer/explorerNodeManager": { explorerNodeManager: { getNodeById: () => undefined } },
     "../explorer/LeetCodeNode": { LeetCodeNode: FakeNode },
     "../globalState": { globalState: { getUserStatus: () => ({ isPremium: premium }) } },
-    "../leetCodeChannel": { leetCodeChannel: { appendLine: () => undefined } },
+    "../leetCodeChannel": { leetCodeChannel: { info: () => undefined, warn: () => undefined, error: () => undefined } },
     "../shared": {
         Endpoint: { LeetCode: "leetcode", LeetCodeCN: "leetcode-cn" }, PREMIUM_URL_CN: "cn-premium", PREMIUM_URL_GLOBAL: "global-premium",
         ProblemState: { AC: 1, NotAC: 2 },
@@ -70,7 +70,7 @@ const providerDependencies: Record<string, unknown> = {
 const showDependencies: Record<string, unknown> = {
     "vscode": { window: vscodeWindow, l10n: { t: (text: string) => text }, Uri: FakeUri },
     "../leetCodeManager": { leetCodeManager: { getUser: () => user } },
-    "../leetCodeChannel": { leetCodeChannel: { appendLine: () => undefined } },
+    "../leetCodeChannel": { leetCodeChannel: { info: () => undefined, warn: () => undefined, error: () => undefined } },
     "../utils/settingUtils": { shouldFollowActiveEditor: () => true },
     "../utils/problemDocumentContext": { isProblemDocument: (document: { problem: boolean }) => document.problem },
     "../utils/problemUtils": { getNodeIdFromText: (text: string) => text },
@@ -459,6 +459,10 @@ test("the page can copy text and asks for content it may have missed while loadi
     const posts: number = view.posted.length;
     await post({ command: "ready" });
     assert.equal(view.posted.length, posts + 1);
+    // The view is not retained while hidden, so the page loads again each time it is shown.
+    await post({ command: "ready" });
+    assert.equal(view.posted.length, posts + 2);
+    assert.equal(view.posted.at(-1).html, view.posted.at(-2).html);
 });
 
 test("editor follow drops a lookup that finishes after the session changes", async () => {

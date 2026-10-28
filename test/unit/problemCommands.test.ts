@@ -7,7 +7,8 @@ const actions: unknown[] = [];
 const judged: unknown[] = [];
 const pickedInputs: string[] = [];
 let failLookup = false;
-const problem = { id: "42", slug: "trapping-rain-water", name: "Trapping Rain Water" };
+let status = 1;
+const problem ={ id: "42", slug: "trapping-rain-water", name: "Trapping Rain Water" };
 const moduleLoader: any = Module;
 const originalLoad = moduleLoader._load;
 moduleLoader._load = function (request: string, parent: unknown, isMain: boolean): unknown {
@@ -21,7 +22,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
         },
     }; }
     if (request === "../shared") { return { UserStatus: { SignedOut: 2 } }; }
-    if (request === "../leetCodeManager") { return { leetCodeManager: { getStatus: () => 1, getUser: () => "user" } }; }
+    if (request === "../leetCodeManager") { return { leetCodeManager: { getStatus: () => status, getUser: () => status === 1 ? "user" : undefined } }; }
     if (request === "../api/problems") { return {
         getProblemCacheScope: () => "account-a",
         getProblemById: async (id: string) => { resolved.push(id); if (failLookup) { throw new Error("offline"); } return problem; },
@@ -47,7 +48,11 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     if (request === "../utils/workspaceUtils") { return {
         getActiveDocument: async () => ({ getText: () => "code", uri: { fsPath: "42.py" } }), getActiveFilePath: async () => "42.py",
     }; }
-    if (request === "../utils/uiUtils") { return { DialogType: {}, promptForOpenOutputChannel: async () => actions.push("error") }; }
+    if (request === "../utils/uiUtils") { return {
+        DialogType: {},
+        promptForOpenOutputChannel: async (_message: string, _type: unknown, error?: Error) => actions.push(`error: ${error?.message}`),
+        promptForSignIn: async () => actions.push("sign in"),
+    }; }
     if (request === "../explorer/explorerNodeManager") { return { explorerNodeManager: { getNodeById: () => undefined } }; }
     if (request === "../explorer/LeetCodeTreeDataProvider") { return { leetCodeTreeDataProvider: { refresh: async (force = false) => actions.push({ refresh: force }) } }; }
     if (request === "../webview/leetCodeSubmissionProvider") { return { leetCodeSubmissionProvider: {
@@ -61,7 +66,7 @@ const { submitSolution } = require("../../src/commands/submit");
 const { showSubmissionHistory } = require("../../src/commands/submissions");
 moduleLoader._load = originalLoad;
 
-beforeEach(() => { actions.length = 0; resolved.length = 0; judged.length = 0; pickedInputs.length = 0; failLookup = false; });
+beforeEach(() => { actions.length = 0; resolved.length = 0; judged.length = 0; pickedInputs.length = 0; failLookup = false; status = 1; });
 
 test("testing resolves only the current problem and submits its internal question id", async () => {
     await testSolution();
@@ -89,8 +94,15 @@ test("history resolves only the active file's problem", async () => {
     assert.deepEqual(actions, [problem.slug]);
 });
 
-test("lookup failures are handled by each command", async () => {
+test("lookup failures are handled by each command and logged for the output channel", async () => {
     failLookup = true;
     await testSolution(); await submitSolution(); await showSubmissionHistory();
-    assert.deepEqual(actions, ["error", "error", "error"]);
+    assert.deepEqual(actions, ["error: offline", "error: offline", "error: offline"]);
+});
+
+test("testing and submitting while signed out ask the user to sign in", async () => {
+    status = 2;
+    await testSolution(); await submitSolution();
+    assert.deepEqual(actions, ["sign in", "sign in"]);
+    assert.deepEqual(resolved, []);
 });

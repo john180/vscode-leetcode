@@ -10,7 +10,7 @@ import { leetCodeManager } from "../leetCodeManager";
 import { globalState } from "../globalState";
 import { IProblem, IQuickItemEx, UserStatus } from "../shared";
 import { getLanguageFromText, getNodeIdFromText } from "../utils/problemUtils";
-import { DialogType, promptForOpenOutputChannel, showFileSelectDialog } from "../utils/uiUtils";
+import { DialogType, promptForOpenOutputChannel, promptForSignIn, showFileSelectDialog } from "../utils/uiUtils";
 import { getActiveDocument } from "../utils/workspaceUtils";
 import { leetCodeSubmissionProvider } from "../webview/leetCodeSubmissionProvider";
 import { getProblemById } from "../api/problems";
@@ -19,6 +19,7 @@ import { getProblemById } from "../api/problems";
 export async function testSolution(uri?: vscode.Uri, input?: string): Promise<void> {
     try {
         if (leetCodeManager.getStatus() === UserStatus.SignedOut) {
+            await promptForSignIn();
             return;
         }
 
@@ -63,7 +64,7 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
             paramNames: getParamNames(detail),
         }));
     } catch (error) {
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to test the solution. Please open the output channel for details."), DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to test the solution. Please open the output channel for details."), DialogType.error, error);
     }
 }
 

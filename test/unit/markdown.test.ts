@@ -11,8 +11,9 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
             env: { appRoot: process.cwd() },
             window: {
                 createOutputChannel: () => ({
-                    append: () => undefined,
-                    appendLine: () => undefined,
+                    info: () => undefined,
+                    warn: () => undefined,
+                    error: () => undefined,
                     dispose: () => undefined,
                     show: () => undefined,
                 }),

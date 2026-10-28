@@ -3,6 +3,7 @@ import { test } from "node:test";
 import Module = require("node:module");
 
 const contexts = new Map<string, unknown>();
+const sent: string[] = [];
 const listeners = new Map<string, (value: any) => void>();
 const windowMock: any = { activeTextEditor: undefined };
 const event = (name: string) => (listener: (value: any) => void) => {
@@ -16,7 +17,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     if (request === "vscode") {
         return {
             Range: class { constructor(..._args: any[]) { /* range is not needed by the fake document */ } },
-            commands: { executeCommand: async (_command: string, key: string, value: unknown) => contexts.set(key, value) },
+            commands: { executeCommand: async (_command: string, key: string, value: unknown) => { sent.push(key); contexts.set(key, value); } },
             window: windowMock,
             workspace: {
                 textDocuments: [],
@@ -94,5 +95,25 @@ test("a problem's latest recognized file is found by its id until the file goes 
     assert.equal(changes, 4);
 
     problemFileEvents.off("changed", changed);
+    for (const disposable of context.subscriptions as any[]) disposable.dispose();
+});
+
+test("typing sends the context keys only when they change", () => {
+    const context = { subscriptions: [] };
+    registerProblemDocumentContext(context);
+    const problem = document("# @lc app=leetcode.com id=1 lang=python3", "file", "typing.py");
+    windowMock.activeTextEditor = { document: problem };
+    listeners.get("open")!(problem);
+    sent.length = 0;
+
+    for (let keystroke = 0; keystroke < 5; keystroke += 1) {
+        listeners.get("change")!({ document: problem });
+        listeners.get("change")!({ document: document("output", "output", "LeetCode") });
+    }
+    assert.deepEqual(sent, []);
+
+    listeners.get("change")!({ document: document("print('header removed')", "file", "typing.py") });
+    assert.deepEqual(sent, ["leetcode.problemResources"]);
+    windowMock.activeTextEditor = undefined;
     for (const disposable of context.subscriptions as any[]) disposable.dispose();
 });

@@ -302,6 +302,10 @@
                 {
                     "command": "leetcode.removeFavorite",
                     "when": "never"
+                },
+                {
+                    "command": "leetcode.addToFavoriteList",
+                    "when": "never"
                 }
             ],
             "explorer/context": [
@@ -409,7 +413,9 @@
                         ],
                         "enumDescriptions": [
                             "%config.showDescription.enumDescriptions.0%",
-                            "%config.showDescription.enumDescriptions.1%"
+                            "%config.showDescription.enumDescriptions.1%",
+                            "%config.showDescription.enumDescriptions.2%",
+                            "%config.showDescription.enumDescriptions.3%"
                         ],
                         "scope": "application",
                         "description": "%config.showDescription%"

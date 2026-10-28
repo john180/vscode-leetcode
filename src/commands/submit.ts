@@ -60,7 +60,7 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
             await recordSubmission(problem, result.statusMessage === "Accepted");
         }
     } catch (error) {
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to submit the solution. Please open the output channel for details."), DialogType.error);
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to submit the solution. Please open the output channel for details."), DialogType.error, error);
         return;
     }
 
