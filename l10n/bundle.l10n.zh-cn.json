@@ -150,6 +150,8 @@
     "Top 100": "热门 100",
     "Mainland China uses 力扣, other regions use LeetCode": "中国大陆使用力扣，其他地区使用 LeetCode",
     "Current site": "当前站点",
+    "Sign in as {0} on {1}?": "是否在 {1} 登录为 {0}？",
+    "Continue only if this is the account you just authorized in your browser.": "仅当这是您刚在浏览器中授权的账户时才继续。",
     "Loading failed. Click to retry.": "加载失败，点击重试。",
     "Search by id, title or slug; use tag:array or company:google to filter": "按题号、标题或 slug 搜索；使用 tag:array 或 company:google 筛选"
 }

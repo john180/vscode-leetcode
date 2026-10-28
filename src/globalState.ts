@@ -91,7 +91,7 @@ class GlobalState {
         await this._state.update(ActiveProfileKey, name);
     }
 
-    public async activateProfile(name: string): Promise<string> {
+    public async getProfileCookie(name: string): Promise<string> {
         if (!this.context || !this._state) {
             throw new Error("GlobalState is not initialized.");
         }
@@ -102,10 +102,15 @@ class GlobalState {
         if (!cookie) {
             throw new Error(`The cookie for profile "${name}" is missing.`);
         }
+        return cookie;
+    }
+
+    public async activateProfile(name: string): Promise<string> {
+        const cookie = await this.getProfileCookie(name);
         this._cookie = cookie;
         this._activeProfile = name;
-        await this.context.secrets.store(CookieKey, cookie);
-        await this._state.update(ActiveProfileKey, name);
+        await this.context!.secrets.store(CookieKey, cookie);
+        await this._state!.update(ActiveProfileKey, name);
         return cookie;
     }
 

@@ -95,7 +95,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.searchProblem", () => show.searchProblem()),
             vscode.commands.registerCommand("leetcode.showSolution", (input: LeetCodeNode | vscode.Uri) => show.showSolution(input)),
             vscode.commands.registerCommand("leetcode.showSubmissions", (node: LeetCodeNode) => submissions.showSubmissionHistory(node)),
-            vscode.commands.registerCommand("leetcode.refreshExplorer", () => leetCodeTreeDataProvider.refresh(true)),
+            vscode.commands.registerCommand("leetcode.refreshExplorer", async () => {
+                if (globalState.getCookie() && leetCodeManager.getStatus() === UserStatus.SignedOut) {
+                    void leetCodeManager.getLoginStatus().catch((error: unknown) => {
+            leetCodeChannel.appendLine(`[WARN] Session restoration failed: ${error}`);
+        });
+                }
+                await leetCodeTreeDataProvider.refresh(true);
+            }),
             vscode.commands.registerCommand("leetcode.testSolution", (uri?: vscode.Uri) => {
                 return test.testSolution(uri);
             }),
