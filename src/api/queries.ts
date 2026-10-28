@@ -57,8 +57,6 @@ query questionData($titleSlug: String!) {
     hints
     similarQuestions
     stats
-    likes
-    dislikes
   }
 }`;
 

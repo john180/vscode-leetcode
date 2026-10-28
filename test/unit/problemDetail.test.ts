@@ -395,9 +395,9 @@ test("updates are posted to the page with increasing versions instead of reloadi
     assert.ok(view.posted[1].version > view.posted[0].version);
 });
 
-test("the header shows acceptance and solved state, and the description lists hints, similar problems and tags", async () => {
+test("the header shows difficulty, solved state and acceptance, and the description lists hints, similar problems and tags", async () => {
     const { view, post } = createView();
-    await leetCodePreviewProvider.show(problem("31", "thirty-one", { state: 1, passRate: "48.2 %" }), {
+    await leetCodePreviewProvider.show(problem("31", "thirty-one", { state: 1, passRate: "48.2 %", isFavorite: true }), {
         detail: {
             ...detail("thirty-one", "<p>31</p>"),
             likes: 12,
@@ -407,9 +407,10 @@ test("the header shows acceptance and solved state, and the description lists hi
         },
     });
     const html: string = content(view);
-    assert.match(html, /Acceptance 48\.2 %/);
-    assert.match(html, /✓ Solved/);
-    assert.match(html, /👍 12/);
+    assert.match(html, /<button class="icon starred" data-command="unstar" title="Unstar"/);
+    assert.match(html, /<div class="badges"><span class="pill difficulty easy">Easy<\/span><span class="pill solved">✓ Solved<\/span><span>Acceptance 48\.2 %<\/span><\/div>/);
+    assert.doesNotMatch(html, /👍|Likes/, "likes are not shown");
+    assert.match(html, /<\/header><nav class="tabs" role="tablist">/, "only the tabs stay in view while scrolling");
     assert.match(html, /<summary>Hint 1<\/summary>Try a <code>map<\/code>\./);
     assert.doesNotMatch(html, /<script>x/);
     assert.match(html, /data-command="similar" data-arg="3sum">三数之和<\/button>/);

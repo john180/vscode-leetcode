@@ -1,7 +1,6 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import * as path from "path";
 import * as vscode from "vscode";
 import { leetCodeManager } from "../leetCodeManager";
 import { ProblemState, UserStatus } from "../shared";
@@ -146,7 +145,7 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
             contextValue = element.id.toLowerCase();
         }
 
-        const label: string = element.isProblem ? `[${element.id}] ${element.name}` + this.parsePremiumUnLockIconPath(element) : element.name;
+        const label: string = element.isProblem ? `${element.id}. ${element.name}` + this.parsePremiumUnLockIconPath(element) : element.name;
         const terms: string[] | undefined = element.isProblem ? explorerNodeManager.getSearch()?.terms : undefined;
         return {
             id: element.treeId,
@@ -173,23 +172,21 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
             : explorerNodeManager.getRootNodes();
     }
 
-    private parseIconPathFromProblemState(element: LeetCodeNode): string {
+    /** Theme icons follow the color theme; a blank one keeps unsolved problems aligned with the rest. */
+    private parseIconPathFromProblemState(element: LeetCodeNode): vscode.ThemeIcon | undefined {
         if (!element.isProblem) {
-            return "";
+            return undefined;
         }
         const { isPremium } = globalState.getUserStatus() ?? {};
         switch (element.state) {
             case ProblemState.AC:
-                return this.context.asAbsolutePath(path.join("resources", "check.png"));
+                return new vscode.ThemeIcon("pass-filled", new vscode.ThemeColor("testing.iconPassed"));
             case ProblemState.NotAC:
-                return this.context.asAbsolutePath(path.join("resources", "x.png"));
+                return new vscode.ThemeIcon("circle-large-outline", new vscode.ThemeColor("charts.yellow"));
             case ProblemState.Unknown:
-                if (element.locked && !isPremium) {
-                    return this.context.asAbsolutePath(path.join("resources", "lock.png"));
-                }
-                return this.context.asAbsolutePath(path.join("resources", "blank.png"));
+                return element.locked && !isPremium ? new vscode.ThemeIcon("lock") : new vscode.ThemeIcon("blank");
             default:
-                return "";
+                return undefined;
         }
     }
 

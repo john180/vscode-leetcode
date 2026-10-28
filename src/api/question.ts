@@ -36,8 +36,6 @@ export interface IQuestionDetail {
     similarQuestions?: string;
     /** JSON with "acRate", "totalAccepted" and "totalSubmission". */
     stats?: string;
-    likes?: number;
-    dislikes?: number;
 }
 
 export interface ISimilarQuestion {

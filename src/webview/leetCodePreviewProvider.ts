@@ -47,20 +47,30 @@ export interface IShowOptions {
 
 const style: string = `
     body { background: transparent; padding: 0 12px 24px; }
-    header { position: sticky; top: 0; z-index: 1; padding: 8px 0 0; background: var(--vscode-sideBar-background); border-bottom: 1px solid var(--vscode-panel-border); }
-    header h2 { margin: 0 0 2px; font-size: 1.15em; }
-    .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font-size: 0.9em; color: var(--vscode-descriptionForeground); }
-    .difficulty { font-weight: 600; }
-    .difficulty.easy { color: var(--vscode-charts-green); }
-    .difficulty.medium { color: var(--vscode-charts-yellow); }
-    .difficulty.hard { color: var(--vscode-charts-red); }
-    .solved { color: var(--vscode-testing-iconPassed); }
-    .toolbar { display: flex; flex-wrap: wrap-reverse; align-items: flex-end; justify-content: space-between; gap: 4px 12px; margin-top: 6px; }
-    .actions { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 4px; }
+    header { padding: 10px 0 0; }
+    .title { display: flex; align-items: flex-start; gap: 8px; }
+    .title h2 { flex: 1; margin: 0; font-size: 1.15em; line-height: 1.4; }
+    .title h2 a { color: var(--vscode-foreground); text-decoration: none; }
+    .title h2 a:hover { text-decoration: underline; }
+    .badges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 6px; font-size: 0.9em; color: var(--vscode-descriptionForeground); }
+    .difficulty.easy { --tone: var(--vscode-charts-green); }
+    .difficulty.medium { --tone: var(--vscode-charts-yellow); }
+    .difficulty.hard { --tone: var(--vscode-charts-red); }
+    .solved { --tone: var(--vscode-testing-iconPassed); }
+    .attempted { --tone: var(--vscode-charts-yellow); }
+    .difficulty, .solved, .attempted { font-weight: 600; color: var(--tone); }
+    .pill { padding: 0 8px; border-radius: 10px; background: color-mix(in srgb, var(--tone) 18%, transparent); }
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+    .actions button { flex: 1 1 0; min-width: max-content; padding: 4px 10px; border: 1px solid var(--vscode-button-border, transparent); }
     button { border: 0; padding: 3px 8px; border-radius: 2px; cursor: pointer; }
     button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
     button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
-    .tabs { display: flex; gap: 16px; }
+    button.icon, button.icon:hover { flex: none; padding: 0 4px; font-size: 1.15em; line-height: 1.4; color: var(--vscode-icon-foreground); background: none; }
+    button.icon:hover { background: var(--vscode-toolbar-hoverBackground); }
+    button.icon.starred { color: var(--vscode-charts-yellow); }
+    /* Only the tabs stay in view, so the description gets the rest of the sidebar. */
+    .tabs { position: sticky; top: 0; z-index: 1; display: flex; gap: 16px; margin: 0 -12px 8px; padding: 0 12px; }
+    .tabs { background: var(--vscode-sideBar-background); border-bottom: 1px solid var(--vscode-panel-border); }
     .tabs button, .tabs button:hover { padding: 4px 0; color: var(--vscode-foreground); background: none; border-radius: 0; border-bottom: 2px solid transparent; opacity: 0.7; }
     .tabs button:hover, .tabs button[aria-selected="true"] { opacity: 1; }
     .tabs button[aria-selected="true"] { border-bottom-color: var(--vscode-focusBorder); font-weight: 600; }
@@ -408,49 +418,49 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
             : `<button data-command="code">${escapeHtml(l10n.t("Code Now"))}</button>`;
         const actions: string = locked
             ? `<button data-command="premium">${escapeHtml(l10n.t("Get Premium"))}</button>`
-            : [
-                coding,
-                `<button class="secondary" data-command="submissions">${escapeHtml(l10n.t("Submissions"))}</button>`,
-                this.getStarButton(problem),
-            ].join("");
-        const tab = (id: DetailTab, label: string): string =>
-            `<button role="tab" aria-selected="${state.tab === id}" data-command="${id}">${escapeHtml(label)}</button>`;
-        const tabs: string = locked ? "" : `<div class="tabs" role="tablist">${tab("description", l10n.t("Description"))}${tab("solution", l10n.t("Solution"))}</div>`;
+            : `${coding}<button class="secondary" data-command="submissions">${escapeHtml(l10n.t("Submissions"))}</button>`;
         const header: string = `
             <header>
-                <h2><a href="${escapeHtml(this.getProblemUrl(problem.slug))}">${escapeHtml(`${problem.id}. ${title}`)}</a></h2>
-                <div class="meta">${this.getMeta(problem, detail)}</div>
-                <div class="toolbar">${tabs}<div class="actions">${actions}</div></div>
+                <div class="title">
+                    <h2><a href="${escapeHtml(this.getProblemUrl(problem.slug))}">${escapeHtml(`${problem.id}. ${title}`)}</a></h2>
+                    ${locked ? "" : this.getStarButton(problem)}
+                </div>
+                <div class="badges">${this.getBadges(problem, detail)}</div>
+                <div class="actions">${actions}</div>
             </header>`;
 
         if (locked) {
             return `${header}<p class="status">${escapeHtml(l10n.t("This problem requires a LeetCode Premium subscription."))}</p>`;
         }
-        return `${header}${state.tab === "solution" ? this.getSolutionContent(state) : this.getDescriptionContent(state, useTranslation)}`;
+        const tab = (id: DetailTab, label: string): string =>
+            `<button role="tab" aria-selected="${state.tab === id}" data-command="${id}">${escapeHtml(label)}</button>`;
+        const tabs: string = `<nav class="tabs" role="tablist">${tab("description", l10n.t("Description"))}${tab("solution", l10n.t("Solution"))}</nav>`;
+        return `${header}${tabs}${state.tab === "solution" ? this.getSolutionContent(state) : this.getDescriptionContent(state, useTranslation)}`;
     }
 
     private getStarButton(problem: IProblem): string {
         const label: string = problem.isFavorite ? l10n.t("Unstar") : l10n.t("Star");
-        return `<button class="secondary" data-command="${problem.isFavorite ? "unstar" : "star"}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${problem.isFavorite ? "★" : "☆"}</button>`;
+        return [
+            `<button class="icon${problem.isFavorite ? " starred" : ""}" data-command="${problem.isFavorite ? "unstar" : "star"}"`,
+            ` title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${problem.isFavorite ? "★" : "☆"}</button>`,
+        ].join("");
     }
 
-    private getMeta(problem: IProblem, detail: IQuestionDetail | undefined): string {
+    /** Difficulty and progress as tinted pills, then the acceptance rate as plain text. */
+    private getBadges(problem: IProblem, detail: IQuestionDetail | undefined): string {
         const items: string[] = [];
         const difficulty: string = detail?.difficulty || problem.difficulty;
         if (difficulty) {
-            items.push(`<span class="difficulty ${escapeHtml(difficulty.toLowerCase())}">${escapeHtml(l10n.t(difficulty))}</span>`);
+            items.push(`<span class="pill difficulty ${escapeHtml(difficulty.toLowerCase())}">${escapeHtml(l10n.t(difficulty))}</span>`);
+        }
+        if (problem.state === ProblemState.AC) {
+            items.push(`<span class="pill solved">✓ ${escapeHtml(l10n.t("Solved"))}</span>`);
+        } else if (problem.state === ProblemState.NotAC) {
+            items.push(`<span class="pill attempted">${escapeHtml(l10n.t("Attempted"))}</span>`);
         }
         const acceptance: string | undefined = problem.passRate || (detail && getAcceptanceRate(detail));
         if (acceptance) {
             items.push(`<span>${escapeHtml(l10n.t("Acceptance {0}", acceptance))}</span>`);
-        }
-        if (problem.state === ProblemState.AC) {
-            items.push(`<span class="solved">✓ ${escapeHtml(l10n.t("Solved"))}</span>`);
-        } else if (problem.state === ProblemState.NotAC) {
-            items.push(`<span>${escapeHtml(l10n.t("Attempted"))}</span>`);
-        }
-        if (typeof detail?.likes === "number") {
-            items.push(`<span title="${escapeHtml(l10n.t("Likes"))}">👍 ${detail.likes}</span>`);
         }
         return items.join("");
     }
