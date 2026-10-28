@@ -35,8 +35,6 @@ Extension ID: `john180.vscode-leetcode`. Disable the previous community and offi
 ## Sign in
 
 1. Open the LeetCode view in the activity bar.
-   Categories load when expanded, with 50 problems per page and a **Load more** action; favorites and Hot 100 load 20 at a time. Search by ID, title or slug, with optional filters such as `tag:array` or `company:google`.
-   Visited problems are cached locally across restarts, separately for each site, login session and language, and stale entries update in the background. Refresh reloads expanded categories; **Delete Cache** also clears the persistent problem cache. Testing, submitting and viewing history do not require the full question bank.
 2. Run **LeetCode: Sign In**.
 3. Choose **LeetCode Cookie** and paste the `Cookie` request header copied from `https://leetcode.com`; **Web Authorization** is also available.
 
@@ -45,6 +43,8 @@ The cookie is stored securely in VS Code. The site is selected from the system t
 ## Quick Start
 
 1. After signing in, pick a problem in the LeetCode view, or run **Search Problem** / **Pick One**.
+   Categories load when expanded, with 50 problems per page and a **Load more** action; favorites and Hot 100 load 20 at a time. Search by ID, title or slug, with optional filters such as `tag:array` or `company:google`.
+   Visited problems are cached locally across restarts, separately for each site, login session and language, and stale entries update in the background. Refresh reloads expanded categories; **Delete Cache** also clears the persistent problem cache. Testing, submitting and viewing history do not require the full question bank.
 2. Edit the generated file and use the CodeLens **Test** or **Submit** action.
 3. Click **Solution** when you need the top solution.
 
@@ -82,6 +82,10 @@ The cookie is stored securely in VS Code. The site is selected from the system t
 
 ## Troubleshooting
 
+The extension supports Restricted Mode: it does not execute workspace code locally. Virtual workspaces (for example, GitHub Repositories) are not supported; use a local folder or a Remote Development workspace with a disk-backed filesystem.
+
+Editor and Explorer actions appear for files recognized by their `@lc` header after opening them. Browser authorization must be started from **Sign In**, completed within five minutes, and confirmed for the account shown in VS Code. A temporary network failure preserves the saved credential; use **Refresh** to retry.
+
 **"The cookie is not signed in"**
 
 - Confirm `leetcode.endpoint` matches the cookie source (`leetcode.com` or `leetcode.cn`).
@@ -97,12 +101,14 @@ npm ci
 npm run typecheck
 npm run lint
 npm test
-npm run test:integration  # optional, requires VS Code
+npm run test:integration  # downloads stable VS Code and uses an isolated test profile
 npm run package
 python scripts/repo_rules.py check --config repo-rules.json
 ```
 
 `npm run package` builds the extension and produces a `.vsix`. Press `F5` for an Extension Development Host.
+
+CI runs the Extension Host tests as well as unit tests. Set `VSCODE_EXECUTABLE_PATH` to reuse a local VS Code installation, or `VSCODE_TEST_VERSION` to test a specific release.
 
 ## License
 

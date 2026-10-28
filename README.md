@@ -35,8 +35,6 @@ code --install-extension ".\vscode-leetcode-$version.vsix" --force
 ## 登录
 
 1. 在活动栏打开 LeetCode 视图。
-   题库按展开的分类加载，每页 50 道，点击“加载更多”继续；收藏和热题每页加载 20 道。搜索支持题号、标题和 slug，可使用 `tag:array` 或 `company:google` 筛选。
-   浏览过的题目会保存在本地缓存中，重启后可复用；缓存按站点、登录会话和语言隔离，过期后后台更新。刷新按钮重新加载当前展开的分类，**Delete Cache** 会清除持久化题库缓存。测试、提交和查看历史无需加载完整题库。
 2. 执行 **LeetCode: Sign In**（登录）。
 3. 选择 **LeetCode Cookie**，粘贴从 `https://leetcode.cn` 复制的 `Cookie` 请求头；也可以使用 **Web Authorization**。
 
@@ -45,6 +43,8 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 ## 快速开始
 
 1. 登录后，在 LeetCode 视图中选择题目，或执行 **Search Problem** / **Pick One**。
+   题库按展开的分类加载，每页 50 道，点击“加载更多”继续；收藏和热题每页加载 20 道。搜索支持题号、标题和 slug，可使用 `tag:array` 或 `company:google` 筛选。
+   浏览过的题目会保存在本地缓存中，重启后可复用；缓存按站点、登录会话和语言隔离，过期后后台更新。刷新按钮重新加载当前展开的分类，**Delete Cache** 会清除持久化题库缓存。测试、提交和查看历史无需加载完整题库。
 2. 编辑生成的代码文件，用 CodeLens 的 **Test** 运行样例，或 **Submit** 提交。
 3. 需要题解时点击 **Solution**。
 
@@ -82,6 +82,10 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 
 ## 常见问题
 
+扩展支持受限模式，不在本地执行工作区代码。暂不支持 GitHub Repositories 等虚拟工作区；请使用本地文件夹或具有磁盘文件系统的远程开发工作区。
+
+打开文件并识别到 `@lc` 题目头后，编辑器和资源管理器才会显示对应操作。网页授权须从 **Sign In** 发起，在五分钟内完成，并在 VS Code 中确认目标账户。临时网络故障会保留已保存的凭据，恢复网络后可点击 **Refresh** 重试。
+
 **登录提示 "The cookie is not signed in"**
 
 - 确认 `leetcode.endpoint` 与 Cookie 来源一致（`leetcode.cn` 或 `leetcode.com`）；
@@ -97,12 +101,14 @@ npm ci
 npm run typecheck
 npm run lint
 npm test
-npm run test:integration  # 可选，需要本机 VS Code
+npm run test:integration  # 下载稳定版 VS Code，使用隔离的测试配置
 npm run package
 python scripts/repo_rules.py check --config repo-rules.json
 ```
 
 `npm run package` 构建扩展并生成 `.vsix`。按 `F5` 启动扩展开发宿主。
+
+CI 同时运行单元测试和扩展宿主测试。可通过 `VSCODE_EXECUTABLE_PATH` 复用本机 VS Code，或通过 `VSCODE_TEST_VERSION` 指定测试版本。
 
 ## 许可证
 
