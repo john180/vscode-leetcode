@@ -29,11 +29,11 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     return originalLoad.call(this, request, parent, isMain);
 };
 
-const { isProblemDocument, registerProblemDocumentContext } = require("../../src/utils/problemDocumentContext");
+const { getProblemFile, isProblemDocument, problemFileEvents, registerProblemDocumentContext } = require("../../src/utils/problemDocumentContext");
 moduleLoader._load = originalLoad;
 
-function document(text: string, scheme: string = "file"): any {
-    return { uri: { scheme, toString: () => `${scheme}:///solution.py` }, lineCount: 4, getText: () => text };
+function document(text: string, scheme: string = "file", name: string = "solution.py"): any {
+    return { uri: { scheme, toString: () => `${scheme}:///${name}` }, lineCount: 4, getText: () => text };
 }
 
 test("only supported local LeetCode documents enable problem menus", () => {
@@ -65,4 +65,34 @@ test("menus follow editor changes, header removal and file deletion", () => {
     assert.deepEqual(contexts.get("leetcode.problemResources"), []);
     for (const disposable of context.subscriptions as any[]) disposable.dispose();
     assert.equal(listeners.size, 0);
+});
+
+test("a problem's latest recognized file is found by its id until the file goes away", () => {
+    const context = { subscriptions: [] };
+    registerProblemDocumentContext(context);
+    let changes = 0;
+    const changed = (): void => { changes += 1; };
+    problemFileEvents.on("changed", changed);
+    const python = document("# @lc app=leetcode.com id=1 lang=python3", "file", "1.py");
+    const java = document("// @lc app=leetcode.com id=1 lang=java", "file", "1.java");
+    assert.equal(getProblemFile("1"), undefined);
+
+    listeners.get("open")!(python);
+    listeners.get("open")!(java);
+    assert.equal(getProblemFile("1"), java.uri);
+    assert.equal(getProblemFile("2"), undefined);
+    assert.equal(changes, 2);
+
+    listeners.get("change")!({ document: python });
+    assert.equal(getProblemFile("1"), python.uri, "the file edited last wins");
+    assert.equal(changes, 2, "edits that keep the header change nothing");
+
+    listeners.get("change")!({ document: document("print('no header')", "file", "1.py") });
+    assert.equal(getProblemFile("1"), java.uri);
+    listeners.get("delete")!({ files: [java.uri] });
+    assert.equal(getProblemFile("1"), undefined);
+    assert.equal(changes, 4);
+
+    problemFileEvents.off("changed", changed);
+    for (const disposable of context.subscriptions as any[]) disposable.dispose();
 });

@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import { randomBytes } from "node:crypto";
-import { commands, Disposable, env, l10n, Webview, WebviewView, WebviewViewProvider, window, workspace } from "vscode";
+import { commands, Disposable, env, l10n, Uri, Webview, WebviewView, WebviewViewProvider, window, workspace } from "vscode";
 import { getProblemBySlug, getProblemCacheScope } from "../api/problems";
 import { fetchQuestionDetail, getAcceptanceRate, getSimilarQuestions } from "../api/question";
 import type { IQuestionDetail, ISimilarQuestion } from "../api/question";
@@ -16,6 +16,7 @@ import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { globalState } from "../globalState";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { Endpoint, IProblem, PREMIUM_URL_CN, PREMIUM_URL_GLOBAL, ProblemState } from "../shared";
+import { getProblemFile, problemFileEvents } from "../utils/problemDocumentContext";
 import { shouldUseEndpointTranslation } from "../utils/settingUtils";
 import { openSettingsEditor, openUrl, promptHintMessage } from "../utils/uiUtils";
 import { markdownEngine } from "./markdownEngine";
@@ -76,7 +77,8 @@ const style: string = `
     button.link, button.link:hover { padding: 0; color: var(--vscode-textLink-foreground); background: none; text-align: left; }
     button.link:hover { color: var(--vscode-textLink-activeForeground); text-decoration: underline; }
     .code-block { position: relative; }
-    .code-block > .copy { position: absolute; top: 4px; right: 4px; padding: 1px 6px; font-size: 0.85em; opacity: 0; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+    .code-block > .copy { position: absolute; top: 4px; right: 4px; padding: 1px 6px; font-size: 0.85em; opacity: 0; }
+    .code-block > .copy { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
     .code-block:hover > .copy, .code-block > .copy:focus { opacity: 1; }
     .code-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 8px; }
     .code-tabs button, .code-tabs button:hover { padding: 3px 10px; color: var(--vscode-foreground); background: none; border-radius: 0; border-bottom: 2px solid transparent; opacity: 0.7; }
@@ -223,7 +225,11 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
     public resolveWebviewView(view: WebviewView): void {
         this.view = view;
         view.webview.options = { enableScripts: true, localResourceRoots: markdownEngine.localResourceRoots };
+        // Test and Submit appear once the problem has a solution file.
+        const filesChanged = (): void => this.render();
+        problemFileEvents.on("changed", filesChanged);
         const listeners: Disposable[] = [
+            { dispose: () => problemFileEvents.off("changed", filesChanged) },
             view.webview.onDidReceiveMessage(this.onDidReceiveMessage, this),
             workspace.onDidChangeConfiguration((event) => {
                 if (event.affectsConfiguration("markdown")) {
@@ -397,10 +403,13 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
             ? (useTranslation ? (detail.translatedTitle || detail.title) : detail.title)
             : problem.name;
         const locked: boolean = this.isLocked(problem);
+        const coding: string = getProblemFile(problem.id)
+            ? `<button class="secondary" data-command="test">${escapeHtml(l10n.t("Test"))}</button><button data-command="submit">${escapeHtml(l10n.t("Submit"))}</button>`
+            : `<button data-command="code">${escapeHtml(l10n.t("Code Now"))}</button>`;
         const actions: string = locked
             ? `<button data-command="premium">${escapeHtml(l10n.t("Get Premium"))}</button>`
             : [
-                `<button data-command="code">${escapeHtml(l10n.t("Code Now"))}</button>`,
+                coding,
                 `<button class="secondary" data-command="submissions">${escapeHtml(l10n.t("Submissions"))}</button>`,
                 this.getStarButton(problem),
             ].join("");
@@ -544,6 +553,14 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
             case "code":
                 await commands.executeCommand("leetcode.showProblem", node);
                 break;
+            case "test":
+            case "submit": {
+                const file: Uri | undefined = getProblemFile(problem.id);
+                if (file) {
+                    await commands.executeCommand(message.command === "test" ? "leetcode.testSolution" : "leetcode.submitSolution", file);
+                }
+                break;
+            }
             case "submissions":
                 await commands.executeCommand("leetcode.showSubmissions", node);
                 break;

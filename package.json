@@ -96,12 +96,14 @@
             {
                 "command": "leetcode.testSolution",
                 "title": "%command.testSolution%",
-                "category": "LeetCode"
+                "category": "LeetCode",
+                "icon": "$(play)"
             },
             {
                 "command": "leetcode.submitSolution",
                 "title": "%command.submitSolution%",
-                "category": "LeetCode"
+                "category": "LeetCode",
+                "icon": "$(cloud-upload)"
             },
             {
                 "command": "leetcode.addFavorite",
@@ -322,9 +324,19 @@
             ],
             "editor/title": [
                 {
+                    "command": "leetcode.testSolution",
+                    "when": "resourceScheme == file && leetcode.isProblem",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "leetcode.submitSolution",
+                    "when": "resourceScheme == file && leetcode.isProblem",
+                    "group": "navigation@2"
+                },
+                {
                     "command": "leetcode.previewProblem",
                     "when": "resourceScheme == file && leetcode.isProblem",
-                    "group": "navigation"
+                    "group": "navigation@3"
                 }
             ],
             "leetcode.editorAction": [

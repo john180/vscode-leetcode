@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { EventEmitter } from "node:events";
 import { beforeEach, test } from "node:test";
 import Module = require("node:module");
 
@@ -10,6 +11,8 @@ const fetches: IFetch[] = [];
 const solutionFetches: IFetch[] = [];
 const shown: Array<[string, unknown]> = [];
 const lookups: Array<{ id: string; resolve: (problem: unknown) => void }> = [];
+const problemFiles = new Map<string, string>();
+const problemFileEvents = new EventEmitter();
 let premium = false;
 let user: string | undefined = "user";
 let currentProblemId: string | undefined;
@@ -55,6 +58,7 @@ const providerDependencies: Record<string, unknown> = {
         Endpoint: { LeetCode: "leetcode", LeetCodeCN: "leetcode-cn" }, PREMIUM_URL_CN: "cn-premium", PREMIUM_URL_GLOBAL: "global-premium",
         ProblemState: { AC: 1, NotAC: 2 },
     },
+    "../utils/problemDocumentContext": { getProblemFile: (id: string) => problemFiles.get(id), problemFileEvents },
     "../utils/settingUtils": { shouldUseEndpointTranslation: () => true },
     "../utils/uiUtils": {
         openSettingsEditor: async () => undefined,
@@ -139,6 +143,7 @@ function editor(text: string, isProblem: boolean = true): { document: { problem:
 
 beforeEach(() => {
     executed.length = 0; fetches.length = 0; solutionFetches.length = 0; shown.length = 0; lookups.length = 0;
+    problemFiles.clear();
     premium = false; user = "user"; currentProblemId = undefined; vscodeWindow.activeTextEditor = undefined;
     scope = "scope"; useRealProvider = false;
 });
@@ -265,6 +270,26 @@ test("actions run LeetCode commands for the shown problem and ignore anything el
     await post({ command: "submissions" });
     assert.deepEqual(executed.map(([command]) => command), ["leetcode.showProblem", "leetcode.addFavorite", "leetcode.showSubmissions"]);
     assert.ok(executed.every(([, node]) => node instanceof FakeNode && node.slug === "five"));
+});
+
+test("a problem with a solution file offers Test and Submit for that file instead of Code Now", async () => {
+    const { view, post, dispose } = createView();
+    await leetCodePreviewProvider.show(problem("35", "thirty-five"), { detail: detail("thirty-five", "<p>35</p>") });
+    assert.match(content(view), /data-command="code"/);
+    await post({ command: "test" });
+    assert.deepEqual(executed, [], "nothing to test without a file");
+
+    problemFiles.set("35", "file:///35.two-sum.py");
+    problemFileEvents.emit("changed");
+    assert.match(content(view), /data-command="test">Test<\/button><button data-command="submit">Submit</);
+    assert.doesNotMatch(content(view), /data-command="code"/);
+    await post({ command: "test" });
+    await post({ command: "submit" });
+    assert.deepEqual(executed, [["leetcode.testSolution", "file:///35.two-sum.py"], ["leetcode.submitSolution", "file:///35.two-sum.py"]]);
+
+    const listeners: number = problemFileEvents.listenerCount("changed");
+    dispose();
+    assert.equal(problemFileEvents.listenerCount("changed"), listeners - 1);
 });
 
 test("previewing a list item reveals the sidebar description", async () => {
