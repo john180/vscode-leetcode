@@ -31,6 +31,8 @@ test("submitSolution posts the submission and maps a successful judge result", a
             memory: 8388608,
             runtime_percentile: 91.234,
             memory_percentile: null,
+            lang: "cpp",
+            pretty_lang: "C++",
             total_correct: 66,
             total_testcases: 66,
             std_output: "debug\n",
@@ -51,6 +53,7 @@ test("submitSolution posts the submission and maps a successful judge result", a
         assert.equal(result.memory, "8.0 MB");
         assert.equal(result.runtimePercentile, 91.234);
         assert.equal(result.memoryPercentile, undefined);
+        assert.equal(result.language, "C++", "the display name of the language the percentiles are among");
         assert.equal(result.totalCorrect, 66);
         assert.equal(result.stdout, "debug\n");
     } finally {

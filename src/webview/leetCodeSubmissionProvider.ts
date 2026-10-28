@@ -3,6 +3,7 @@
 
 import { commands, Disposable, env, l10n, TextDocument, Webview, WebviewView, WebviewViewProvider, window, workspace } from "vscode";
 import type { ISubmissionResult, ITestCaseResult } from "../api/submission";
+import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { IProblem } from "../shared";
 import { compileDiagnostics } from "../utils/compileDiagnostics";
@@ -16,22 +17,35 @@ export const RESULT_ACTION_COMMAND: string = "leetcode.resultAction";
 
 type StatusKind = "ok" | "warn" | "fail";
 
-const STATUS_ICONS: { [kind in StatusKind]: string } = { ok: "✓", warn: "⚠", fail: "✗" };
+const STATUS_ICONS: { [kind in StatusKind]: string } = { ok: "✓", warn: "!", fail: "✗" };
 /** Longer texts start collapsed. */
 const LONG_TEXT_LINES: number = 30;
 const LONG_TEXT_LENGTH: number = 3000;
 
+/** The summary is one row in a wide panel and wraps in a narrow one. */
 const style: string = `
     body { background: transparent; padding: 4px 16px 16px; tab-size: 4; }
-    .status { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; }
-    .status h2 { margin: 0; font-size: 1.3em; }
-    .status.ok { color: var(--vscode-testing-iconPassed); }
-    .status.warn { color: var(--vscode-editorWarning-foreground); }
-    .status.fail { color: var(--vscode-testing-iconFailed); }
-    .stats { display: flex; flex-wrap: wrap; gap: 2px 20px; margin: 0 0 8px; padding: 0; list-style: none; }
+    .summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin: 8px 0 12px; }
+    .status { display: flex; align-items: center; gap: 10px; }
+    .status.ok { --status: var(--vscode-testing-iconPassed); }
+    .status.warn { --status: var(--vscode-editorWarning-foreground); }
+    .status.fail { --status: var(--vscode-testing-iconFailed); }
+    .status .icon { display: flex; flex: none; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; }
+    .status .icon { font-size: 17px; font-weight: 700; color: var(--vscode-editor-background); background: var(--status); }
+    .status h2 { margin: 0; font-size: 1.4em; font-weight: 600; line-height: 1.2; color: var(--status); }
+    .status .note { margin: 2px 0 0; }
+    .stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .stat { display: flex; flex-direction: column; min-width: 120px; padding: 6px 12px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; }
+    .stat .value { font-size: 1.3em; font-weight: 600; }
+    .stat .label, .stat .beats { font-size: 0.9em; }
     .label, .beats, .note { color: var(--vscode-descriptionForeground); }
-    .actions { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0; }
-    .case { margin: 8px 0; padding: 4px 10px; border: 1px solid var(--vscode-panel-border); border-left-width: 3px; border-radius: 3px; }
+    .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 12px; margin-left: auto; }
+    a.button, a.button:hover { padding: 4px 12px; border: 1px solid var(--vscode-button-border, transparent); border-radius: 2px; text-decoration: none; }
+    a.button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+    a.button:hover { color: var(--vscode-button-foreground); background: var(--vscode-button-hoverBackground); }
+    a.button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+    a.button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+    .case { margin: 8px 0; padding: 4px 10px; border: 1px solid var(--vscode-panel-border); border-left-width: 3px; border-radius: 4px; }
     .case.pass { border-left-color: var(--vscode-testing-iconPassed); }
     .case.fail { border-left-color: var(--vscode-testing-iconFailed); }
     .case > summary { padding: 2px 0; font-weight: 600; cursor: pointer; }
@@ -46,12 +60,11 @@ const style: string = `
 `;
 
 interface IFieldOptions {
-    /** What to show instead of the text that is copied or tested. */
+    /** What to show instead of the text that is copied. */
     display?: string;
     /** The changed part to highlight, as [start, end). */
     mark?: [number, number];
     markClass?: "removed" | "inserted";
-    testable?: boolean;
 }
 
 function getStatusKind(status: string): StatusKind {
@@ -59,6 +72,15 @@ function getStatusKind(status: string): StatusKind {
         return "ok";
     }
     return /Limit Exceeded/i.test(status) ? "warn" : "fail";
+}
+
+/** A test run counts its cases; a submission reports how many of the judge's cases passed. */
+function getPassedNote(result: ISubmissionResult): string | undefined {
+    const passed: number | undefined = result.cases
+        ? result.cases.filter((testCase: ITestCaseResult) => testCase.passed === true).length
+        : result.totalCorrect;
+    const total: number | undefined = result.cases ? result.cases.length : result.totalTestcases;
+    return passed !== undefined && total ? l10n.t("{0} / {1} test cases passed", passed, total) : undefined;
 }
 
 /** Prefix each input line with its parameter, when there is one per line. */
@@ -159,6 +181,13 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
             case "submit":
                 await commands.executeCommand("leetcode.submitSolution", this.document?.uri);
                 break;
+            case "solution":
+            case "submissions":
+                if (this.problem) {
+                    const node: LeetCodeNode = this.problem instanceof LeetCodeNode ? this.problem : new LeetCodeNode(this.problem);
+                    await commands.executeCommand(action === "solution" ? "leetcode.showSolution" : "leetcode.showSubmissions", node);
+                }
+                break;
         }
     }
 
@@ -233,11 +262,12 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     private getResultHtml(result: ISubmissionResult): string {
         const status: string = result.statusMessage || result.state;
         const kind: StatusKind = getStatusKind(status);
-        const parts: string[] = [
-            `<header class="status ${kind}"><span aria-hidden="true">${STATUS_ICONS[kind]}</span><h2>${escapeHtml(status)}</h2></header>`,
-            this.getStats(result),
-            this.getActions(result, kind),
-        ];
+        const note: string | undefined = getPassedNote(result);
+        const header: string = [
+            `<header class="status ${kind}"><span class="icon" aria-hidden="true">${STATUS_ICONS[kind]}</span>`,
+            `<div><h2>${escapeHtml(status)}</h2>${note ? `<p class="note">${escapeHtml(note)}</p>` : ""}</div></header>`,
+        ].join("");
+        const parts: string[] = [`<section class="summary">${header}${this.getStats(result)}${this.getActions(result, kind)}</section>`];
         if (result.compileError) {
             parts.push(this.getField(l10n.t("Compile Error"), result.compileError));
         }
@@ -248,12 +278,13 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
             const { cases } = result;
             parts.push(...cases.map((testCase: ITestCaseResult, index: number) =>
                 this.getCase(result, testCase, l10n.t("Case {0}", index + 1), cases.length <= 3 || testCase.passed !== true)));
-        } else if (result.lastTestcase || result.codeOutput !== undefined || result.expectedOutput !== undefined) {
+        } else if (kind !== "ok" && (result.lastTestcase || result.codeOutput !== undefined || result.expectedOutput !== undefined)) {
+            // The judge sends these fields empty for an accepted submission, so only a failed one has a case to show.
             // What a submission printed belongs to the case it failed on.
             const failed: ITestCaseResult = {
                 input: result.lastTestcase || undefined, output: result.codeOutput, expected: result.expectedOutput, stdout: result.stdout, passed: false,
             };
-            return [...parts, this.getCase(result, failed, l10n.t("Last Testcase"), true, true)].join("\n");
+            return [...parts, this.getCase(result, failed, l10n.t("Last Testcase"), true)].join("\n");
         }
         if (result.input) {
             parts.push(this.getField(l10n.t("Input"), result.input));
@@ -265,11 +296,16 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     }
 
     private getStats(result: ISubmissionResult): string {
-        const stat = (label: string, value: string, percentile?: number): string => [
-            `<li><span class="label">${escapeHtml(label)}</span> ${escapeHtml(value)}`,
-            percentile === undefined ? "" : ` <span class="beats">${escapeHtml(l10n.t("beats {0}%", percentile.toFixed(2)))}</span>`,
-            "</li>",
-        ].join("");
+        const stat = (label: string, value: string, percentile?: number): string => {
+            const beats: string | undefined = percentile === undefined ? undefined : result.language
+                ? l10n.t("Beats {0}% of users with {1}", percentile.toFixed(2), result.language)
+                : l10n.t("Beats {0}%", percentile.toFixed(2));
+            return [
+                `<li class="stat"><span class="label">${escapeHtml(label)}</span><span class="value">${escapeHtml(value)}</span>`,
+                beats ? `<span class="beats">${escapeHtml(beats)}</span>` : "",
+                "</li>",
+            ].join("");
+        };
         const items: string[] = [];
         if (result.runtime) {
             items.push(stat(l10n.t("Runtime"), result.runtime, result.runtimePercentile));
@@ -277,26 +313,32 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
         if (result.memory) {
             items.push(stat(l10n.t("Memory"), result.memory, result.memoryPercentile));
         }
-        if (result.totalCorrect !== undefined) {
-            const total: string = result.totalTestcases !== undefined ? ` / ${result.totalTestcases}` : "";
-            items.push(stat(l10n.t("Passed"), `${result.totalCorrect}${total}`));
-        }
         return items.length > 0 ? `<ul class="stats">${items.join("")}</ul>` : "";
     }
 
+    /** The next step: submit a passing test run, test a failed submission's case, or learn from the solution. */
     private getActions(result: ISubmissionResult, kind: StatusKind): string {
         const links: string[] = [];
-        // An accepted test run passed every case.
-        if (result.cases && kind === "ok") {
-            links.push(this.getActionLink(l10n.t("Submit"), "submit"));
-        }
+        // Only submissions have a page on LeetCode.
         if (result.submissionUrl) {
+            if (kind !== "ok" && result.lastTestcase) {
+                links.push(this.getActionLink(l10n.t("Test with this input"), "test", this.texts.push(result.lastTestcase) - 1, "button"));
+            }
+            if (!result.compileError) {
+                links.push(this.getActionLink(l10n.t("View Solution"), "solution", undefined, "button secondary"));
+            }
+            if (kind === "ok") {
+                links.push(this.getActionLink(l10n.t("Submissions"), "submissions", undefined, "button secondary"));
+            }
             links.push(`<a href="${escapeHtml(result.submissionUrl)}">${escapeHtml(l10n.t("View the submission on LeetCode"))}</a>`);
+        } else if (result.cases && kind === "ok") {
+            // An accepted test run passed every case.
+            links.push(this.getActionLink(l10n.t("Submit"), "submit", undefined, "button"));
         }
         return links.length > 0 ? `<div class="actions">${links.join("")}</div>` : "";
     }
 
-    private getCase(result: ISubmissionResult, testCase: ITestCaseResult, title: string, open: boolean, testable: boolean = false): string {
+    private getCase(result: ISubmissionResult, testCase: ITestCaseResult, title: string, open: boolean): string {
         const state: string = testCase.passed === true ? "pass" : testCase.passed === false ? "fail" : "";
         const icon: string = testCase.passed === true ? "✓" : testCase.passed === false ? "✗" : "•";
         const { input, output, expected, stdout } = testCase;
@@ -305,7 +347,7 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
             : undefined;
         const fields: string[] = [];
         if (input !== undefined) {
-            fields.push(this.getField(l10n.t("Input"), input, { display: labelInput(input, result.paramNames), testable }));
+            fields.push(this.getField(l10n.t("Input"), input, { display: labelInput(input, result.paramNames) }));
         }
         if (output !== undefined) {
             fields.push(this.getField(l10n.t("Output"), output, diff && { mark: [diff.prefix, output.length - diff.suffix], markClass: "removed" }));
@@ -320,11 +362,7 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     }
 
     private getField(label: string, text: string, options: IFieldOptions = {}): string {
-        const index: number = this.texts.push(text) - 1;
-        const links: string[] = [this.getActionLink(l10n.t("Copy"), "copy", index)];
-        if (options.testable) {
-            links.push(this.getActionLink(l10n.t("Test with this input"), "test", index));
-        }
+        const links: string[] = [this.getActionLink(l10n.t("Copy"), "copy", this.texts.push(text) - 1)];
         const [start, end] = options.mark ?? [0, 0];
         const body: string = options.mark && end > start
             ? `${escapeHtml(text.slice(0, start))}<mark class="${options.markClass}">${escapeHtml(text.slice(start, end))}</mark>${escapeHtml(text.slice(end))}`
@@ -338,10 +376,10 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
         return `<div class="field"><div class="field-head"><span class="label">${escapeHtml(label)}</span>${actions}</div><pre>${body}</pre></div>`;
     }
 
-    private getActionLink(label: string, action: string, index?: number): string {
+    private getActionLink(label: string, action: string, index?: number, className?: string): string {
         const args: unknown[] = index === undefined ? [this.run, action] : [this.run, action, index];
         const href: string = `command:${RESULT_ACTION_COMMAND}?${encodeURIComponent(JSON.stringify(args))}`;
-        return `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+        return `<a${className ? ` class="${className}"` : ""} href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
     }
 
     private async showKeybindingsHint(): Promise<void> {

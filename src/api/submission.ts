@@ -38,6 +38,8 @@ export interface ISubmissionResult {
     /** Share of accepted submissions this one beats, in percent. */
     runtimePercentile?: number;
     memoryPercentile?: number;
+    /** The language's display name, which the percentiles are among. */
+    language?: string;
     totalCorrect?: number;
     totalTestcases?: number;
     compileError?: string;
@@ -66,6 +68,8 @@ interface ICheckResponse {
     memory?: string | number;
     runtime_percentile?: number | null;
     memory_percentile?: number | null;
+    lang?: string;
+    pretty_lang?: string;
     total_correct?: number;
     total_testcases?: number;
     correct_answer?: boolean;
@@ -161,6 +165,7 @@ function mapCommon(data: ICheckResponse): ISubmissionResult {
         memory: formatMemory(data.status_memory || data.memory),
         runtimePercentile: toPercentile(data.runtime_percentile),
         memoryPercentile: toPercentile(data.memory_percentile),
+        language: data.pretty_lang || data.lang || undefined,
         totalCorrect: data.total_correct,
         totalTestcases: data.total_testcases,
         compileError: data.full_compile_error || undefined,
