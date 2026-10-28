@@ -25,7 +25,6 @@
     "Login was not completed: {0}": "登录未完成：{0}",
     "Your LeetCode session has expired. Please sign in again.": "LeetCode 会话已过期，请重新登录。",
     "Sign In": "登录",
-    "AC rate: {0}, Difficulty: {1}": "通过率：{0}，难度：{1}",
     "Browse...": "浏览...",
     "Click this item to DELETE a session": "点击此项删除会话",
     "Click this item to create a session": "点击此项创建会话",
@@ -155,5 +154,11 @@
     "Select a problem in the list above, or open a problem file to see its description.": "在上方列表中选择题目，或打开题目代码文件，即可在此查看题目描述。",
     "Loading the problem description...": "正在加载题目描述...",
     "This problem requires a LeetCode Premium subscription.": "此题为会员专享题目。",
-    "Get Premium": "开通会员"
+    "Get Premium": "开通会员",
+    "Matches are highlighted in the problem list. Press Enter for the next match.": "匹配的题目会在题目列表中高亮，按 Enter 跳到下一个。",
+    "\"{0}\" · {1} in {2}": "“{0}” · {2} {1} 道",
+    "{0} matches in {1}.": "{1}中有 {0} 道匹配的题目。",
+    "No problems match \"{0}\".": "没有匹配“{0}”的题目。",
+    "Search: \"{0}\"": "搜索：“{0}”",
+    "No matching problems": "没有匹配的题目"
 }

@@ -17,7 +17,7 @@ import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { leetCodeManager } from "../leetCodeManager";
-import { Endpoint, IProblem, IQuickItemEx, languages, ProblemState } from "../shared";
+import { Endpoint, IProblem, languages } from "../shared";
 import { isProblemDocument } from "../utils/problemDocumentContext";
 import { genFileExt, genFileName, getNodeIdFromText } from "../utils/problemUtils";
 import * as settingUtils from "../utils/settingUtils";
@@ -33,7 +33,7 @@ import {
 import { selectWorkspaceFolder } from "../utils/workspaceUtils";
 import { leetCodePreviewProvider } from "../webview/leetCodePreviewProvider";
 import { leetCodeSolutionProvider } from "../webview/leetCodeSolutionProvider";
-import { getProblemById, getProblemBySlug, getProblemCacheScope, getProblemPage, getRandomProblem, IProblemQuery } from "../api/problems";
+import { getProblemById, getProblemBySlug, getRandomProblem } from "../api/problems";
 import { getLeetCodeEndpoint } from "./plugin";
 
 async function findProblemById(id: string): Promise<IProblem | undefined> {
@@ -112,83 +112,6 @@ export async function showProblem(node?: LeetCodeNode): Promise<void> {
         return;
     }
     await showProblemInternal(node);
-}
-
-export async function searchProblem(): Promise<void> {
-    if (!leetCodeManager.getUser()) {
-        promptForSignIn();
-        return;
-    }
-    type SearchPick = IQuickItemEx<IProblem | undefined> & { action?: "more" | "retry" };
-    const picker = vscode.window.createQuickPick<SearchPick>();
-    picker.placeholder = vscode.l10n.t("Search by id, title or slug; use tag:array or company:google to filter");
-    const scope = getProblemCacheScope();
-    let version = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let disposed = false;
-    let next = 0;
-    let picks: SearchPick[] = [];
-    const query = (): IProblemQuery => {
-        let search = picker.value;
-        const options: IProblemQuery = {};
-        search = search.replace(/(?:^|\s)(tag|company):([\w-]+)/g, (_match, kind: "tag" | "company", slug: string) => {
-            options[kind] = slug;
-            return " ";
-        });
-        return { ...options, search: search.trim() };
-    };
-    const load = async (append: boolean, force: boolean = false): Promise<void> => {
-        const current = ++version;
-        const options = query();
-        picker.busy = true;
-        try {
-            const page = await getProblemPage({ ...options, skip: append ? next : 0 }, force, false);
-            if (disposed || current !== version || scope !== getProblemCacheScope()) { return; }
-            const incoming = parseProblemsToPicks(page.problems).map((pick) => ({ ...pick, alwaysShow: true }));
-            picks = append ? [...picks, ...incoming] : incoming;
-            const unique = new Map(picks.map((pick) => [pick.value!.id, pick]));
-            picks = [...unique.values()];
-            next = page.next;
-            picker.items = page.hasMore ? [...picks, { label: vscode.l10n.t("Load more..."), value: undefined, action: "more", alwaysShow: true }] : picks;
-        } catch (error) {
-            if (disposed || current !== version) { return; }
-            leetCodeChannel.appendLine(String(error));
-            picker.items = [...picks, { label: vscode.l10n.t("Loading failed. Click to retry."), value: undefined, action: "retry", alwaysShow: true }];
-        } finally {
-            if (!disposed && current === version) { picker.busy = false; }
-        }
-    };
-    const choice = await new Promise<IProblem | undefined>((resolve) => {
-        const subscriptions = [
-            picker.onDidChangeValue(() => {
-                version++;
-                clearTimeout(timer);
-                picks = [];
-                next = 0;
-                picker.items = [];
-                timer = setTimeout(() => { void load(false); }, 300);
-            }),
-            picker.onDidAccept(() => {
-                if (picker.busy || scope !== getProblemCacheScope()) { return; }
-                const selected = picker.selectedItems[0];
-                if (!selected) { return; }
-                if (selected.action) { void load(next > 0, selected.action === "retry"); return; }
-                resolve(selected.value);
-                picker.hide();
-            }),
-            picker.onDidHide(() => {
-                disposed = true;
-                version++;
-                clearTimeout(timer);
-                subscriptions.forEach((subscription) => subscription.dispose());
-                picker.dispose();
-                resolve(undefined);
-            }),
-        ];
-        picker.show();
-        void load(false);
-    });
-    if (choice) { await showProblemInternal(choice); }
 }
 
 export async function showSolution(input: LeetCodeNode | vscode.Uri): Promise<void> {
@@ -321,43 +244,6 @@ async function showProblemInternal(node: IProblem): Promise<void> {
         await Promise.all(promises);
     } catch (error) {
         await promptForOpenOutputChannel(vscode.l10n.t("{0} Please open the output channel for details.", String(error)), DialogType.error);
-    }
-}
-
-function parseProblemsToPicks(problems: IProblem[]): Array<IQuickItemEx<IProblem>> {
-    return problems.map((problem: IProblem) => {
-            const tags: string = problem.tags.slice(0, 5).join(", ");
-            const companies: string = problem.companies.slice(0, 5).join(", ");
-            const details: string[] = [
-                `${vscode.l10n.t("AC rate: {0}, Difficulty: {1}", problem.passRate, problem.difficulty)}`,
-                `${problem.slug}`,
-            ];
-            if (tags) {
-                details.push(`${vscode.l10n.t("Tags")}: ${tags}`);
-            }
-            if (companies) {
-                details.push(`${vscode.l10n.t("Companies")}: ${companies}`);
-            }
-            return Object.assign(
-                {},
-                {
-                    label: `${parseProblemDecorator(problem.state, problem.locked)}${problem.id}.${problem.name}`,
-                    description: problem.slug,
-                    detail: details.join(" · "),
-                    value: problem,
-                }
-            );
-        });
-}
-
-function parseProblemDecorator(state: ProblemState, locked: boolean): string {
-    switch (state) {
-        case ProblemState.AC:
-            return "$(check) ";
-        case ProblemState.NotAC:
-            return "$(x) ";
-        default:
-            return locked ? "$(lock) " : "";
     }
 }
 

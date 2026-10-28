@@ -9,6 +9,7 @@
     "command.showProblem": "Show Problem",
     "command.previewProblem": "Show Description",
     "command.searchProblem": "Search Problem",
+    "command.clearSearch": "Clear Search",
     "command.showSolution": "Show Top Voted Solution",
     "command.testSolution": "Test in LeetCode",
     "command.submitSolution": "Submit to LeetCode",

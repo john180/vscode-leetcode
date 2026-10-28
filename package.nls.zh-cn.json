@@ -9,6 +9,7 @@
     "command.showProblem": "打开题目",
     "command.previewProblem": "查看题目描述",
     "command.searchProblem": "搜索题目",
+    "command.clearSearch": "清除搜索",
     "command.showSolution": "查看高赞题解",
     "command.testSolution": "在 LeetCode 测试",
     "command.submitSolution": "提交到 LeetCode",

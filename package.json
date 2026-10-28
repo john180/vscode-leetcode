@@ -83,6 +83,12 @@
                 "icon": "$(search)"
             },
             {
+                "command": "leetcode.clearSearch",
+                "title": "%command.clearSearch%",
+                "category": "LeetCode",
+                "icon": "$(close)"
+            },
+            {
                 "command": "leetcode.showSolution",
                 "title": "%command.showSolution%",
                 "category": "LeetCode"
@@ -189,9 +195,14 @@
                     "group": "navigation@2"
                 },
                 {
+                    "command": "leetcode.clearSearch",
+                    "when": "view == leetCodeExplorer && leetcode.searching",
+                    "group": "navigation@3"
+                },
+                {
                     "command": "leetcode.refreshExplorer",
                     "when": "view == leetCodeExplorer",
-                    "group": "navigation@3"
+                    "group": "navigation@4"
                 },
                 {
                     "command": "leetcode.signout",
@@ -263,6 +274,10 @@
                 {
                     "command": "leetcode.previewProblem",
                     "when": "leetcode.isProblem"
+                },
+                {
+                    "command": "leetcode.clearSearch",
+                    "when": "leetcode.searching"
                 },
                 {
                     "command": "leetcode.addFavorite",

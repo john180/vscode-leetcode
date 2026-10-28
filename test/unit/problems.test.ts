@@ -59,11 +59,20 @@ function question(id: string) {
     return { questionFrontendId: id, title: 'Problem ' + id, translatedTitle: '题目 ' + id, titleSlug: 'problem-' + id.replace(/ /g, '-'),
         difficulty: 'EASY', status: 'TO_DO', acRate: 0.5, topicTags: [] };
 }
+const favorites = { favorites: { leetcode_favorites: [{ id_hash: 'hot', name: 'LeetCode Hot 100', questions: [
+    { id: 1, title: 'Two Sum', title_slug: 'two-sum' },
+    { id: 2, title: 'Add Two Numbers', title_slug: 'add-two-numbers' },
+    { id: 3, title: 'Longest Substring', title_slug: 'longest-substring' },
+] }] } };
 
 beforeEach(async () => {
     endpoint = 'leetcode'; cookie = 'account-a'; translated = true; hideSolved = false;
-    calls = []; fail = false; gate = undefined; explorer.dispose(); await problemCache.clear();
+    calls = []; fail = false; gate = undefined; explorer.setSearch(''); explorer.dispose(); await problemCache.clear();
     axios.defaults.adapter = async (config: any) => {
+        if (config.url.endsWith('/list/api/questions')) {
+            calls.push({ query: 'favorites', variables: {}, url: config.url, cookie: config.headers.cookie });
+            return { data: favorites, status: 200, statusText: 'OK', headers: {}, config };
+        }
         const payload = JSON.parse(config.data);
         calls.push({ ...payload, url: config.url, cookie: config.headers.cookie });
         if (gate) { await gate; }
@@ -189,4 +198,50 @@ test('failed load-more retries the missing page without discarding earlier pages
 test('failed catalog refresh preserves previous categories', async () => {
     await explorer.getChildren('Tag'); await explorer.refreshCache(true); fail = true;
     const nodes = await explorer.getChildren('Tag'); assert.equal(nodes[0].id, 'Tag.array'); assert.equal(nodes.at(-1).action.kind, 'retry');
+});
+
+test('searching filters list pages in memory and clearing restores the pages already browsed', async () => {
+    await explorer.getChildren('All'); await explorer.loadMore('All');
+    assert.equal((await explorer.getChildren('All')).length, 101); assert.equal(calls.length, 2);
+    assert.equal(explorer.setSearch(' two '), true); assert.equal(explorer.setSearch('two'), false);
+    const matches = await explorer.getChildren('All');
+    assert.equal(calls.length, 3); assert.equal(calls[2].variables.searchKeyword, 'two'); assert.equal(calls[2].variables.skip, 0);
+    assert.deepEqual(matches.map((node: any) => node.treeId), ['All/999', 'All/two']);
+    assert.equal(explorer.getTotal('All'), 2);
+    await problemCache.flush();
+    assert.equal(JSON.stringify([...disk]).includes('two'), false, 'search results are not written to disk');
+    explorer.setSearch('');
+    assert.equal((await explorer.getChildren('All')).length, 101); assert.equal(calls.length, 3);
+});
+
+test('search results carry category-scoped ids and resolve their parents up to the root', async () => {
+    explorer.setSearch('two');
+    const [problem] = await explorer.getChildren('Tag.array');
+    assert.equal(problem.treeId, 'Tag.array/999');
+    assert.equal(calls.at(-1)!.variables.filters.topicFilter.topicSlugs[0], 'array');
+    const tag = explorer.getParent(problem); assert.equal(tag.id, 'Tag.array');
+    const root = explorer.getParent(tag); assert.equal(root.id, 'Tag'); assert.equal(root.name, 'Tag');
+    assert.equal(explorer.getParent(root), undefined);
+});
+
+test('favorite lists are searched locally by title and by names of problems seen before', async () => {
+    const metadata = () => calls.filter((call) => call.query.includes('problemMetadata')).map((call) => call.variables.titleSlug);
+    explorer.setSearch('two');
+    await explorer.getChildren('Hot100');
+    assert.deepEqual(metadata(), ['two-sum', 'add-two-numbers']); assert.equal(explorer.getTotal('Hot100'), 2);
+    // Both visited problems are now cached under the translated name "题目 42".
+    explorer.setSearch('题目 42');
+    await explorer.getChildren('Hot100'); assert.equal(explorer.getTotal('Hot100'), 2);
+    explorer.setSearch('zzz');
+    assert.deepEqual((await explorer.getChildren('Hot100')).map((node: any) => node.action?.kind), ['empty']);
+});
+
+test('matches follow the expanded categories in tree order', async () => {
+    explorer.setSearch('two');
+    await explorer.getChildren('All'); await explorer.getChildren('Difficulty'); await explorer.getChildren('Difficulty.Easy');
+    const ids = () => explorer.getMatches().map((node: any) => node.treeId);
+    assert.deepEqual(ids(), ['All/999', 'All/two', 'Difficulty.Easy/999', 'Difficulty.Easy/two']);
+    explorer.collapse('All'); assert.deepEqual(ids(), ['Difficulty.Easy/999', 'Difficulty.Easy/two']);
+    explorer.collapse('Difficulty'); assert.deepEqual(ids(), []);
+    explorer.expand('Difficulty'); assert.equal(ids().length, 2);
 });

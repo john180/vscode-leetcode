@@ -7,6 +7,7 @@ import { leetCodeManager } from "../leetCodeManager";
 import { ProblemState, UserStatus } from "../shared";
 import { explorerNodeManager } from "./explorerNodeManager";
 import { LeetCodeNode } from "./LeetCodeNode";
+import { highlightRanges } from "./problemSearch";
 import { globalState } from "../globalState";
 import { problemCache } from "../api/problemCache";
 import { getProblemCacheScope } from "../api/problems";
@@ -14,6 +15,7 @@ import { getProblemCacheScope } from "../api/problems";
 export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCodeNode> {
     private context: vscode.ExtensionContext;
     private treeView: vscode.TreeView<LeetCodeNode> | undefined;
+    private lastProblemParent: string | undefined;
 
     private onDidChangeTreeDataEvent: vscode.EventEmitter<LeetCodeNode | undefined | null> = new vscode.EventEmitter<
         LeetCodeNode | undefined | null
@@ -43,6 +45,48 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
 
     public setTreeView(treeView: vscode.TreeView<LeetCodeNode>): void {
         this.treeView = treeView;
+        this.context.subscriptions.push(
+            // Re-expanding reuses VS Code's cached children, so getChildren alone cannot track expansion.
+            treeView.onDidExpandElement(({ element }) => explorerNodeManager.expand(element.id)),
+            treeView.onDidCollapseElement(({ element }) => explorerNodeManager.collapse(element.id)),
+            treeView.onDidChangeSelection(({ selection }) => {
+                if (selection[0]?.isProblem) {
+                    this.lastProblemParent = selection[0].parentId;
+                }
+            }),
+        );
+    }
+
+    public get selection(): readonly LeetCodeNode[] {
+        return this.treeView?.selection ?? [];
+    }
+
+    /** The category of the problem selected last, where a new search looks first. */
+    public get lastProblemParentId(): string | undefined {
+        return this.lastProblemParent;
+    }
+
+    public async reveal(node: LeetCodeNode, options: { select?: boolean; focus?: boolean; expand?: boolean }): Promise<void> {
+        await this.treeView?.reveal(node, options);
+    }
+
+    /** Applies a search to the list; returns false when it did not change. */
+    public search(text: string): boolean {
+        if (!explorerNodeManager.setSearch(text)) {
+            return false;
+        }
+        this.showSearchResult();
+        this.onDidChangeTreeDataEvent.fire(null);
+        return true;
+    }
+
+    public showSearchResult(description?: string, message?: string): void {
+        const search = explorerNodeManager.getSearch();
+        void vscode.commands.executeCommand("setContext", "leetcode.searching", Boolean(search));
+        if (this.treeView) {
+            this.treeView.description = search ? description ?? vscode.l10n.t('Search: "{0}"', search.text) : undefined;
+            this.treeView.message = search ? message : undefined;
+        }
     }
 
     public setMessage(message: string | undefined): void {
@@ -59,6 +103,8 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
         }
         if (leetCodeManager.getStatus() === UserStatus.SignedOut) {
             explorerNodeManager.dispose();
+            explorerNodeManager.setSearch("");
+            this.showSearchResult();
             this.setMessage(undefined);
             this.onDidChangeTreeDataEvent.fire(null);
             return;
@@ -100,17 +146,23 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
             contextValue = element.id.toLowerCase();
         }
 
+        const label: string = element.isProblem ? `[${element.id}] ${element.name}` + this.parsePremiumUnLockIconPath(element) : element.name;
+        const terms: string[] | undefined = element.isProblem ? explorerNodeManager.getSearch()?.terms : undefined;
         return {
-            id: element.isProblem ? undefined : element.id,
-            label: element.isProblem ? `[${element.id}] ${element.name}` + this.parsePremiumUnLockIconPath(element) : element.name,
+            id: element.treeId,
+            label: terms?.length ? { label, highlights: highlightRanges(label, terms) } : label,
             tooltip: element.isProblem ? element.name : undefined,
             collapsibleState: element.isProblem || element.action ? vscode.TreeItemCollapsibleState.None : vscode.TreeItemCollapsibleState.Collapsed,
             iconPath: this.parseIconPathFromProblemState(element),
-            command: element.action ? { title: element.name, command: "leetcode.loadMoreProblems", arguments: [element] }
+            command: element.action ? (element.action.kind === "empty" ? undefined : { title: element.name, command: "leetcode.loadMoreProblems", arguments: [element] })
                 : element.isProblem ? element.previewCommand : undefined,
             resourceUri: element.uri,
             contextValue,
         };
+    }
+
+    public getParent(element: LeetCodeNode): vscode.ProviderResult<LeetCodeNode> {
+        return explorerNodeManager.getParent(element);
     }
 
     public getChildren(element?: LeetCodeNode | undefined): vscode.ProviderResult<LeetCodeNode[]> {

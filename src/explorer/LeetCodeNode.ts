@@ -9,7 +9,9 @@ export class LeetCodeNode {
     constructor(
         private data: IProblem,
         private isProblemNode: boolean = true,
-        public readonly action?: { parentId: string; kind: "more" | "retry" },
+        public readonly action?: { parentId: string; kind: "more" | "retry" | "empty" },
+        /** The category this node is listed under; undefined for root categories and detached problems. */
+        public readonly parentId?: string,
     ) { }
 
     public get locked(): boolean {
@@ -57,6 +59,11 @@ export class LeetCodeNode {
 
     public get isProblem(): boolean {
         return this.isProblemNode;
+    }
+
+    /** Unique in the tree: one problem can be listed under several categories. */
+    public get treeId(): string {
+        return this.isProblem ? `${this.parentId}/${this.id}` : this.id;
     }
 
     public get previewCommand(): Command {

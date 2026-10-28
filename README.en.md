@@ -43,7 +43,8 @@ The cookie is stored securely in VS Code. The site is selected from the system t
 ## Quick Start
 
 1. After signing in, pick a problem in the LeetCode view, or run **Search Problem** / **Pick One**.
-   Categories load when expanded, with 50 problems per page and a **Load more** action; favorites and Hot 100 load 20 at a time. Search by ID, title or slug, with optional filters such as `tag:array` or `company:google`.
+   Categories load when expanded, with 50 problems per page and a **Load more** action; favorites and Hot 100 load 20 at a time.
+   Click the search icon in the view title and type an ID, title or slug: the list keeps only matching problems, highlights the keyword and selects the best match without opening it. Enter moves to the next match, Escape closes the box but keeps the results, and ✕ restores the full list. `tag:array` or `company:google` search within that category only.
    Visited problems are cached locally across restarts, separately for each site, login session and language, and stale entries update in the background. Refresh reloads expanded categories; **Delete Cache** also clears the persistent problem cache. Testing, submitting and viewing history do not require the full question bank.
    Clicking a problem shows its description in **Problem Details** below the list; **Code Now** (or the code icon beside the problem) creates and opens the solution file in the editor. Switching to a problem file shows that problem in Problem Details, and the book icon in the editor title bar brings the description back into view.
 2. Edit the generated file and use the CodeLens **Test** or **Submit** action.
@@ -55,7 +56,7 @@ The cookie is stored securely in VS Code. The site is selected from the system t
 | --- | --- |
 | `LeetCode: Sign In` / `Sign Out` | Sign in or out |
 | `LeetCode: Switch Endpoint` | Switch between LeetCode and LeetCode China |
-| `LeetCode: Search Problem` | Search problems |
+| `LeetCode: Search Problem` / `Clear Search` | Filter and locate problems in the list / restore the full list |
 | `LeetCode: Show Problem` | Open a problem and generate the file |
 | `LeetCode: Show Description` | Show the active problem file's description in the sidebar |
 | `LeetCode: Test in LeetCode` | Run sample or custom tests |

@@ -6,6 +6,7 @@ import { codeLensController } from "./codelens/CodeLensController";
 import * as cache from "./commands/cache";
 import { switchDefaultLanguage } from "./commands/language";
 import * as plugin from "./commands/plugin";
+import * as search from "./commands/search";
 import * as session from "./commands/session";
 import * as show from "./commands/show";
 import * as star from "./commands/star";
@@ -100,7 +101,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.previewProblem", (input?: LeetCodeNode | vscode.Uri) => show.previewProblem(input)),
             vscode.commands.registerCommand("leetcode.showProblem", (node: LeetCodeNode) => show.showProblem(node)),
             vscode.commands.registerCommand("leetcode.pickOne", () => show.pickOne()),
-            vscode.commands.registerCommand("leetcode.searchProblem", () => show.searchProblem()),
+            vscode.commands.registerCommand("leetcode.searchProblem", () => search.searchProblem()),
+            vscode.commands.registerCommand("leetcode.clearSearch", () => search.clearSearch()),
             vscode.commands.registerCommand("leetcode.showSolution", (input: LeetCodeNode | vscode.Uri) => show.showSolution(input)),
             vscode.commands.registerCommand("leetcode.showSubmissions", (node: LeetCodeNode) => submissions.showSubmissionHistory(node)),
             vscode.commands.registerCommand("leetcode.refreshExplorer", async () => {

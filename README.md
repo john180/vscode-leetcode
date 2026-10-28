@@ -43,7 +43,8 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 ## 快速开始
 
 1. 登录后，在 LeetCode 视图中选择题目，或执行 **Search Problem** / **Pick One**。
-   题库按展开的分类加载，每页 50 道，点击“加载更多”继续；收藏和热题每页加载 20 道。搜索支持题号、标题和 slug，可使用 `tag:array` 或 `company:google` 筛选。
+   题库按展开的分类加载，每页 50 道，点击“加载更多”继续；收藏和热题每页加载 20 道。
+   点击标题栏的搜索图标输入题号、标题或 slug，题目列表会只保留匹配的题目并高亮关键字，自动定位到最匹配的一题（只选中，不打开）；按 Enter 跳到下一个，Esc 关闭输入框但保留结果，点击 ✕ 恢复完整列表。`tag:array` 或 `company:google` 只在对应分类中搜索。
    浏览过的题目会保存在本地缓存中，重启后可复用；缓存按站点、登录会话和语言隔离，过期后后台更新。刷新按钮重新加载当前展开的分类，**Delete Cache** 会清除持久化题库缓存。测试、提交和查看历史无需加载完整题库。
    单击题目后，描述显示在侧边栏下方的 **题目详情** 中；点击 **开始写代码**（或题目右侧的代码图标）在编辑区生成并打开代码文件。切换到题目代码文件时，题目详情会自动显示该题；也可点击编辑器标题栏的书本图标回到描述。
 2. 编辑生成的代码文件，用 CodeLens 的 **Test** 运行样例，或 **Submit** 提交。
@@ -55,7 +56,7 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 | --- | --- |
 | `LeetCode: Sign In` / `Sign Out` | 登录 / 退出 |
 | `LeetCode: Switch Endpoint` | 在 leetcode.cn 与 leetcode.com 之间切换 |
-| `LeetCode: Search Problem` | 搜索题目 |
+| `LeetCode: Search Problem` / `Clear Search` | 在题目列表中筛选并定位题目 / 恢复完整列表 |
 | `LeetCode: Show Problem` | 打开题目并生成代码文件 |
 | `LeetCode: Show Description` | 在侧边栏题目详情中查看当前题目文件的描述 |
 | `LeetCode: Test in LeetCode` | 用样例或自定义输入测试 |
