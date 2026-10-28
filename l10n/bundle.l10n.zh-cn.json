@@ -44,7 +44,6 @@
     "Expected": "期望输出",
     "Failed to create the session. Please open the output channel for details.": "创建会话失败，请打开输出面板查看详情。",
     "Failed to delete the session. Please open the output channel for details.": "删除会话失败，请打开输出面板查看详情。",
-    "Failed to fetch the problem description. Please open the output channel for details.": "获取题目描述失败，请打开输出面板查看详情。",
     "Failed to fetch the top voted solution. Please open the output channel for details.": "获取高赞题解失败，请打开输出面板查看详情。",
     "Failed to list problems. Please open the output channel for details.": "加载题目列表失败，请打开输出面板查看详情。",
     "Failed to read the language from the @lc header.": "无法从 @lc 头读取语言。",
@@ -97,7 +96,6 @@
     "You can configure how to show the problem description through \"leetcode.showDescription\".": "可以通过 \"leetcode.showDescription\" 配置题目描述的显示方式。",
     "You can customize shortcut key bindings in File > Preferences > Keyboard Shortcuts with query \"leetcode\".": "可以在“文件 > 首选项 > 键盘快捷方式”中搜索 \"leetcode\" 自定义快捷键。",
     "{0} Please open the output channel for details.": "{0} 请打开输出面板查看详情。",
-    "{0}: Preview": "{0}：预览",
     "add the problem to favorite": "添加收藏",
     "remove the problem from favorite": "取消收藏",
     "The cookie is not signed in for {0}. Check that leetcode.endpoint matches the cookie's site, then copy a fresh cookie.": "Cookie 在 {0} 未登录。请确认 leetcode.endpoint 与 cookie 所属站点一致，然后重新复制 cookie。",
@@ -153,5 +151,9 @@
     "Sign in as {0} on {1}?": "是否在 {1} 登录为 {0}？",
     "Continue only if this is the account you just authorized in your browser.": "仅当这是您刚在浏览器中授权的账户时才继续。",
     "Loading failed. Click to retry.": "加载失败，点击重试。",
-    "Search by id, title or slug; use tag:array or company:google to filter": "按题号、标题或 slug 搜索；使用 tag:array 或 company:google 筛选"
+    "Search by id, title or slug; use tag:array or company:google to filter": "按题号、标题或 slug 搜索；使用 tag:array 或 company:google 筛选",
+    "Select a problem in the list above, or open a problem file to see its description.": "在上方列表中选择题目，或打开题目代码文件，即可在此查看题目描述。",
+    "Loading the problem description...": "正在加载题目描述...",
+    "This problem requires a LeetCode Premium subscription.": "此题为会员专享题目。",
+    "Get Premium": "开通会员"
 }

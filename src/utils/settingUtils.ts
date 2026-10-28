@@ -29,6 +29,14 @@ export function shouldUseEndpointTranslation(): boolean {
     return getWorkspaceConfiguration().get<boolean>("useEndpointTranslation", true);
 }
 
+export function shouldFollowActiveEditor(): boolean {
+    return getWorkspaceConfiguration().get<boolean>("followActiveEditor", true);
+}
+
+export function shouldOpenSolutionBeside(): boolean {
+    return getWorkspaceConfiguration().get<boolean>("enableSideMode", true);
+}
+
 export function getDescriptionConfiguration(): IDescriptionConfiguration {
     const setting: string = getWorkspaceConfiguration().get<string>("showDescription", DescriptionConfiguration.InWebView);
     const config: IDescriptionConfiguration = {

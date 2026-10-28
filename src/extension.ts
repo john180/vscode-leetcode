@@ -53,6 +53,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             } else {
                 leetCodeTreeDataProvider.refresh();
             }
+            if (signedIn) {
+                void show.followActiveEditor(vscode.window.activeTextEditor);
+            }
         });
 
         leetCodeTreeDataProvider.initialize(context);
@@ -84,6 +87,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             explorerNodeManager,
             vscode.window.registerFileDecorationProvider(leetCodeTreeItemDecorationProvider),
             treeView,
+            vscode.window.registerWebviewViewProvider("leetCodeDetail", leetCodePreviewProvider, {
+                webviewOptions: { retainContextWhenHidden: true },
+            }),
+            vscode.window.onDidChangeActiveTextEditor((editor) => show.followActiveEditor(editor)),
             vscode.commands.registerCommand("leetcode.loadMoreProblems", (node: LeetCodeNode) => leetCodeTreeDataProvider.loadMore(node)),
             vscode.commands.registerCommand("leetcode.deleteCache", () => cache.deleteCache()),
             vscode.commands.registerCommand("leetcode.toggleLeetCodeCn", () => plugin.switchEndpoint()),

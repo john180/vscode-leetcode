@@ -4,7 +4,7 @@
 import { l10n, ViewColumn } from "vscode";
 import { getLeetCodeEndpoint } from "../commands/plugin";
 import { Endpoint } from "../shared";
-import { leetCodePreviewProvider } from "./leetCodePreviewProvider";
+import { shouldOpenSolutionBeside } from "../utils/settingUtils";
 import { ILeetCodeWebviewOption, LeetCodeWebview } from "./LeetCodeWebview";
 import { markdownEngine } from "./markdownEngine";
 
@@ -21,7 +21,7 @@ class LeetCodeSolutionProvider extends LeetCodeWebview {
     }
 
     protected getWebviewOption(): ILeetCodeWebviewOption {
-        if (leetCodePreviewProvider.isSideMode()) {
+        if (shouldOpenSolutionBeside()) {
             return {
                 title: l10n.t("Solution"),
                 viewColumn: ViewColumn.Two,

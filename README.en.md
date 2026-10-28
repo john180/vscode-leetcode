@@ -45,6 +45,7 @@ The cookie is stored securely in VS Code. The site is selected from the system t
 1. After signing in, pick a problem in the LeetCode view, or run **Search Problem** / **Pick One**.
    Categories load when expanded, with 50 problems per page and a **Load more** action; favorites and Hot 100 load 20 at a time. Search by ID, title or slug, with optional filters such as `tag:array` or `company:google`.
    Visited problems are cached locally across restarts, separately for each site, login session and language, and stale entries update in the background. Refresh reloads expanded categories; **Delete Cache** also clears the persistent problem cache. Testing, submitting and viewing history do not require the full question bank.
+   Clicking a problem shows its description in **Problem Details** below the list; **Code Now** (or the code icon beside the problem) creates and opens the solution file in the editor. Switching to a problem file shows that problem in Problem Details, and the book icon in the editor title bar brings the description back into view.
 2. Edit the generated file and use the CodeLens **Test** or **Submit** action.
 3. Click **Solution** when you need the top solution.
 
@@ -56,7 +57,7 @@ The cookie is stored securely in VS Code. The site is selected from the system t
 | `LeetCode: Switch Endpoint` | Switch between LeetCode and LeetCode China |
 | `LeetCode: Search Problem` | Search problems |
 | `LeetCode: Show Problem` | Open a problem and generate the file |
-| `LeetCode: Preview Problem` | Preview the description in a webview |
+| `LeetCode: Show Description` | Show the active problem file's description in the sidebar |
 | `LeetCode: Test in LeetCode` | Run sample or custom tests |
 | `LeetCode: Submit to LeetCode` | Submit the current file |
 | `LeetCode: Show Top Voted Solution` | Open the top solution |
@@ -71,12 +72,13 @@ The cookie is stored securely in VS Code. The site is selected from the system t
 | `leetcode.defaultLanguage` | Default language for new files | unset |
 | `leetcode.workspaceFolder` | Folder used to store problem files | `%USERPROFILE%\.leetcode` |
 | `leetcode.filePath` | Relative folder and filename template | `${id}.${kebab-case-name}.${ext}` |
-| `leetcode.showDescription` | `In Webview`, `In File Comment`, `Both`, or `None` | `In Webview` |
+| `leetcode.showDescription` | `In Webview` (sidebar Problem Details), `In File Comment`, `Both`, or `None` | `In Webview` |
+| `leetcode.followActiveEditor` | Show the active problem file in Problem Details | `true` |
 | `leetcode.hideSolved` | Hide solved problems | `false` |
 | `leetcode.useEndpointTranslation` | Use the endpoint's translated content | `true` |
 | `leetcode.enableStatusBar` | Show the LeetCode status bar item | `true` |
 | `leetcode.editor.shortcuts` | CodeLens actions: `submit`, `test`, `star`, `solution`, `description` | `["submit", "test"]` |
-| `leetcode.enableSideMode` | Open preview/solution in the second editor column | `true` |
+| `leetcode.enableSideMode` | Open the solution in the second editor column | `true` |
 | `leetcode.colorizeProblems` | Colorize problems by difficulty | `true` |
 | `leetcode.problems.sortStrategy` | `None`, `Acceptance Rate (Ascending)`, `Acceptance Rate (Descending)` | `None` |
 

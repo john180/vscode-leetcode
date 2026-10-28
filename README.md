@@ -45,6 +45,7 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 1. 登录后，在 LeetCode 视图中选择题目，或执行 **Search Problem** / **Pick One**。
    题库按展开的分类加载，每页 50 道，点击“加载更多”继续；收藏和热题每页加载 20 道。搜索支持题号、标题和 slug，可使用 `tag:array` 或 `company:google` 筛选。
    浏览过的题目会保存在本地缓存中，重启后可复用；缓存按站点、登录会话和语言隔离，过期后后台更新。刷新按钮重新加载当前展开的分类，**Delete Cache** 会清除持久化题库缓存。测试、提交和查看历史无需加载完整题库。
+   单击题目后，描述显示在侧边栏下方的 **题目详情** 中；点击 **开始写代码**（或题目右侧的代码图标）在编辑区生成并打开代码文件。切换到题目代码文件时，题目详情会自动显示该题；也可点击编辑器标题栏的书本图标回到描述。
 2. 编辑生成的代码文件，用 CodeLens 的 **Test** 运行样例，或 **Submit** 提交。
 3. 需要题解时点击 **Solution**。
 
@@ -56,7 +57,7 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 | `LeetCode: Switch Endpoint` | 在 leetcode.cn 与 leetcode.com 之间切换 |
 | `LeetCode: Search Problem` | 搜索题目 |
 | `LeetCode: Show Problem` | 打开题目并生成代码文件 |
-| `LeetCode: Preview Problem` | 在 Webview 中预览题目 |
+| `LeetCode: Show Description` | 在侧边栏题目详情中查看当前题目文件的描述 |
 | `LeetCode: Test in LeetCode` | 用样例或自定义输入测试 |
 | `LeetCode: Submit to LeetCode` | 提交代码 |
 | `LeetCode: Show Top Voted Solution` | 查看题解 |
@@ -71,12 +72,13 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 | `leetcode.defaultLanguage` | 新文件的默认语言 | 未设置 |
 | `leetcode.workspaceFolder` | 题目文件保存目录 | `%USERPROFILE%\.leetcode` |
 | `leetcode.filePath` | 相对目录与文件名模板 | `${id}.${kebab-case-name}.${ext}` |
-| `leetcode.showDescription` | `In Webview`、`In File Comment`、`Both` 或 `None` | `In Webview` |
+| `leetcode.showDescription` | `In Webview`（侧边栏题目详情）、`In File Comment`、`Both` 或 `None` | `In Webview` |
+| `leetcode.followActiveEditor` | 切换到题目代码文件时，题目详情自动显示该题 | `true` |
 | `leetcode.hideSolved` | 隐藏已通过题目 | `false` |
 | `leetcode.useEndpointTranslation` | 使用站点提供的翻译内容 | `true` |
 | `leetcode.enableStatusBar` | 显示 LeetCode 状态栏 | `true` |
 | `leetcode.editor.shortcuts` | CodeLens 操作：`submit`、`test`、`star`、`solution`、`description` | `["submit", "test"]` |
-| `leetcode.enableSideMode` | 在第二编辑列打开预览/题解 | `true` |
+| `leetcode.enableSideMode` | 在第二编辑列打开题解 | `true` |
 | `leetcode.colorizeProblems` | 按难度着色 | `true` |
 | `leetcode.problems.sortStrategy` | `None`、`Acceptance Rate (Ascending)`、`Acceptance Rate (Descending)` | `None` |
 

@@ -67,12 +67,14 @@
             {
                 "command": "leetcode.showProblem",
                 "title": "%command.showProblem%",
-                "category": "LeetCode"
+                "category": "LeetCode",
+                "icon": "$(code)"
             },
             {
                 "command": "leetcode.previewProblem",
                 "title": "%command.previewProblem%",
-                "category": "LeetCode"
+                "category": "LeetCode",
+                "icon": "$(book)"
             },
             {
                 "command": "leetcode.searchProblem",
@@ -149,6 +151,11 @@
                 {
                     "id": "leetCodeExplorer",
                     "name": "%view.problems%"
+                },
+                {
+                    "type": "webview",
+                    "id": "leetCodeDetail",
+                    "name": "%view.detail%"
                 }
             ]
         },
@@ -219,14 +226,19 @@
                     "group": "leetcode@3"
                 },
                 {
+                    "command": "leetcode.showProblem",
+                    "when": "view == leetCodeExplorer && viewItem =~ /problem*/",
+                    "group": "inline@1"
+                },
+                {
                     "command": "leetcode.addFavorite",
                     "when": "view == leetCodeExplorer && viewItem == problem",
-                    "group": "inline"
+                    "group": "inline@2"
                 },
                 {
                     "command": "leetcode.removeFavorite",
                     "when": "view == leetCodeExplorer && viewItem == problem-favorite",
-                    "group": "inline"
+                    "group": "inline@2"
                 },
                 {
                     "command": "leetcode.showSubmissions",
@@ -250,7 +262,7 @@
                 },
                 {
                     "command": "leetcode.previewProblem",
-                    "when": "never"
+                    "when": "leetcode.isProblem"
                 },
                 {
                     "command": "leetcode.addFavorite",
@@ -277,6 +289,13 @@
                 {
                     "submenu": "leetcode.editorAction",
                     "when": "resourceScheme == file && leetcode.isProblem"
+                }
+            ],
+            "editor/title": [
+                {
+                    "command": "leetcode.previewProblem",
+                    "when": "resourceScheme == file && leetcode.isProblem",
+                    "group": "navigation"
                 }
             ],
             "leetcode.editorAction": [
@@ -679,6 +698,12 @@
                         "default": true,
                         "scope": "application",
                         "description": "%config.enableSideMode%"
+                    },
+                    "leetcode.followActiveEditor": {
+                        "type": "boolean",
+                        "default": true,
+                        "scope": "application",
+                        "description": "%config.followActiveEditor%"
                     },
                     "leetcode.colorizeProblems": {
                         "type": "boolean",

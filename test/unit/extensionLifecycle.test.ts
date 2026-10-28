@@ -35,6 +35,8 @@ moduleLoader._load = function (request: string, parent: { filename?: string }, i
                 window: {
                     createTreeView: () => disposable,
                     registerFileDecorationProvider: () => disposable,
+                    registerWebviewViewProvider: () => disposable,
+                    onDidChangeActiveTextEditor: () => disposable,
                     registerUriHandler: () => disposable,
                 },
                 l10n: { t: (text: string) => text },

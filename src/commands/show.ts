@@ -17,7 +17,8 @@ import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { leetCodeManager } from "../leetCodeManager";
-import { Endpoint, IProblem, IQuickItemEx, languages, PREMIUM_URL_CN, PREMIUM_URL_GLOBAL, ProblemState } from "../shared";
+import { Endpoint, IProblem, IQuickItemEx, languages, ProblemState } from "../shared";
+import { isProblemDocument } from "../utils/problemDocumentContext";
 import { genFileExt, genFileName, getNodeIdFromText } from "../utils/problemUtils";
 import * as settingUtils from "../utils/settingUtils";
 import { IDescriptionConfiguration } from "../utils/settingUtils";
@@ -25,7 +26,6 @@ import {
     DialogOptions,
     DialogType,
     openSettingsEditor,
-    openUrl,
     promptForOpenOutputChannel,
     promptForSignIn,
     promptHintMessage,
@@ -35,7 +35,6 @@ import { leetCodePreviewProvider } from "../webview/leetCodePreviewProvider";
 import { leetCodeSolutionProvider } from "../webview/leetCodeSolutionProvider";
 import { getProblemById, getProblemBySlug, getProblemCacheScope, getProblemPage, getRandomProblem, IProblemQuery } from "../api/problems";
 import { getLeetCodeEndpoint } from "./plugin";
-import { globalState } from "../globalState";
 
 async function findProblemById(id: string): Promise<IProblem | undefined> {
     const cached: IProblem | undefined = explorerNodeManager.getNodeById(id);
@@ -45,7 +44,8 @@ async function findProblemById(id: string): Promise<IProblem | undefined> {
     return getProblemById(id);
 }
 
-export async function previewProblem(input?: IProblem | vscode.Uri, isSideMode: boolean = false): Promise<void> {
+/** Show the description in the sidebar, for a list item or a problem file (the active editor by default). */
+export async function previewProblem(input?: IProblem | vscode.Uri): Promise<void> {
     let node: IProblem;
 
     input ??= vscode.window.activeTextEditor?.document.uri;
@@ -67,28 +67,34 @@ export async function previewProblem(input?: IProblem | vscode.Uri, isSideMode: 
             return;
         }
         node = cachedNode;
-        // Move the preview page aside if it's triggered from Code Lens
-        isSideMode = true;
     } else {
         node = input;
-        const { isPremium } = globalState.getUserStatus() ?? {};
-        if (input.locked && !isPremium) {
-            const url = getLeetCodeEndpoint() === Endpoint.LeetCode ? PREMIUM_URL_GLOBAL : PREMIUM_URL_CN;
-            openUrl(url);
-            return;
-        }
     }
 
-    const needTranslation: boolean = settingUtils.shouldUseEndpointTranslation();
-    let detail: IQuestionDetail;
-    try {
-        detail = await fetchQuestionDetail(getLeetCodeRequest(), node.slug);
-    } catch (error) {
-        leetCodeChannel.appendLine(`[ERROR] Failed to fetch the problem description: ${error}`);
-        await promptForOpenOutputChannel(vscode.l10n.t("Failed to fetch the problem description. Please open the output channel for details."), DialogType.error);
+    await leetCodePreviewProvider.show(node, { reveal: true });
+}
+
+/** Keep the sidebar description on the problem file being edited, without revealing the sidebar. */
+export async function followActiveEditor(editor: vscode.TextEditor | undefined): Promise<void> {
+    const document: vscode.TextDocument | undefined = editor?.document;
+    if (!document || !leetCodeManager.getUser() || !settingUtils.shouldFollowActiveEditor() || !isProblemDocument(document)) {
         return;
     }
-    leetCodePreviewProvider.show(detail, node, isSideMode, needTranslation);
+    const id: string = getNodeIdFromText(document.getText());
+    if (!id || id === leetCodePreviewProvider.currentProblemId) {
+        return;
+    }
+    let problem: IProblem | undefined;
+    try {
+        problem = await findProblemById(id);
+    } catch (error) {
+        leetCodeChannel.appendLine(`[WARN] Failed to resolve the problem with id ${id}: ${error}`);
+        return;
+    }
+    // Ignore a lookup that finished after the user moved to another editor or problem.
+    if (problem && vscode.window.activeTextEditor?.document === document && id !== leetCodePreviewProvider.currentProblemId) {
+        await leetCodePreviewProvider.show(problem);
+    }
 }
 
 export async function pickOne(): Promise<void> {
@@ -309,7 +315,7 @@ async function showProblemInternal(node: IProblem): Promise<void> {
             ),
         ];
         if (descriptionConfig.showInWebview) {
-            promises.push(showDescriptionView(node, detail, needTranslation));
+            promises.push(leetCodePreviewProvider.show(node, { detail, reveal: true }));
         }
 
         await Promise.all(promises);
@@ -318,14 +324,6 @@ async function showProblemInternal(node: IProblem): Promise<void> {
     }
 }
 
-async function showDescriptionView(node: IProblem, detail: IQuestionDetail, useTranslation: boolean): Promise<void> {
-    return leetCodePreviewProvider.show(
-        detail,
-        node,
-        vscode.workspace.getConfiguration("leetcode").get<boolean>("enableSideMode", true),
-        useTranslation,
-    );
-}
 function parseProblemsToPicks(problems: IProblem[]): Array<IQuickItemEx<IProblem>> {
     return problems.map((problem: IProblem) => {
             const tags: string = problem.tags.slice(0, 5).join(", ");

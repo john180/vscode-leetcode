@@ -1,116 +1,157 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { commands, l10n, ViewColumn } from "vscode";
+import { randomBytes } from "node:crypto";
+import { commands, Disposable, l10n, Webview, WebviewView, WebviewViewProvider, workspace } from "vscode";
+import { fetchQuestionDetail } from "../api/question";
 import type { IQuestionDetail } from "../api/question";
+import { getLeetCodeRequest } from "../api/request";
 import { getLeetCodeEndpoint } from "../commands/plugin";
-import { Endpoint, IProblem } from "../shared";
-import { ILeetCodeWebviewOption, LeetCodeWebview } from "./LeetCodeWebview";
+import { explorerNodeManager } from "../explorer/explorerNodeManager";
+import { LeetCodeNode } from "../explorer/LeetCodeNode";
+import { globalState } from "../globalState";
+import { leetCodeChannel } from "../leetCodeChannel";
+import { Endpoint, IProblem, PREMIUM_URL_CN, PREMIUM_URL_GLOBAL } from "../shared";
+import { shouldUseEndpointTranslation } from "../utils/settingUtils";
+import { openSettingsEditor, openUrl, promptHintMessage } from "../utils/uiUtils";
 import { markdownEngine } from "./markdownEngine";
 import { sanitizeProblemHtml } from "./sanitize";
 
-class LeetCodePreviewProvider extends LeetCodeWebview {
-    protected readonly enableScripts: boolean = true;
-    protected readonly viewType: string = "leetcode.preview";
-    private node: IProblem;
-    private detail: IQuestionDetail;
-    private sideMode: boolean = false;
-    private useTranslation: boolean = true;
+interface IDetailState {
+    problem: IProblem;
+    detail?: IQuestionDetail;
+    failed?: boolean;
+}
 
-    public isSideMode(): boolean {
-        return this.sideMode;
+export interface IShowOptions {
+    /** Skip the fetch when the caller already loaded the description. */
+    detail?: IQuestionDetail;
+    /** Expand the view and switch the sidebar to it, keeping keyboard focus where it is. */
+    reveal?: boolean;
+}
+
+const style: string = `
+    body { background: transparent; padding: 0 12px 24px; }
+    header { position: sticky; top: 0; z-index: 1; padding: 8px 0; background: var(--vscode-sideBar-background); border-bottom: 1px solid var(--vscode-panel-border); }
+    header h2 { margin: 0 0 4px; font-size: 1.15em; }
+    .difficulty { font-weight: 600; }
+    .difficulty.easy { color: var(--vscode-charts-green); }
+    .difficulty.medium { color: var(--vscode-charts-yellow); }
+    .difficulty.hard { color: var(--vscode-charts-red); }
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    button { border: 0; padding: 4px 10px; cursor: pointer; }
+    button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+    button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+    .status { color: var(--vscode-descriptionForeground); }
+    table { display: block; overflow-x: auto; }
+`;
+
+function escapeHtml(text: string): string {
+    return text.replace(/[&<>"']/g, (char: string) => `&#${char.charCodeAt(0)};`);
+}
+
+/** The problem description, shown in the LeetCode sidebar beside the problem list. */
+class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
+    private view: WebviewView | undefined;
+    private state: IDetailState | undefined;
+    private version: number = 0;
+    private hinted: boolean = false;
+
+    public get currentProblemId(): string | undefined {
+        return this.state?.problem.id;
     }
 
-    public show(detail: IQuestionDetail, node: IProblem, isSideMode: boolean = false, useTranslation: boolean = true): void {
-        this.detail = detail;
-        this.node = node;
-        this.sideMode = isSideMode;
-        this.useTranslation = useTranslation;
-        void this.showWebviewInternal();
+    public resolveWebviewView(view: WebviewView): void {
+        this.view = view;
+        view.webview.options = { enableScripts: true, localResourceRoots: markdownEngine.localResourceRoots };
+        const listeners: Disposable[] = [
+            view.webview.onDidReceiveMessage(this.onDidReceiveMessage, this),
+            workspace.onDidChangeConfiguration((event) => {
+                if (event.affectsConfiguration("markdown") || event.affectsConfiguration("leetcode.useEndpointTranslation")) {
+                    this.render();
+                }
+            }),
+        ];
+        view.onDidDispose(() => {
+            listeners.forEach((listener: Disposable) => listener.dispose());
+            if (this.view === view) {
+                this.view = undefined;
+            }
+        });
+        this.render();
     }
 
-    protected getWebviewOption(): ILeetCodeWebviewOption {
-        if (!this.sideMode) {
-            return {
-                title: l10n.t("{0}: Preview", this.node.name),
-                viewColumn: ViewColumn.One,
-            };
-        } else {
-            return {
-                title: l10n.t("Description"),
-                viewColumn: ViewColumn.Two,
-                preserveFocus: true,
-            };
+    public async show(problem: IProblem, options: IShowOptions = {}): Promise<void> {
+        const version: number = ++this.version;
+        // Keep the current text while the same problem reloads instead of flashing a loading state.
+        const previous: IQuestionDetail | undefined = this.state?.problem.slug === problem.slug ? this.state.detail : undefined;
+        this.state = { problem, detail: options.detail ?? previous };
+        this.render();
+        if (options.reveal) {
+            void this.reveal();
+        }
+        if (options.detail || this.isLocked(problem)) {
+            return;
+        }
+        try {
+            const detail: IQuestionDetail = await fetchQuestionDetail(getLeetCodeRequest(), problem.slug);
+            if (version === this.version) {
+                this.state = { problem, detail };
+            }
+        } catch (error) {
+            leetCodeChannel.appendLine(`[ERROR] Failed to fetch the problem description: ${error}`);
+            if (version === this.version) {
+                this.state = { problem, failed: true };
+            }
+        }
+        if (version === this.version) {
+            this.render();
         }
     }
 
-    protected getWebviewContent(): string {
-        const button: { element: string; script: string; style: string } = {
-            element: `<button id="solve">${l10n.t("Code Now")}</button>`,
-            script: `const button = document.getElementById('solve');
-                    button.onclick = () => vscode.postMessage({
-                        command: 'ShowProblem',
-                    });`,
-            style: `<style>
-                #solve {
-                    position: fixed;
-                    bottom: 1rem;
-                    right: 1rem;
-                    border: 0;
-                    margin: 1rem 0;
-                    padding: 0.2rem 1rem;
-                    color: var(--vscode-button-foreground);
-                    background-color: var(--vscode-button-background);
-                }
-                #solve:hover {
-                    background-color: var(--vscode-button-hoverBackground);
-                }
-                #solve:active {
-                    border: 0;
-                }
-                </style>`,
-        };
-        const title: string = this.useTranslation
-            ? (this.detail.translatedTitle || this.detail.title)
-            : this.detail.title;
-        const url: string = this.getProblemUrl();
-        const body: string = this.useTranslation
-            ? (this.detail.translatedContent || this.detail.content)
-            : this.detail.content;
+    public dispose(): void {
+        this.version++;
+        this.state = undefined;
+    }
 
-        const head: string = markdownEngine.render(`# [${title}](${url})`);
-        const info: string = markdownEngine.render(
-            [
-                `| ${l10n.t("Difficulty")} |`,
-                `| :--------: |`,
-                `| ${this.detail.difficulty} |`,
-            ].join("\n"),
-        );
-        const tagItems: string[] = this.detail.topicTags.length > 0
-            ? this.detail.topicTags.map((tag) => {
-                const label: string = this.useTranslation ? (tag.translatedName || tag.name) : tag.name;
-                return `[\`${label}\`](${this.getTagLink(tag.slug)})`;
-            })
-            : this.node.tags.map((tag: string) => `[\`${tag}\`](${this.getTagLink(tag)})`);
-        const tags: string = tagItems.length > 0
-            ? [
-                `<details>`,
-                `<summary><strong>${l10n.t("Tags")}</strong></summary>`,
-                markdownEngine.render(tagItems.join(" | ")),
-                `</details>`,
-            ].join("\n")
-            : "";
-        const companies: string = this.node.companies.length > 0
-            ? [
-                `<details>`,
-                `<summary><strong>${l10n.t("Companies")}</strong></summary>`,
-                markdownEngine.render(this.node.companies.map((company: string) => `\`${company}\``).join(" | ")),
-                `</details>`,
-            ].join("\n")
-            : "";
-        const links: string = markdownEngine.render(`[${l10n.t("Submissions")}](${this.getSubmissionsLink(url)}) | [${l10n.t("Solution")}](${this.getSolutionsLink(url)})`);
-        const webview = this.webview!;
-        const nonce: string = this.getNonce();
+    private async reveal(): Promise<void> {
+        if (this.view) {
+            this.view.show(true);
+            return;
+        }
+        try {
+            // The view resolves on first display; the generated focus command opens it.
+            await commands.executeCommand("leetCodeDetail.focus", { preserveFocus: true });
+        } catch (error) {
+            leetCodeChannel.appendLine(`[WARN] Failed to reveal the problem description: ${error}`);
+        }
+    }
+
+    private isLocked(problem: IProblem): boolean {
+        return problem.locked && !globalState.getUserStatus()?.isPremium;
+    }
+
+    private render(): void {
+        if (!this.view) {
+            return;
+        }
+        const problem: IProblem | undefined = this.state?.problem;
+        this.view.description = problem ? `${problem.id}. ${problem.name}` : undefined;
+        this.view.webview.html = this.getWebviewContent(this.view.webview);
+        if (this.state?.detail && !this.hinted) {
+            this.hinted = true;
+            void promptHintMessage(
+                "hint.configWebviewMarkdown",
+                l10n.t('You can change the webview appearance ("fontSize", "lineWidth" & "fontFamily") in "markdown.preview" configuration.'),
+                l10n.t("Open settings"),
+                (): Promise<any> => openSettingsEditor("markdown.preview"),
+            );
+        }
+    }
+
+    private getWebviewContent(webview: Webview): string {
+        const nonce: string = randomBytes(24).toString("base64");
+        const slug: string = JSON.stringify(this.state?.problem.slug ?? "").replace(/</g, "\\u003c");
         return `
             <!DOCTYPE html>
             <html>
@@ -125,51 +166,133 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
                     script-src 'nonce-${nonce}';
                 "/>
                 ${markdownEngine.getStyles(webview)}
-                ${!this.sideMode ? button.style : ""}
-                <style>
-                    code { white-space: pre-wrap; }
-                </style>
+                <style>${style}</style>
             </head>
             <body>
-                ${head}
-                ${info}
-                ${tags}
-                ${companies}
-                ${sanitizeProblemHtml(body)}
-                <hr />
-                ${links}
-                ${!this.sideMode ? button.element : ""}
+                ${this.state ? this.getProblemContent(this.state) : `<p class="status">${escapeHtml(l10n.t("Select a problem in the list above, or open a problem file to see its description."))}</p>`}
                 <script nonce="${nonce}">
                     const vscode = acquireVsCodeApi();
-                    ${!this.sideMode ? button.script : ""}
+                    // Sanitized problem HTML cannot contain buttons, so these are ours.
+                    for (const button of document.querySelectorAll("button[data-command]")) {
+                        button.addEventListener("click", () => vscode.postMessage({ command: button.dataset.command }));
+                    }
+                    const slug = ${slug};
+                    const saved = vscode.getState();
+                    if (saved && saved.slug === slug) {
+                        window.scrollTo(0, saved.y);
+                    }
+                    let frame = 0;
+                    window.addEventListener("scroll", () => {
+                        cancelAnimationFrame(frame);
+                        frame = requestAnimationFrame(() => vscode.setState({ slug, y: window.scrollY }));
+                    });
                 </script>
             </body>
             </html>
         `;
     }
 
-    protected onDidDisposeWebview(): void {
-        super.onDidDisposeWebview();
-        this.sideMode = false;
+    private getProblemContent({ problem, detail, failed }: IDetailState): string {
+        const useTranslation: boolean = shouldUseEndpointTranslation();
+        const title: string = detail
+            ? (useTranslation ? (detail.translatedTitle || detail.title) : detail.title)
+            : problem.name;
+        const difficulty: string = detail?.difficulty || problem.difficulty;
+        const locked: boolean = this.isLocked(problem);
+        const actions: string = locked
+            ? `<button data-command="premium">${escapeHtml(l10n.t("Get Premium"))}</button>`
+            : [
+                `<button data-command="code">${escapeHtml(l10n.t("Code Now"))}</button>`,
+                `<button class="secondary" data-command="submissions">${escapeHtml(l10n.t("Submissions"))}</button>`,
+                `<button class="secondary" data-command="${problem.isFavorite ? "unstar" : "star"}">${escapeHtml(problem.isFavorite ? l10n.t("Unstar") : l10n.t("Star"))}</button>`,
+            ].join("");
+        const header: string = `
+            <header>
+                <h2><a href="${escapeHtml(this.getProblemUrl(problem.slug))}">${escapeHtml(`${problem.id}. ${title}`)}</a></h2>
+                ${difficulty ? `<span class="difficulty ${escapeHtml(difficulty.toLowerCase())}">${escapeHtml(l10n.t(difficulty))}</span>` : ""}
+                <div class="actions">${actions}</div>
+            </header>`;
+
+        if (locked) {
+            return `${header}<p class="status">${escapeHtml(l10n.t("This problem requires a LeetCode Premium subscription."))}</p>`;
+        }
+        if (failed) {
+            return `${header}<p class="status"><button class="secondary" data-command="retry">${escapeHtml(l10n.t("Loading failed. Click to retry."))}</button></p>`;
+        }
+        if (!detail) {
+            return `${header}<p class="status">${escapeHtml(l10n.t("Loading the problem description..."))}</p>`;
+        }
+
+        const tagItems: string[] = detail.topicTags.length > 0
+            ? detail.topicTags.map((tag) => {
+                const label: string = useTranslation ? (tag.translatedName || tag.name) : tag.name;
+                return `[\`${label}\`](${this.getTagLink(tag.slug)})`;
+            })
+            : problem.tags.map((tag: string) => `[\`${tag}\`](${this.getTagLink(tag)})`);
+        const tags: string = tagItems.length > 0
+            ? [
+                `<details>`,
+                `<summary><strong>${escapeHtml(l10n.t("Tags"))}</strong></summary>`,
+                markdownEngine.render(tagItems.join(" | ")),
+                `</details>`,
+            ].join("\n")
+            : "";
+        const companies: string = problem.companies.length > 0
+            ? [
+                `<details>`,
+                `<summary><strong>${escapeHtml(l10n.t("Companies"))}</strong></summary>`,
+                markdownEngine.render(problem.companies.map((company: string) => `\`${company}\``).join(" | ")),
+                `</details>`,
+            ].join("\n")
+            : "";
+        const body: string = useTranslation ? (detail.translatedContent || detail.content) : detail.content;
+        const url: string = this.getProblemUrl(detail.titleSlug);
+        const links: string = markdownEngine.render(`[${l10n.t("Submissions")}](${this.getSubmissionsLink(url)}) | [${l10n.t("Solution")}](${this.getSolutionsLink(url)})`);
+        return `
+            ${header}
+            ${tags}
+            ${companies}
+            ${sanitizeProblemHtml(body)}
+            <hr />
+            ${links}
+        `;
     }
 
-    protected async onDidReceiveMessage(message: unknown): Promise<void> {
-        if (!message || typeof message !== "object" || !("command" in message)) {
+    private async onDidReceiveMessage(message: unknown): Promise<void> {
+        const problem: IProblem | undefined = this.state?.problem;
+        if (!problem || !message || typeof message !== "object" || !("command" in message)) {
             return;
         }
+        const node: LeetCodeNode = problem instanceof LeetCodeNode ? problem : new LeetCodeNode(problem);
         switch (message.command) {
-            case "ShowProblem": {
-                await commands.executeCommand("leetcode.showProblem", this.node);
+            case "code":
+                await commands.executeCommand("leetcode.showProblem", node);
                 break;
-            }
+            case "submissions":
+                await commands.executeCommand("leetcode.showSubmissions", node);
+                break;
+            case "star":
+            case "unstar":
+                await commands.executeCommand(message.command === "star" ? "leetcode.addFavorite" : "leetcode.removeFavorite", node);
+                if (this.state?.problem === problem) {
+                    this.state.problem = explorerNodeManager.getNodeById(problem.id) ?? problem;
+                    this.render();
+                }
+                break;
+            case "premium":
+                await openUrl(getLeetCodeEndpoint() === Endpoint.LeetCode ? PREMIUM_URL_GLOBAL : PREMIUM_URL_CN);
+                break;
+            case "retry":
+                await this.show(problem);
+                break;
         }
     }
 
-    private getProblemUrl(): string {
+    private getProblemUrl(slug: string): string {
         const base: string = getLeetCodeEndpoint() === Endpoint.LeetCodeCN
             ? "https://leetcode.cn"
             : "https://leetcode.com";
-        return `${base}/problems/${this.detail.titleSlug}/description/`;
+        return `${base}/problems/${slug}/description/`;
     }
 
     private getTagLink(tag: string): string {
