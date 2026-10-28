@@ -14,6 +14,7 @@ const children = new Map<string, IFakeNode[]>();
 const totals: Record<string, number> = {};
 let loaded: IFakeNode | undefined;
 let input: any;
+let pendingChildren: Promise<IFakeNode[]> | undefined;
 
 function problem(parentId: string, id: string, name: string): IFakeNode {
     return { id, name, slug: name.toLowerCase().replace(/ /g, "-"), isProblem: true, treeId: `${parentId}/${id}`, parentId };
@@ -27,7 +28,7 @@ const manager = {
     search: undefined as ReturnType<typeof parseProblemSearch>,
     matches: [] as IFakeNode[],
     getSearch(): ReturnType<typeof parseProblemSearch> { return this.search; },
-    async getChildren(id: string): Promise<IFakeNode[]> { requested.push(id); return children.get(id) ?? []; },
+    async getChildren(id: string): Promise<IFakeNode[]> { requested.push(id); return pendingChildren ?? children.get(id) ?? []; },
     getMatches(): IFakeNode[] { return this.matches; },
     getTotal(id: string): number | undefined { return totals[id]; },
     getCategory(id: string): { id: string; name: string } { return { id, name: id === "All" ? "All problems" : id }; },
@@ -94,6 +95,7 @@ beforeEach(() => {
     requested.length = 0; searches.length = 0; revealed.length = 0; status.length = 0;
     children.clear(); for (const key of Object.keys(totals)) { delete totals[key]; }
     manager.search = undefined; manager.matches = []; provider.selection = []; provider.lastProblemParentId = undefined; loaded = undefined;
+    pendingChildren = undefined;
 });
 
 test("Enter applies the typed search at once and selects the exact id without opening it", async () => {
@@ -117,6 +119,63 @@ test("a search starts in the category browsed last and falls back to All", async
     await input.accept();
     assert.deepEqual(requested, ["Tag.dp", "All"]);
     assert.deepEqual(revealed.map(([id]) => id), ["All/1"]);
+    input.hide();
+});
+
+test("Enter during a pending search preserves its completion and result prompt", async () => {
+    let release!: (nodes: IFakeNode[]) => void;
+    pendingChildren = new Promise((resolve) => { release = resolve; });
+    await searchProblem();
+    input.type("two");
+    const first = input.accept();
+    assert.equal(input.busy, true);
+    await input.accept();
+    assert.deepEqual(requested, ["All"], "Enter does not launch a second lookup while busy");
+    release([problem("All", "1", "Two Sum")]);
+    await first;
+    assert.equal(input.busy, false);
+    assert.match(input.prompt, /^1 matches in All problems\. /);
+    input.hide();
+});
+
+test("clearing a pending search stops loading and ignores its later completion", async () => {
+    let release!: (nodes: IFakeNode[]) => void;
+    pendingChildren = new Promise((resolve) => { release = resolve; });
+    await searchProblem();
+    const hint = input.prompt;
+    input.type("two");
+    const first = input.accept();
+    input.type("");
+    await input.accept();
+    assert.equal(input.busy, false);
+    assert.equal(manager.search, undefined);
+    release([problem("All", "1", "Two Sum")]);
+    await first;
+    assert.equal(input.busy, false);
+    assert.equal(input.prompt, hint);
+    assert.deepEqual(revealed, []);
+    input.hide();
+});
+
+test("an older search completion cannot stop loading or replace the newer prompt", async () => {
+    let releaseFirst!: (nodes: IFakeNode[]) => void;
+    let releaseSecond!: (nodes: IFakeNode[]) => void;
+    pendingChildren = new Promise((resolve) => { releaseFirst = resolve; });
+    await searchProblem();
+    input.type("two");
+    const first = input.accept();
+    pendingChildren = new Promise((resolve) => { releaseSecond = resolve; });
+    input.type("three");
+    const second = input.accept();
+    releaseFirst([problem("All", "1", "Two Sum")]);
+    await first;
+    assert.equal(input.busy, true);
+    assert.equal(revealed.length, 0);
+    releaseSecond([problem("All", "15", "Three Sum")]);
+    await second;
+    assert.equal(input.busy, false);
+    assert.match(input.prompt, /^1 matches in All problems\. /);
+    assert.deepEqual(revealed.map(([id]) => id), ["All/15"]);
     input.hide();
 });
 

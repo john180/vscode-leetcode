@@ -48,6 +48,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.executeCommand("setContext", "leetcode.signingIn", signingIn);
             vscode.commands.executeCommand("setContext", "leetcode.showSignIn", showSignIn);
             leetCodeStatusBarController.updateStatusBar(status, leetCodeManager.getUser());
+            leetCodePreviewProvider.clear();
             if (signingIn) {
                 leetCodeTreeDataProvider.setMessage(vscode.l10n.t("Signing in..."));
             } else {

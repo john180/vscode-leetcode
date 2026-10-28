@@ -73,7 +73,13 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
     private hinted: boolean = false;
 
     public get currentProblemId(): string | undefined {
-        return this.state?.problem.id;
+        return this.state?.scope === getProblemCacheScope() ? this.state.problem.id : undefined;
+    }
+
+    /** Drop session-specific content and invalidate outstanding loads. */
+    public clear(): void {
+        this.state = undefined;
+        this.render();
     }
 
     public resolveWebviewView(view: WebviewView): void {

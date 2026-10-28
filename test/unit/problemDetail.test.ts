@@ -13,6 +13,8 @@ const lookups: Array<{ id: string; resolve: (problem: unknown) => void }> = [];
 let premium = false;
 let user: string | undefined = "user";
 let currentProblemId: string | undefined;
+let scope = "scope";
+let useRealProvider = false;
 const vscodeWindow: { activeTextEditor: unknown } = { activeTextEditor: undefined };
 
 class FakeNode {
@@ -28,7 +30,7 @@ const providerDependencies: Record<string, unknown> = {
         l10n: { t: (text: string) => text },
         workspace: { onDidChangeConfiguration: () => disposable },
     },
-    "../api/problems": { getProblemCacheScope: () => "scope" },
+    "../api/problems": { getProblemCacheScope: () => scope },
     "../api/question": {
         fetchQuestionDetail: (_request: unknown, slug: string) => new Promise((resolve, reject) => fetches.push({ slug, resolve, reject })),
     },
@@ -59,10 +61,16 @@ const showDependencies: Record<string, unknown> = {
     "../utils/problemUtils": { getNodeIdFromText: (text: string) => text },
     "../explorer/explorerNodeManager": { explorerNodeManager: { getNodeById: () => undefined } },
     "../explorer/LeetCodeNode": { LeetCodeNode: FakeNode },
-    "../api/problems": { getProblemById: (id: string) => new Promise((resolve) => lookups.push({ id, resolve })) },
+    "../api/problems": {
+        getProblemCacheScope: () => scope,
+        getProblemById: (id: string) => new Promise((resolve) => lookups.push({ id, resolve })),
+    },
     "../webview/leetCodePreviewProvider": { leetCodePreviewProvider: {
-        get currentProblemId(): string | undefined { return currentProblemId; },
-        show: async (problem: { id: string }, options?: unknown) => { shown.push([problem.id, options ?? {}]); },
+        get currentProblemId(): string | undefined { return useRealProvider ? leetCodePreviewProvider.currentProblemId : currentProblemId; },
+        show: async (problem: { id: string }, options?: unknown) => {
+            shown.push([problem.id, options ?? {}]);
+            if (useRealProvider) { await leetCodePreviewProvider.show(problem, options); }
+        },
     } },
 };
 const moduleLoader: any = Module;
@@ -114,6 +122,7 @@ function editor(text: string, isProblem: boolean = true): { document: { problem:
 beforeEach(() => {
     executed.length = 0; fetches.length = 0; solutionFetches.length = 0; shown.length = 0; lookups.length = 0;
     premium = false; user = "user"; currentProblemId = undefined; vscodeWindow.activeTextEditor = undefined;
+    scope = "scope"; useRealProvider = false;
 });
 
 test("a problem shown before the view opens is revealed and rendered once the view resolves", async () => {
@@ -242,7 +251,58 @@ test("actions run LeetCode commands for the shown problem and ignore anything el
 
 test("previewing a list item reveals the sidebar description", async () => {
     await previewProblem(problem("42", "trapping-rain-water"));
-    assert.deepEqual(shown, [["42", { reveal: true }]]);
+    assert.deepEqual(shown, [["42", { reveal: true, tab: "description" }]]);
+});
+
+test("Show Description switches from the solution back to the cached description", async () => {
+    useRealProvider = true;
+    const { view } = createView();
+    const node = problem("20", "twenty");
+    const opening = leetCodePreviewProvider.show(node, { detail: detail("twenty", "<p>Description</p>"), tab: "solution" });
+    solutionFetches[0].resolve({ title: "", content: "Solution content" });
+    await opening;
+    await previewProblem(node);
+    assert.match(view.webview.html, /aria-selected="true" data-command="description"/);
+    assert.match(view.webview.html, /<p>Description<\/p>/);
+    assert.doesNotMatch(view.webview.html, /Solution content/);
+    assert.equal(fetches.length, 0);
+});
+
+for (const changedScope of ["another-account", "another-endpoint"]) {
+    test(`editor follow reloads the same problem after switching to ${changedScope}`, async () => {
+        useRealProvider = true;
+        const { view } = createView();
+        await leetCodePreviewProvider.show(problem("21", "twenty-one"), { detail: detail("twenty-one", "<p>Old content</p>") });
+        const active = editor("21");
+        vscodeWindow.activeTextEditor = active;
+        scope = changedScope;
+        assert.equal(leetCodePreviewProvider.currentProblemId, undefined);
+        const follow = followActiveEditor(active);
+        assert.equal(lookups.length, 1);
+        lookups[0].resolve(problem("21", "twenty-one", { isFavorite: true }));
+        await new Promise((resolve) => setImmediate(resolve));
+        assert.equal(fetches.length, 1);
+        fetches[0].resolve(detail("twenty-one", "<p>New content</p>"));
+        await follow;
+        assert.match(view.webview.html, /<p>New content<\/p>/);
+        assert.doesNotMatch(view.webview.html, /Old content/);
+        assert.match(view.webview.html, /data-command="unstar"/);
+    });
+}
+
+test("clearing the session removes content and drops pending description and solution loads", async () => {
+    const { view, post } = createView();
+    const opening = leetCodePreviewProvider.show(problem("22", "twenty-two"), { tab: "solution" });
+    leetCodePreviewProvider.clear();
+    assert.equal(view.description, undefined);
+    assert.equal(leetCodePreviewProvider.currentProblemId, undefined);
+    await post({ command: "code" });
+    assert.deepEqual(executed, []);
+    fetches[0].resolve(detail("twenty-two", "<p>Old description</p>"));
+    solutionFetches[0].resolve({ title: "", content: "Old solution" });
+    await opening;
+    assert.match(view.webview.html, /Select a problem in the list above/);
+    assert.doesNotMatch(view.webview.html, /Old description|Old solution/);
 });
 
 test("showing the solution opens the solution tab in the sidebar", async () => {
@@ -276,6 +336,16 @@ test("editor follow drops a lookup that finishes after the user switched editors
     vscodeWindow.activeTextEditor = first;
     const follow = followActiveEditor(first);
     vscodeWindow.activeTextEditor = editor("notes", false);
+    lookups[0].resolve(problem("42", "trapping-rain-water"));
+    await follow;
+    assert.deepEqual(shown, []);
+});
+
+test("editor follow drops a lookup that finishes after the session changes", async () => {
+    const active = editor("42");
+    vscodeWindow.activeTextEditor = active;
+    const follow = followActiveEditor(active);
+    scope = "another-account";
     lookups[0].resolve(problem("42", "trapping-rain-water"));
     await follow;
     assert.deepEqual(shown, []);

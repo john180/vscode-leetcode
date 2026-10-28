@@ -32,14 +32,16 @@ export async function searchProblem(): Promise<void> {
     const apply = async (): Promise<boolean> => {
         clearTimeout(timer);
         timer = undefined;
-        const current = ++version;
         if (!input.value.trim()) {
+            ++version;
+            input.busy = false;
             input.prompt = hint;
             return clearSearch();
         }
         if (!leetCodeTreeDataProvider.search(input.value)) {
             return false;
         }
+        const current = ++version;
         input.busy = true;
         const summary: string = await locateSearchResult();
         if (!hidden && current === version) {
@@ -54,7 +56,7 @@ export async function searchProblem(): Promise<void> {
             timer = setTimeout(() => void apply(), 300);
         }),
         input.onDidAccept(async () => {
-            if (!await apply()) {
+            if (!await apply() && !input.busy) {
                 await revealNextSearchResult();
             }
         }),

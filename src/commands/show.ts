@@ -31,7 +31,7 @@ import {
 } from "../utils/uiUtils";
 import { selectWorkspaceFolder } from "../utils/workspaceUtils";
 import { leetCodePreviewProvider } from "../webview/leetCodePreviewProvider";
-import { getProblemById, getProblemBySlug, getRandomProblem } from "../api/problems";
+import { getProblemById, getProblemBySlug, getProblemCacheScope, getRandomProblem } from "../api/problems";
 import { getLeetCodeEndpoint } from "./plugin";
 
 async function findProblemById(id: string): Promise<IProblem | undefined> {
@@ -69,7 +69,7 @@ export async function previewProblem(input?: IProblem | vscode.Uri): Promise<voi
         node = input;
     }
 
-    await leetCodePreviewProvider.show(node, { reveal: true });
+    await leetCodePreviewProvider.show(node, { reveal: true, tab: "description" });
 }
 
 /** Keep the sidebar description on the problem file being edited, without revealing the sidebar. */
@@ -82,6 +82,7 @@ export async function followActiveEditor(editor: vscode.TextEditor | undefined):
     if (!id || id === leetCodePreviewProvider.currentProblemId) {
         return;
     }
+    const scope: string = getProblemCacheScope();
     let problem: IProblem | undefined;
     try {
         problem = await findProblemById(id);
@@ -89,8 +90,9 @@ export async function followActiveEditor(editor: vscode.TextEditor | undefined):
         leetCodeChannel.appendLine(`[WARN] Failed to resolve the problem with id ${id}: ${error}`);
         return;
     }
-    // Ignore a lookup that finished after the user moved to another editor or problem.
-    if (problem && vscode.window.activeTextEditor?.document === document && id !== leetCodePreviewProvider.currentProblemId) {
+    // Ignore a lookup that finished after the user changed editors, problems or sessions.
+    if (problem && leetCodeManager.getUser() && scope === getProblemCacheScope()
+        && vscode.window.activeTextEditor?.document === document && id !== leetCodePreviewProvider.currentProblemId) {
         await leetCodePreviewProvider.show(problem);
     }
 }

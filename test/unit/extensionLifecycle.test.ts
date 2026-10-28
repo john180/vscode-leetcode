@@ -9,8 +9,10 @@ const disposable = { dispose: () => undefined };
 const noop = () => undefined;
 let login: Promise<void> = Promise.resolve();
 let refreshes = 0;
+let status = 2;
+const detailEvents: string[] = [];
 const manager = Object.assign(new EventEmitter(), {
-    getStatus: () => 2,
+    getStatus: () => status,
     getUser: () => undefined,
     getLoginStatus: () => login,
     handleUriSignIn: noop,
@@ -53,6 +55,9 @@ moduleLoader._load = function (request: string, parent: { filename?: string }, i
             "./utils/problemDocumentContext": { registerProblemDocumentContext: noop },
             "./utils/uiUtils": { promptForOpenOutputChannel: (text: string) => errors.push(text) },
             "./webview/markdownEngine": { markdownEngine: { initialize: noop } },
+            "./webview/leetCodePreviewProvider": { leetCodePreviewProvider: { clear: () => detailEvents.push("clear") } },
+            "./commands/show": { followActiveEditor: () => detailEvents.push("follow") },
+            "./statusbar/leetCodeStatusBarController": { leetCodeStatusBarController: { updateStatusBar: noop } },
             "./explorer/LeetCodeTreeDataProvider": { leetCodeTreeDataProvider: provider },
         };
         return dependencies[request] || {};
@@ -92,4 +97,15 @@ test("manual refresh waits for session restoration before loading the tree", asy
         await refresh;
     }
     assert.equal(refreshes, 1);
+});
+
+test("session changes clear the old detail before following the active editor", () => {
+    detailEvents.length = 0;
+    status = 1;
+    manager.emit("statusChanged");
+    assert.deepEqual(detailEvents, ["clear", "follow"]);
+    detailEvents.length = 0;
+    status = 2;
+    manager.emit("statusChanged");
+    assert.deepEqual(detailEvents, ["clear"]);
 });
