@@ -1,14 +1,15 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import { leetCodeManager } from "../leetCodeManager";
-import { Category, ProblemState, UserStatus } from "../shared";
+import { ProblemState, UserStatus } from "../shared";
 import { explorerNodeManager } from "./explorerNodeManager";
 import { LeetCodeNode } from "./LeetCodeNode";
 import { globalState } from "../globalState";
+import { problemCache } from "../api/problemCache";
+import { getProblemCacheScope } from "../api/problems";
 
 export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCodeNode> {
     private context: vscode.ExtensionContext;
@@ -21,6 +22,16 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
 
     public initialize(context: vscode.ExtensionContext): void {
         this.context = context;
+        const updated = (key: string) => {
+            if (key.startsWith(getProblemCacheScope())) { this.onDidChangeTreeDataEvent.fire(null); }
+        };
+        const cleared = () => { explorerNodeManager.dispose(); this.onDidChangeTreeDataEvent.fire(null); };
+        problemCache.events.on("updated", updated);
+        problemCache.events.on("cleared", cleared);
+        context.subscriptions.push({ dispose: () => {
+            problemCache.events.off("updated", updated);
+            problemCache.events.off("cleared", cleared);
+        } });
     }
 
     public setTreeView(treeView: vscode.TreeView<LeetCodeNode>): void {
@@ -40,6 +51,7 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
             return;
         }
         if (leetCodeManager.getStatus() === UserStatus.SignedOut) {
+            explorerNodeManager.dispose();
             this.setMessage(undefined);
             this.onDidChangeTreeDataEvent.fire(null);
             return;
@@ -66,6 +78,13 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
         this.onDidChangeTreeDataEvent.fire(null);
     }
 
+    public async loadMore(node: LeetCodeNode): Promise<void> {
+        if (!node.action) { return; }
+        if (node.action.kind === "retry") { await explorerNodeManager.retry(node.action.parentId); }
+        else { await explorerNodeManager.loadMore(node.action.parentId); }
+        this.onDidChangeTreeDataEvent.fire(null);
+    }
+
     public getTreeItem(element: LeetCodeNode): vscode.TreeItem | Thenable<vscode.TreeItem> {
         let contextValue: string;
         if (element.isProblem) {
@@ -75,11 +94,13 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
         }
 
         return {
+            id: element.isProblem ? undefined : element.id,
             label: element.isProblem ? `[${element.id}] ${element.name}` + this.parsePremiumUnLockIconPath(element) : element.name,
-            tooltip: this.getSubCategoryTooltip(element),
-            collapsibleState: element.isProblem ? vscode.TreeItemCollapsibleState.None : vscode.TreeItemCollapsibleState.Collapsed,
+            tooltip: element.isProblem ? element.name : undefined,
+            collapsibleState: element.isProblem || element.action ? vscode.TreeItemCollapsibleState.None : vscode.TreeItemCollapsibleState.Collapsed,
             iconPath: this.parseIconPathFromProblemState(element),
-            command: element.isProblem ? element.previewCommand : undefined,
+            command: element.action ? { title: element.name, command: "leetcode.loadMoreProblems", arguments: [element] }
+                : element.isProblem ? element.previewCommand : undefined,
             resourceUri: element.uri,
             contextValue,
         };
@@ -89,30 +110,8 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
         if (!leetCodeManager.getUser()) {
             return [];
         }
-        if (!element) {
-            // Root view
-            return explorerNodeManager.getRootNodes();
-        } else {
-            switch (element.id) {
-                case Category.All:
-                    return explorerNodeManager.getAllNodes();
-                case Category.Hot100:
-                    return explorerNodeManager.getHot100Nodes();
-                case Category.Favorite:
-                    return explorerNodeManager.getFavoriteListNodes();
-                case Category.Difficulty:
-                    return explorerNodeManager.getAllDifficultyNodes();
-                case Category.Tag:
-                    return explorerNodeManager.getAllTagNodes();
-                case Category.Company:
-                    return explorerNodeManager.getAllCompanyNodes();
-                default:
-                    if (element.isProblem) {
-                        return [];
-                    }
-                    return explorerNodeManager.getChildrenNodesById(element.id);
-            }
-        }
+        return element ? (element.isProblem || element.action ? [] : explorerNodeManager.getChildren(element.id))
+            : explorerNodeManager.getRootNodes();
     }
 
     private parseIconPathFromProblemState(element: LeetCodeNode): string {
@@ -143,31 +142,6 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
         return "";
     }
 
-    private getSubCategoryTooltip(element: LeetCodeNode): string {
-        // return '' unless it is a sub-category node
-        if (element.isProblem || element.id === "ROOT" || element.id in Category) {
-            return "";
-        }
-
-        const childernNodes: LeetCodeNode[] = explorerNodeManager.getChildrenNodesById(element.id);
-
-        let acceptedNum: number = 0;
-        let failedNum: number = 0;
-        for (const node of childernNodes) {
-            switch (node.state) {
-                case ProblemState.AC:
-                    acceptedNum++;
-                    break;
-                case ProblemState.NotAC:
-                    failedNum++;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        return [`AC: ${acceptedNum}`, `Failed: ${failedNum}`, `Total: ${childernNodes.length}`].join(os.EOL);
-    }
 }
 
 export const leetCodeTreeDataProvider: LeetCodeTreeDataProvider = new LeetCodeTreeDataProvider();

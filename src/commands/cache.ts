@@ -1,8 +1,8 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { invalidateProblemCache } from "../api/problems";
+import { problemCache } from "../api/problemCache";
 
 export async function deleteCache(): Promise<void> {
-    invalidateProblemCache();
+    await problemCache.clear();
 }

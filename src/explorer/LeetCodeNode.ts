@@ -6,7 +6,11 @@ import { IProblem, ProblemState } from "../shared";
 
 export class LeetCodeNode {
 
-    constructor(private data: IProblem, private isProblemNode: boolean = true) { }
+    constructor(
+        private data: IProblem,
+        private isProblemNode: boolean = true,
+        public readonly action?: { parentId: string; kind: "more" | "retry" },
+    ) { }
 
     public get locked(): boolean {
         return this.data.locked;

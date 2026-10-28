@@ -28,6 +28,7 @@ import { leetCodeSolutionProvider } from "./webview/leetCodeSolutionProvider";
 import { leetCodeSubmissionProvider } from "./webview/leetCodeSubmissionProvider";
 import { markdownEngine } from "./webview/markdownEngine";
 import { globalState } from "./globalState";
+import { problemCache } from "./api/problemCache";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     try {
@@ -53,6 +54,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
         leetCodeTreeDataProvider.initialize(context);
         await globalState.initialize(context);
+        problemCache.initialize(context.globalState);
         await resolveEndpoint();
         const hasStoredCookie: boolean = Boolean(globalState.getCookie());
         await vscode.commands.executeCommand("setContext", "leetcode.signedIn", false);
@@ -79,6 +81,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             explorerNodeManager,
             vscode.window.registerFileDecorationProvider(leetCodeTreeItemDecorationProvider),
             treeView,
+            vscode.commands.registerCommand("leetcode.loadMoreProblems", (node: LeetCodeNode) => leetCodeTreeDataProvider.loadMore(node)),
             vscode.commands.registerCommand("leetcode.deleteCache", () => cache.deleteCache()),
             vscode.commands.registerCommand("leetcode.toggleLeetCodeCn", () => plugin.switchEndpoint()),
             vscode.commands.registerCommand("leetcode.signin", () => leetCodeManager.signIn()),

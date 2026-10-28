@@ -1,285 +1,252 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import startCase = require("lodash/startCase");
 import { Disposable, l10n } from "vscode";
-import * as list from "../commands/list";
 import { getSortingStrategy } from "../commands/plugin";
 import { getLeetCodeRequest } from "../api/request";
 import { fetchDailyChallenge } from "../api/dailyChallenge";
 import { fetchFavoriteData, IFavoriteList } from "../api/favoriteLists";
+import { getProblemBySlug, getProblemCacheScope, getProblemPage, getProblemTags, IProblemPage, IProblemQuery } from "../api/problems";
+import { problemCache } from "../api/problemCache";
 import { Category, defaultProblem, IProblem, ProblemState, SortingStrategy } from "../shared";
 import { shouldHideSolvedProblem } from "../utils/settingUtils";
+import { leetCodeChannel } from "../leetCodeChannel";
 import { LeetCodeNode } from "./LeetCodeNode";
 
-class ExplorerNodeManager implements Disposable {
-    private explorerNodeMap: Map<string, LeetCodeNode> = new Map<string, LeetCodeNode>();
-    private problemBySlug: Map<string, LeetCodeNode> = new Map<string, LeetCodeNode>();
-    private companySet: Set<string> = new Set<string>();
-    private tagSet: Set<string> = new Set<string>();
-    private dailyProblem: IProblem | undefined;
-    private favoriteLists: IFavoriteList[] = [];
-    private hot100List: IFavoriteList | undefined;
+interface IView {
+    pages: Map<number, IProblemPage>;
+    next: number;
+    hasMore: boolean;
+    force: boolean;
+    pending?: Promise<void>;
+    failed?: boolean;
+    failedSkip?: number;
+}
 
-    public async refreshCache(forceRefresh: boolean = false): Promise<void> {
-        this.dispose();
-        const dailyPromise: Promise<IProblem | undefined> = fetchDailyChallenge(getLeetCodeRequest(), forceRefresh)
-            .catch((): IProblem | undefined => undefined);
-        const favoritePromise = fetchFavoriteData(getLeetCodeRequest(), forceRefresh)
-            .catch(() => ({ lists: [] as IFavoriteList[], hot100: undefined }));
-        const shouldHideSolved: boolean = shouldHideSolvedProblem();
-        for (const problem of await list.listProblems(forceRefresh)) {
-            if (shouldHideSolved && problem.state === ProblemState.AC) {
-                continue;
-            }
-            this.explorerNodeMap.set(problem.id, new LeetCodeNode(problem));
-            if (problem.slug) {
-                this.problemBySlug.set(problem.slug, this.explorerNodeMap.get(problem.id)!);
-            }
-            for (const company of problem.companies) {
-                this.companySet.add(company);
-            }
-            for (const tag of problem.tags) {
-                this.tagSet.add(tag);
-            }
+class ExplorerNodeManager implements Disposable {
+    private nodes = new Map<string, LeetCodeNode>();
+    private views = new Map<string, IView>();
+    private children = new Map<string, LeetCodeNode[]>();
+    private scope = "";
+    private generation = 0;
+    private force = false;
+    private refreshed = new Set<string>();
+
+    private ensureScope(): void {
+        const scope = `${getProblemCacheScope()}:${shouldHideSolvedProblem()}:${getSortingStrategy()}`;
+        if (scope !== this.scope) {
+            this.dispose();
+            this.scope = scope;
         }
-        this.dailyProblem = await dailyPromise;
-        const favoriteData = await favoritePromise;
-        this.favoriteLists = favoriteData.lists;
-        this.hot100List = favoriteData.hot100;
+    }
+
+    private isCurrent(generation: number): boolean {
+        this.ensureScope();
+        return generation === this.generation;
+    }
+
+    public async refreshCache(force: boolean = false): Promise<void> {
+        this.ensureScope();
+        this.generation++;
+        this.force = force;
+        this.refreshed.clear();
+        for (const view of this.views.values()) {
+            view.force = force;
+            view.pending = undefined;
+        }
     }
 
     public getRootNodes(): LeetCodeNode[] {
-        const roots: LeetCodeNode[] = [];
-        if (this.dailyProblem) {
-            roots.push(new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: Category.Daily,
-                name: l10n.t("Daily Challenge"),
-            }), false));
-        }
-        if (this.hot100List) {
-            roots.push(new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: Category.Hot100,
-                name: /top\s*100|liked/i.test(this.hot100List.name) ? l10n.t("Top 100") : l10n.t("Hot 100"),
-            }), false));
-        }
-        roots.push(
-            new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: Category.All,
-                name: l10n.t("All"),
-            }), false),
-            new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: Category.Difficulty,
-                name: l10n.t("Difficulty"),
-            }), false),
-            new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: Category.Tag,
-                name: l10n.t("Tag"),
-            }), false),
-            new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: Category.Company,
-                name: l10n.t("Company"),
-            }), false),
-            new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: Category.Favorite,
-                name: l10n.t("Favorite"),
-            }), false),
-        );
-        return roots;
-    }
-
-    public getAllNodes(): LeetCodeNode[] {
-        return this.applySortingStrategy(
-            Array.from(this.explorerNodeMap.values()),
-        );
-    }
-
-    public getAllDifficultyNodes(): LeetCodeNode[] {
-        const res: LeetCodeNode[] = [];
-        res.push(
-            new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: `${Category.Difficulty}.Easy`,
-                name: l10n.t("Easy"),
-            }), false),
-            new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: `${Category.Difficulty}.Medium`,
-                name: l10n.t("Medium"),
-            }), false),
-            new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: `${Category.Difficulty}.Hard`,
-                name: l10n.t("Hard"),
-            }), false),
-        );
-        this.sortSubCategoryNodes(res, Category.Difficulty);
-        return res;
-    }
-
-    public getAllCompanyNodes(): LeetCodeNode[] {
-        const res: LeetCodeNode[] = [];
-        for (const company of this.companySet.values()) {
-            res.push(new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: `${Category.Company}.${company}`,
-                name: /^[a-z0-9-]+$/i.test(company) ? startCase(company) : company,
-            }), false));
-        }
-        this.sortSubCategoryNodes(res, Category.Company);
-        return res;
-    }
-
-    public getAllTagNodes(): LeetCodeNode[] {
-        const res: LeetCodeNode[] = [];
-        for (const tag of this.tagSet.values()) {
-            res.push(new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: `${Category.Tag}.${tag}`,
-                name: startCase(tag),
-            }), false));
-        }
-        this.sortSubCategoryNodes(res, Category.Tag);
-        return res;
+        this.ensureScope();
+        return [
+            [Category.Daily, l10n.t("Daily Challenge")], [Category.Hot100, l10n.t("Hot 100")],
+            [Category.All, l10n.t("All")], [Category.Difficulty, l10n.t("Difficulty")],
+            [Category.Tag, l10n.t("Tag")], [Category.Company, l10n.t("Company")], [Category.Favorite, l10n.t("Favorite")],
+        ].map(([id, name]) => this.category(id, name));
     }
 
     public getNodeById(id: string): LeetCodeNode | undefined {
-        return this.explorerNodeMap.get(id);
+        this.ensureScope();
+        return this.nodes.get(id);
     }
 
-    public getFavoriteNodes(): LeetCodeNode[] {
-        const res: LeetCodeNode[] = [];
-        for (const node of this.explorerNodeMap.values()) {
-            if (node.isFavorite) {
-                res.push(node);
+    public async getChildren(id: string): Promise<LeetCodeNode[]> {
+        this.ensureScope();
+        const generation = this.generation;
+        try {
+            if (id === Category.Difficulty) {
+                return ["Easy", "Medium", "Hard"].map((difficulty) => this.category(`${id}.${difficulty}`, l10n.t(difficulty)));
             }
-        }
-        return this.applySortingStrategy(res);
-    }
-
-    public getFavoriteListNodes(): LeetCodeNode[] {
-        if (this.favoriteLists.length === 0) {
-            return this.getFavoriteNodes();
-        }
-        return this.favoriteLists.map((list: IFavoriteList) => new LeetCodeNode(Object.assign({}, defaultProblem, {
-            id: `${Category.Favorite}.${list.idHash}`,
-            name: list.name === "Favorite" ? l10n.t("Favorite") : list.name,
-        }), false));
-    }
-
-    public getFavoriteQuestionNodes(listId: string): LeetCodeNode[] {
-        const list: IFavoriteList | undefined = this.favoriteLists.find(
-            (item: IFavoriteList) => item.idHash === listId,
-        );
-        return list ? this.toQuestionNodes(list) : [];
-    }
-
-    public getHot100Nodes(): LeetCodeNode[] {
-        return this.hot100List ? this.toQuestionNodes(this.hot100List) : [];
-    }
-
-    private toQuestionNodes(list: IFavoriteList): LeetCodeNode[] {
-        return list.questions.map((question) => {
-            const cached: LeetCodeNode | undefined = this.problemBySlug.get(question.titleSlug);
-            if (cached) {
-                return cached;
+            if (id === Category.Tag || id === Category.Company) {
+                const tags = await getProblemTags(id === Category.Tag ? "tag" : "company", this.needsRefresh(id));
+                if (!this.isCurrent(generation)) { return []; }
+                this.refreshed.add(id);
+                return this.remember(id, tags.sort((a, b) => a.name.localeCompare(b.name)).map((tag) => this.category(`${id}.${tag.slug}`, tag.name)));
             }
-            return new LeetCodeNode(Object.assign({}, defaultProblem, {
-                id: question.id || question.titleSlug,
-                name: question.title || question.titleSlug,
-                slug: question.titleSlug,
-                state: ProblemState.Unknown,
-            }), true);
+            if (id === Category.Favorite) {
+                const data = await this.favorites(this.needsRefresh(id));
+                if (!this.isCurrent(generation)) { return []; }
+                this.refreshed.add(id);
+                return this.remember(id, data.lists.map((list) => this.category(`${id}.${list.idHash}`, list.name === "Favorite" ? l10n.t("Favorite") : list.name)));
+            }
+            if (id === Category.Daily) {
+                const request = getLeetCodeRequest();
+                const daily = await problemCache.get(`${getProblemCacheScope()}daily`, () => fetchDailyChallenge(request, true).then((value) => value || null), this.needsRefresh(id));
+                if (!this.isCurrent(generation)) { return []; }
+                const problem = daily ? await getProblemBySlug(daily.slug, this.needsRefresh(id)) : undefined;
+                if (!this.isCurrent(generation)) { return []; }
+                this.refreshed.add(id);
+                return this.remember(id, problem ? this.toNodes([problem]) : []);
+            }
+            const view = this.view(id);
+            if (!view.pages.size || view.force) {
+                await this.load(id, view, 0, view.force);
+            } else {
+                // Reuse disk pages immediately; stale pages revalidate in the cache.
+                for (const skip of view.pages.keys()) {
+                    const page = await this.fetchPage(id, skip);
+                    if (!this.isCurrent(generation)) { return []; }
+                    view.pages.set(skip, page);
+                }
+                this.updateTail(view);
+            }
+            if (!this.isCurrent(generation)) { return []; }
+            return this.render(id, view);
+        } catch (error) {
+            if (!this.isCurrent(generation)) { return []; }
+            leetCodeChannel.appendLine(`[WARN] Loading ${id}: ${String(error)}`);
+            const view = this.views.get(id);
+            if (view) { view.failed = true; return this.render(id, view); }
+            return [...(this.children.get(id) || []), this.action(id, "retry")];
+        }
+    }
+
+    public async loadMore(id: string): Promise<void> {
+        this.ensureScope();
+        const view = this.view(id);
+        if (!view.hasMore || view.pending) { return; }
+        try { await this.load(id, view, view.next, false); }
+        catch (error) {
+            view.failed = true;
+            leetCodeChannel.appendLine(`[WARN] Loading ${id}: ${String(error)}`);
+        }
+    }
+
+    public async retry(id: string): Promise<void> {
+        this.refreshed.delete(id);
+        const view = this.views.get(id);
+        if (view) {
+            try { await this.load(id, view, view.failedSkip ?? 0, true); }
+            catch (error) { leetCodeChannel.appendLine(`[WARN] Retrying ${id}: ${String(error)}`); }
+        }
+    }
+
+    private needsRefresh(id: string): boolean { return this.force && !this.refreshed.has(id); }
+
+    private view(id: string): IView {
+        let view = this.views.get(id);
+        if (!view) {
+            view = { pages: new Map(), next: 0, hasMore: true, force: this.needsRefresh(id) };
+            this.views.set(id, view);
+        }
+        return view;
+    }
+
+    private async load(id: string, view: IView, skip: number, force: boolean): Promise<void> {
+        if (view.pending) { return view.pending; }
+        const generation = this.generation;
+        const task = this.fetchPage(id, skip, force).then((page) => {
+            if (!this.isCurrent(generation)) { return; }
+            if (skip === 0) { view.pages.clear(); }
+            view.pages.set(skip, page);
+            view.force = false;
+            view.failed = false;
+            view.failedSkip = undefined;
+            this.refreshed.add(id);
+            this.updateTail(view);
+        }).catch((error) => {
+            if (this.isCurrent(generation)) { view.failed = true; view.failedSkip = skip; }
+            throw error;
+        }).finally(() => { if (view.pending === task) { view.pending = undefined; } });
+        view.pending = task;
+        return task;
+    }
+
+    private updateTail(view: IView): void {
+        const last = [...view.pages.values()].at(-1);
+        if (last) { view.next = last.next; view.hasMore = last.hasMore; }
+    }
+
+    private async fetchPage(id: string, skip: number, force: boolean = false): Promise<IProblemPage> {
+        const scope = getProblemCacheScope();
+        if (id === Category.Hot100 || id.startsWith(`${Category.Favorite}.`)) {
+            const data = await this.favorites(force);
+            if (scope !== getProblemCacheScope()) { throw new Error("Account changed while loading problems."); }
+            const list: IFavoriteList | undefined = id === Category.Hot100 ? data.hot100 : data.lists.find((item) => item.idHash === id.slice(Category.Favorite.length + 1));
+            const questions = list?.questions || [];
+            const problems: IProblem[] = [];
+            const slice = questions.slice(skip, skip + 20);
+            // Bound requests for list entries that have never been visited before.
+            for (let i = 0; i < slice.length; i += 4) {
+                if (scope !== getProblemCacheScope()) { throw new Error("Account changed while loading problems."); }
+                const batch = await Promise.all(slice.slice(i, i + 4).map((question) => getProblemBySlug(question.titleSlug, force)));
+                problems.push(...batch.filter((problem): problem is IProblem => Boolean(problem)));
+            }
+            const next = skip + slice.length;
+            return { problems, next, total: questions.length, hasMore: next < questions.length };
+        }
+        const query: IProblemQuery = { skip, sort: getSortingStrategy(), hideSolved: shouldHideSolvedProblem() };
+        if (id.startsWith(`${Category.Difficulty}.`)) { query.difficulty = id.slice(Category.Difficulty.length + 1); }
+        if (id.startsWith(`${Category.Tag}.`)) { query.tag = id.slice(Category.Tag.length + 1); }
+        if (id.startsWith(`${Category.Company}.`)) { query.company = id.slice(Category.Company.length + 1); }
+        return getProblemPage(query, force);
+    }
+
+    private favorites(force: boolean = false): ReturnType<typeof fetchFavoriteData> {
+        const request = getLeetCodeRequest();
+        return problemCache.get(`${getProblemCacheScope()}favorites`, () => fetchFavoriteData(request, true), force);
+    }
+
+    private render(id: string, view: IView): LeetCodeNode[] {
+        const unique = new Map<string, IProblem>();
+        for (const page of view.pages.values()) {
+            for (const problem of page.problems) { unique.set(problem.id, problem); }
+        }
+        const nodes = this.toNodes([...unique.values()]);
+        if (view.failed) { nodes.push(this.action(id, "retry")); }
+        else if (view.hasMore) { nodes.push(this.action(id, "more")); }
+        return nodes;
+    }
+
+    private toNodes(problems: IProblem[]): LeetCodeNode[] {
+        const nodes = problems.filter((problem) => !shouldHideSolvedProblem() || problem.state !== ProblemState.AC).map((problem) => {
+            const node = new LeetCodeNode(problem);
+            this.nodes.set(problem.id, node);
+            return node;
         });
+        const strategy = getSortingStrategy();
+        if (strategy === SortingStrategy.AcceptanceRateAsc) { nodes.sort((a, b) => a.acceptanceRate - b.acceptanceRate); }
+        if (strategy === SortingStrategy.AcceptanceRateDesc) { nodes.sort((a, b) => b.acceptanceRate - a.acceptanceRate); }
+        return nodes;
     }
 
-    public getChildrenNodesById(id: string): LeetCodeNode[] {
-        if (id === Category.Daily) {
-            return this.dailyProblem ? [new LeetCodeNode(this.dailyProblem)] : [];
-        }
-        if (id === Category.Hot100) {
-            return this.getHot100Nodes();
-        }
-        if (id.startsWith(`${Category.Favorite}.`)) {
-            return this.getFavoriteQuestionNodes(id.slice(`${Category.Favorite}.`.length));
-        }
-        // The sub-category node's id is named as {Category.SubName}
-        const metaInfo: string[] = id.split(".");
-        const res: LeetCodeNode[] = [];
-        for (const node of this.explorerNodeMap.values()) {
-            switch (metaInfo[0]) {
-                case Category.Company:
-                    if (node.companies.indexOf(metaInfo[1]) >= 0) {
-                        res.push(node);
-                    }
-                    break;
-                case Category.Difficulty:
-                    if (node.difficulty === metaInfo[1]) {
-                        res.push(node);
-                    }
-                    break;
-                case Category.Tag:
-                    if (node.tags.indexOf(metaInfo[1]) >= 0) {
-                        res.push(node);
-                    }
-                    break;
-                default:
-                    break;
-            }
-        }
-        return this.applySortingStrategy(res);
+    private category(id: string, name: string): LeetCodeNode { return new LeetCodeNode({ ...defaultProblem, id, name }, false); }
+    private remember(id: string, nodes: LeetCodeNode[]): LeetCodeNode[] {
+        this.children.set(id, nodes);
+        return nodes;
+    }
+    private action(id: string, kind: "more" | "retry"): LeetCodeNode {
+        return new LeetCodeNode({ ...defaultProblem, id: `${id}.${kind}`, name: kind === "more" ? l10n.t("Load more...") : l10n.t("Loading failed. Click to retry.") }, false, { parentId: id, kind });
     }
 
     public dispose(): void {
-        this.explorerNodeMap.clear();
-        this.problemBySlug.clear();
-        this.companySet.clear();
-        this.tagSet.clear();
-        this.dailyProblem = undefined;
-        this.favoriteLists = [];
-        this.hot100List = undefined;
-    }
-
-    private sortSubCategoryNodes(subCategoryNodes: LeetCodeNode[], category: Category): void {
-        switch (category) {
-            case Category.Difficulty:
-                subCategoryNodes.sort((a: LeetCodeNode, b: LeetCodeNode): number => {
-                    function getValue(input: LeetCodeNode): number {
-                        const difficulty: string = input.id.split(".")[1] || "";
-                        switch (difficulty.toLowerCase()) {
-                            case "easy":
-                                return 1;
-                            case "medium":
-                                return 2;
-                            case "hard":
-                                return 3;
-                            default:
-                                return Number.MAX_SAFE_INTEGER;
-                        }
-                    }
-                    return getValue(a) - getValue(b);
-                });
-                break;
-            case Category.Tag:
-            case Category.Company:
-                subCategoryNodes.sort((a: LeetCodeNode, b: LeetCodeNode): number => {
-                    if (a.name === "Unknown") {
-                        return 1;
-                    } else if (b.name === "Unknown") {
-                        return -1;
-                    } else {
-                        return Number(a.name > b.name) - Number(a.name < b.name);
-                    }
-                });
-                break;
-            default:
-                break;
-        }
-    }
-
-    private applySortingStrategy(nodes: LeetCodeNode[]): LeetCodeNode[] {
-        const strategy: SortingStrategy = getSortingStrategy();
-        switch (strategy) {
-            case SortingStrategy.AcceptanceRateAsc: return nodes.sort((x: LeetCodeNode, y: LeetCodeNode) => Number(x.acceptanceRate) - Number(y.acceptanceRate));
-            case SortingStrategy.AcceptanceRateDesc: return nodes.sort((x: LeetCodeNode, y: LeetCodeNode) => Number(y.acceptanceRate) - Number(x.acceptanceRate));
-            default: return nodes;
-        }
+        this.generation++;
+        this.nodes.clear();
+        this.views.clear();
+        this.children.clear();
+        this.refreshed.clear();
+        this.force = false;
     }
 }
 
-export const explorerNodeManager: ExplorerNodeManager = new ExplorerNodeManager();
+export const explorerNodeManager = new ExplorerNodeManager();

@@ -13,7 +13,7 @@ import { getLanguageFromText, getNodeIdFromText } from "../utils/problemUtils";
 import { DialogType, promptForOpenOutputChannel, showFileSelectDialog } from "../utils/uiUtils";
 import { getActiveDocument } from "../utils/workspaceUtils";
 import { leetCodeSubmissionProvider } from "../webview/leetCodeSubmissionProvider";
-import * as list from "./list";
+import { getProblemById } from "../api/problems";
 
 export async function testSolution(uri?: vscode.Uri): Promise<void> {
     try {
@@ -34,7 +34,7 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
             return;
         }
 
-        const problem: IProblem | undefined = (await list.listProblems()).find((item: IProblem) => item.id === id);
+        const problem: IProblem | undefined = await getProblemById(id);
         if (!problem) {
             vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem with id: {0}.", id));
             return;

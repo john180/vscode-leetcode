@@ -35,6 +35,8 @@ Extension ID: `john180.vscode-leetcode`. Disable the previous community and offi
 ## Sign in
 
 1. Open the LeetCode view in the activity bar.
+   Categories load when expanded, with 50 problems per page and a **Load more** action; favorites and Hot 100 load 20 at a time. Search by ID, title or slug, with optional filters such as `tag:array` or `company:google`.
+   Visited problems are cached locally across restarts, separately for each site, login session and language, and stale entries update in the background. Refresh reloads expanded categories; **Delete Cache** also clears the persistent problem cache. Testing, submitting and viewing history do not require the full question bank.
 2. Run **LeetCode: Sign In**.
 3. Choose **LeetCode Cookie** and paste the `Cookie` request header copied from `https://leetcode.com`; **Web Authorization** is also available.
 

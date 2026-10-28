@@ -17,7 +17,7 @@ import { IQuickItemEx } from "../shared";
 import { getNodeIdFromFile } from "../utils/problemUtils";
 import { DialogType, openUrl, promptForOpenOutputChannel, promptForSignIn } from "../utils/uiUtils";
 import { getActiveFilePath } from "../utils/workspaceUtils";
-import * as list from "./list";
+import { getProblemById } from "../api/problems";
 
 type SubmissionPick = ISubmissionHistoryItem | "load-more" | "filter";
 
@@ -37,7 +37,7 @@ async function resolveNode(node?: LeetCodeNode): Promise<LeetCodeNode | undefine
     if (cached) {
         return cached;
     }
-    const problem = (await list.listProblems()).find((item) => item.id === id);
+    const problem = await getProblemById(id);
     return problem ? new LeetCodeNode(problem) : undefined;
 }
 
@@ -58,13 +58,13 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
         return;
     }
 
-    const target: LeetCodeNode | undefined = await resolveNode(node);
-    if (!target) {
-        await promptForOpenOutputChannel(l10n.t("Failed to resolve the problem for submissions."), DialogType.error);
-        return;
-    }
-
     try {
+        const target: LeetCodeNode | undefined = await resolveNode(node);
+        if (!target) {
+            await promptForOpenOutputChannel(l10n.t("Failed to resolve the problem for submissions."), DialogType.error);
+            return;
+        }
+
         const request = getLeetCodeRequest();
         const items: ISubmissionHistoryItem[] = [];
         let hasNext: boolean = true;

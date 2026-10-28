@@ -13,7 +13,7 @@ import { getLanguageFromText, getNodeIdFromText } from "../utils/problemUtils";
 import { DialogType, promptForOpenOutputChannel, promptForSignIn } from "../utils/uiUtils";
 import { getActiveDocument } from "../utils/workspaceUtils";
 import { leetCodeSubmissionProvider } from "../webview/leetCodeSubmissionProvider";
-import * as list from "./list";
+import { getProblemById, getProblemCacheScope, recordSubmission } from "../api/problems";
 
 export async function submitSolution(uri?: vscode.Uri): Promise<void> {
     if (!leetCodeManager.getUser()) {
@@ -34,13 +34,15 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
         return;
     }
 
-    const problem: IProblem | undefined = (await list.listProblems()).find((item: IProblem) => item.id === id);
-    if (!problem) {
-        vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem with id: {0}.", id));
-        return;
-    }
-
     try {
+        const scope = getProblemCacheScope();
+        const problem: IProblem | undefined = await getProblemById(id);
+        if (!problem) {
+            vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem with id: {0}.", id));
+            return;
+        }
+        if (scope !== getProblemCacheScope()) { return; }
+
         const request = getLeetCodeRequest();
         const detail = await fetchQuestionDetail(request, problem.slug);
         const result = await submitToLeetCode(
@@ -50,10 +52,13 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
             code,
         );
         leetCodeSubmissionProvider.show(result);
+        if (result.state === "SUCCESS" && scope === getProblemCacheScope()) {
+            await recordSubmission(problem, result.statusMessage === "Accepted");
+        }
     } catch (error) {
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to submit the solution. Please open the output channel for details."), DialogType.error);
         return;
     }
 
-    leetCodeTreeDataProvider.refresh(true);
+    await leetCodeTreeDataProvider.refresh();
 }

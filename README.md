@@ -35,6 +35,8 @@ code --install-extension ".\vscode-leetcode-$version.vsix" --force
 ## 登录
 
 1. 在活动栏打开 LeetCode 视图。
+   题库按展开的分类加载，每页 50 道，点击“加载更多”继续；收藏和热题每页加载 20 道。搜索支持题号、标题和 slug，可使用 `tag:array` 或 `company:google` 筛选。
+   浏览过的题目会保存在本地缓存中，重启后可复用；缓存按站点、登录会话和语言隔离，过期后后台更新。刷新按钮重新加载当前展开的分类，**Delete Cache** 会清除持久化题库缓存。测试、提交和查看历史无需加载完整题库。
 2. 执行 **LeetCode: Sign In**（登录）。
 3. 选择 **LeetCode Cookie**，粘贴从 `https://leetcode.cn` 复制的 `Cookie` 请求头；也可以使用 **Web Authorization**。
 

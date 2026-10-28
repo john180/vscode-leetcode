@@ -5,7 +5,7 @@ import { fetchQuestionDetail } from "../api/question";
 import { setFavorite } from "../api/favorite";
 import { fetchFavoriteLists, IFavoriteList } from "../api/favoriteLists";
 import { getLeetCodeRequest } from "../api/request";
-import { updateCachedFavorite } from "../api/problems";
+import { getProblemCacheScope, updateCachedFavorite } from "../api/problems";
 import { customCodeLensProvider } from "../codelens/CustomCodeLensProvider";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeTreeDataProvider } from "../explorer/LeetCodeTreeDataProvider";
@@ -50,10 +50,12 @@ export async function addToFavoriteList(node: LeetCodeNode): Promise<void> {
 
 async function toggleFavorite(node: LeetCodeNode, favorite: boolean, favoriteIdHash?: string): Promise<void> {
     try {
+        const scope = getProblemCacheScope();
         const request = getLeetCodeRequest();
         const detail = await fetchQuestionDetail(request, node.slug);
         await setFavorite(request, { slug: node.slug, questionId: detail.questionId }, favorite, favoriteIdHash);
-        updateCachedFavorite(node.id, favorite);
+        if (scope !== getProblemCacheScope()) { return; }
+        await updateCachedFavorite(node.id, favorite);
         await leetCodeTreeDataProvider.refresh();
         if (hasStarShortcut()) {
             customCodeLensProvider.refresh();
