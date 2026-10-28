@@ -1,6 +1,5 @@
 .vscode/**
 .vscode-test/**
-out/**
 out-test/**
 coverage/**
 test/**
@@ -13,14 +12,10 @@ dist/**/*.map
 package-lock.json
 repo-rules.json
 tsconfig*.json
-tslint.json
-.eslintrc.json
 eslint.config.mjs
 esbuild.js
-**/*.gif
 ACKNOWLEDGEMENTS.md
-docs
 .github
 scripts/**
 node_modules/**
-_config.yml
+.idea/**

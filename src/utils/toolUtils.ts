@@ -1,7 +1,3 @@
-export function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export function parseQuery(query: string): { [key: string]: string } {
     const queryObject: { [key: string]: string } = {};
 

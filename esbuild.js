@@ -8,7 +8,7 @@ const options = {
     external: ["vscode"],
     format: "cjs",
     platform: "node",
-    target: "node18",
+    target: "node24",
     sourcemap: true,
     logLevel: "info",
 };

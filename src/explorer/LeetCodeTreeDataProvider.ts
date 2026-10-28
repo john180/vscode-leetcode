@@ -17,7 +17,6 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
     private onDidChangeTreeDataEvent: vscode.EventEmitter<LeetCodeNode | undefined | null> = new vscode.EventEmitter<
         LeetCodeNode | undefined | null
     >();
-    // tslint:disable-next-line:member-ordering
     public readonly onDidChangeTreeData: vscode.Event<any> = this.onDidChangeTreeDataEvent.event;
 
     public initialize(context: vscode.ExtensionContext): void {

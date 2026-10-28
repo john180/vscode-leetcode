@@ -54,11 +54,6 @@ export function getDescriptionConfiguration(): IDescriptionConfiguration {
             break;
     }
 
-    // To be compatible with the deprecated setting:
-    if (getWorkspaceConfiguration().get<boolean>("showCommentDescription")) {
-        config.showInComment = true;
-    }
-
     return config;
 }
 

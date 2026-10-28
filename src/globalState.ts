@@ -36,8 +36,7 @@ class GlobalState {
     private _activeProfile: string | undefined;
 
     /**
-     * Loads the cookie from SecretStorage and migrates a legacy cookie that was
-     * previously stored in globalState.
+     * Loads the current account cookie from SecretStorage.
      */
     public async initialize(context: vscode.ExtensionContext): Promise<void> {
         this.context = context;
@@ -50,16 +49,6 @@ class GlobalState {
         }
         if (!this._cookie) {
             this._cookie = await context.secrets.get(CookieKey);
-        }
-        if (this._cookie) {
-            return;
-        }
-
-        const legacyCookie: string | undefined = this._state.get<string>(CookieKey);
-        if (legacyCookie) {
-            this._cookie = legacyCookie;
-            await context.secrets.store(CookieKey, legacyCookie);
-            await this._state.update(CookieKey, undefined);
         }
     }
 

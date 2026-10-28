@@ -1,8 +1,8 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import * as fse from "fs-extra";
-import * as _ from "lodash";
+import * as fs from "node:fs/promises";
+import kebabCase = require("lodash/kebabCase");
 import * as path from "path";
 import { IProblem, langExt } from "../shared";
 
@@ -15,7 +15,7 @@ export function genFileExt(language: string): string {
 }
 
 export function genFileName(node: IProblem, language: string): string {
-    const slug: string = _.kebabCase(node.name) || node.slug;
+    const slug: string = kebabCase(node.name) || node.slug;
     const ext: string = genFileExt(language);
     return `${node.id}.${slug}.${ext}`;
 }
@@ -31,7 +31,7 @@ export function getLanguageFromText(text: string): string | undefined {
 }
 
 export async function getNodeIdFromFile(fsPath: string): Promise<string> {
-    const fileContent: string = await fse.readFile(fsPath, "utf8");
+    const fileContent: string = await fs.readFile(fsPath, "utf8");
     let id: string = getNodeIdFromText(fileContent);
     // Try to get id from file name if getting from comments failed
     if (!id) {

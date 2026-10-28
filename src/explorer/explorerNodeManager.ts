@@ -1,7 +1,7 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import * as _ from "lodash";
+import startCase = require("lodash/startCase");
 import { Disposable, l10n } from "vscode";
 import * as list from "../commands/list";
 import { getSortingStrategy } from "../commands/plugin";
@@ -119,7 +119,7 @@ class ExplorerNodeManager implements Disposable {
         for (const company of this.companySet.values()) {
             res.push(new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: `${Category.Company}.${company}`,
-                name: /^[a-z0-9-]+$/i.test(company) ? _.startCase(company) : company,
+                name: /^[a-z0-9-]+$/i.test(company) ? startCase(company) : company,
             }), false));
         }
         this.sortSubCategoryNodes(res, Category.Company);
@@ -131,7 +131,7 @@ class ExplorerNodeManager implements Disposable {
         for (const tag of this.tagSet.values()) {
             res.push(new LeetCodeNode(Object.assign({}, defaultProblem, {
                 id: `${Category.Tag}.${tag}`,
-                name: _.startCase(tag),
+                name: startCase(tag),
             }), false));
         }
         this.sortSubCategoryNodes(res, Category.Tag);

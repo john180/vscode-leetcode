@@ -143,7 +143,7 @@ export const urlsCn = {
     login: "https://leetcode.cn/accounts/login/",
 };
 
-let extensionId: string = "leetcode.vscode-leetcode";
+let extensionId: string = "john180.vscode-leetcode";
 
 export function setExtensionId(id: string): void {
     if (id) {

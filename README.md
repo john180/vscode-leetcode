@@ -1,46 +1,36 @@
-# LeetCode Community
+# LeetCode
 
-**简体中文** · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
+**简体中文** · [English](README.en.md)
 
-[![CI](https://github.com/yanxijian/vscode-leetcode/actions/workflows/build.yml/badge.svg?branch=community)](https://github.com/yanxijian/vscode-leetcode/actions/workflows/build.yml)
-[![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/yanxijian.vscode-leetcode-community.svg)](https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community)
-[![VS Code 1.90+](https://badgen.net/badge/VS%20Code/1.90%2B/blue?icon=visualstudio)](https://code.visualstudio.com/)
-[![License: MIT](https://badgen.net/badge/license/MIT/yellow)](https://github.com/yanxijian/vscode-leetcode/blob/community/LICENSE)
+[![CI](https://github.com/john180/vscode-leetcode/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/john180/vscode-leetcode/actions/workflows/build.yml)
+[![VS Code 1.143+](https://badgen.net/badge/VS%20Code/1.143%2B/blue?icon=visualstudio)](https://code.visualstudio.com/)
+[![License: MIT](https://badgen.net/badge/license/MIT/yellow)](https://github.com/john180/vscode-leetcode/blob/main/LICENSE)
 
-> 在 VS Code 中刷力扣：题库、题解、测试与提交，自动选择 LeetCode China / LeetCode。
+> 在 VS Code 中浏览力扣题目、查看题解、测试和提交代码。
 
-更新记录：[CHANGELOG.zh-CN.md](https://github.com/yanxijian/vscode-leetcode/blob/community/CHANGELOG.zh-CN.md)
+更新记录：[CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)
 
 ## 安装
 
-- Marketplace：<https://marketplace.visualstudio.com/items?itemName=yanxijian.vscode-leetcode-community>
-- 命令行：
+支持 Windows 和 VS Code 1.143+，提供简体中文与英文界面，通过本地 VSIX 安装。使用时无需单独安装 Node.js。
 
-  ```powershell
-  code --install-extension yanxijian.vscode-leetcode-community
-  ```
+先按下方开发步骤构建，再在项目目录运行：
 
-- 离线安装：从 [GitHub Releases](https://github.com/yanxijian/vscode-leetcode/releases) 下载 `.vsix`，然后：
+```powershell
+$version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+code --install-extension ".\vscode-leetcode-$version.vsix" --force
+```
 
-  ```powershell
-  code --install-extension .\vscode-leetcode-community-0.24.3.vsix --force
-  ```
-
-> 本项目是 [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) 的社区分支，不是 LeetCode 官方发布。扩展 ID 为 `yanxijian.vscode-leetcode-community`；命令、视图与设置 ID 与官方版相同，安装前请先禁用官方 `LeetCode.vscode-leetcode`。
+扩展 ID：`john180.vscode-leetcode`。安装前请禁用旧社区版和官方版，避免命令、视图与设置冲突。从旧版迁移后需重新登录。
 
 ## 功能
 
 - 浏览 leetcode.cn 全部题目，支持 `LCP`、面试题等特殊题号，显示中文标题、AC 状态、付费锁、标签与公司。
 - 打开题目生成带 `@lc` 头、代码模板与可选描述注释的文件。
 - 在 Webview 中查看题目描述与高赞题解。
-- 直接运行样例/自定义测试并提交，不依赖内置 CLI，也不需要安装 Node.js。
+- 运行样例或自定义测试并提交代码。
 - 本地多账号会话，可创建、切换、删除。
 - 搜索、排序、隐藏已做题目、收藏/取消收藏。
-
-## 环境要求
-
-- [VS Code 1.90](https://code.visualstudio.com/) 或更高版本。
-- 不需要 Node.js。
 
 ## 登录
 
@@ -48,17 +38,13 @@
 2. 执行 **LeetCode: Sign In**（登录）。
 3. 选择 **LeetCode Cookie**，粘贴从 `https://leetcode.cn` 复制的 `Cookie` 请求头；也可以使用 **Web Authorization**。
 
-Cookie 只保存在 VS Code 的 `SecretStorage` 中，不会写入明文设置。默认站点是 `auto`：中国大陆自动使用力扣，其他地区使用 LeetCode；也可通过 `LeetCode: Switch Endpoint` 手动指定。
-
-`auto` 会按系统时区选择站点；切回国内版请执行 `LeetCode: Switch Endpoint` 选择 `力扣`，或把 `leetcode.endpoint` 设为 `leetcode-cn`。国际版 Cookie 必须来自 `leetcode.com`；Hot 100 会使用官方 `Top 100 Liked Questions`，显示为“热门 100”。
+Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国大陆使用力扣，其他地区使用 LeetCode。可通过 **LeetCode: Switch Endpoint** 手动切换，Cookie 必须来自所选站点。
 
 ## 快速开始
 
-1. 安装并启用扩展，禁用官方版。
-2. 登录 leetcode.cn。
-3. 在 LeetCode 视图中选择题，或执行 **Search Problem** / **Pick One**。
-4. 编辑生成的代码文件，用 CodeLens 的 **Test** 运行样例，或 **Submit** 提交。
-5. 需要题解时点击 **Solution**。
+1. 登录后，在 LeetCode 视图中选择题目，或执行 **Search Problem** / **Pick One**。
+2. 编辑生成的代码文件，用 CodeLens 的 **Test** 运行样例，或 **Submit** 提交。
+3. 需要题解时点击 **Solution**。
 
 ## 常用命令
 
@@ -81,7 +67,7 @@ Cookie 只保存在 VS Code 的 `SecretStorage` 中，不会写入明文设置�
 | --- | --- | --- |
 | `leetcode.endpoint` | `auto`、`leetcode` 或 `leetcode-cn` | `auto` |
 | `leetcode.defaultLanguage` | 新文件的默认语言 | 未设置 |
-| `leetcode.workspaceFolder` | 题目文件保存目录 | `$HOME/.leetcode` |
+| `leetcode.workspaceFolder` | 题目文件保存目录 | `%USERPROFILE%\.leetcode` |
 | `leetcode.filePath` | 相对目录与文件名模板 | `${id}.${kebab-case-name}.${ext}` |
 | `leetcode.showDescription` | `In Webview`、`In File Comment`、`Both` 或 `None` | `In Webview` |
 | `leetcode.hideSolved` | 隐藏已通过题目 | `false` |
@@ -97,21 +83,14 @@ Cookie 只保存在 VS Code 的 `SecretStorage` 中，不会写入明文设置�
 **登录提示 "The cookie is not signed in"**
 
 - 确认 `leetcode.endpoint` 与 Cookie 来源一致（`leetcode.cn` 或 `leetcode.com`）；
-- 确认 cookie 来自已登录的 `https://leetcode.cn`，不是 `leetcode.com`；
 - 从 Network 请求头复制，确保包含 `LEETCODE_SESSION` 与 `csrftoken`；
 - 打开 Output → LeetCode，日志会显示校验的 endpoint 和 `signedIn` 结果（不会打印 cookie）。
 
-**和官方版冲突**
-
-两个扩展使用相同的 `leetcode.*` 命令/设置 ID，安装前禁用官方版即可。
-
-**命令行安装出现 DEP0169 `url.parse()` 警告**
-
-这是 VS Code 1.142 自带 CLI 在查询 Marketplace 元数据时的 Node 弃用提示，栈在 `resources/app/out/vs/code/node/cliProcessMain.js`，不是本扩展代码。可在扩展视图安装，或忽略；临时隐藏可用 `NODE_OPTIONS=--no-deprecation`（只隐藏提示）。
-
 ## 开发
 
-```bash
+构建环境：Node.js 24.18+；仓库规则检查需要 Python。
+
+```powershell
 npm ci
 npm run typecheck
 npm run lint
@@ -121,8 +100,8 @@ npm run package
 python scripts/repo_rules.py check --config repo-rules.json
 ```
 
-`npm run package` 使用 esbuild 生成 `dist/extension.js` 并打包 `.vsix`。按 `F5` 启动扩展开发宿主。发布步骤见 [docs/PUBLISHING.zh-CN.md](docs/PUBLISHING.zh-CN.md)。
+`npm run package` 构建扩展并生成 `.vsix`。按 `F5` 启动扩展开发宿主。
 
 ## 许可证
 
-MIT。基于原 `vscode-leetcode` 项目及其贡献者。
+MIT。基于 [LeetCode-OpenSource/vscode-leetcode](https://github.com/LeetCode-OpenSource/vscode-leetcode) 及其社区贡献。

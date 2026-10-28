@@ -41,16 +41,16 @@ class FakeSecrets {
     }
 }
 
-test("globalState migrates legacy cookies and manages profiles/test cases", async () => {
+test("globalState loads secure cookies and manages profiles/test cases", async () => {
     const memento = new FakeMemento();
     const secrets = new FakeSecrets();
-    memento.values.set("leetcode-cookie", "LEETCODE_SESSION=legacy; csrftoken=legacy");
+    secrets.values.set("leetcode-cookie", "LEETCODE_SESSION=current; csrftoken=current");
     const context = { globalState: memento, secrets } as any;
 
     await globalState.initialize(context);
-    assert.equal(globalState.getCookie(), "LEETCODE_SESSION=legacy; csrftoken=legacy");
+    assert.equal(globalState.getCookie(), "LEETCODE_SESSION=current; csrftoken=current");
     assert.equal(memento.values.has("leetcode-cookie"), false);
-    assert.equal(secrets.values.get("leetcode-cookie"), "LEETCODE_SESSION=legacy; csrftoken=legacy");
+    assert.equal(secrets.values.get("leetcode-cookie"), "LEETCODE_SESSION=current; csrftoken=current");
 
     await globalState.saveProfile("alice", "alice-user", "LEETCODE_SESSION=a; csrftoken=a");
     assert.equal(globalState.getActiveProfile(), "alice");
@@ -72,4 +72,14 @@ test("globalState migrates legacy cookies and manages profiles/test cases", asyn
     assert.equal(globalState.getActiveProfile(), undefined);
     assert.equal(globalState.getCookie(), undefined);
     assert.equal(secrets.values.has("leetcode-cookie"), false);
+});
+
+test("globalState does not authenticate from old plain-text cookies", async () => {
+    const memento = new FakeMemento();
+    const secrets = new FakeSecrets();
+    memento.values.set("leetcode-cookie", "LEETCODE_SESSION=old; csrftoken=old");
+
+    await globalState.initialize({ globalState: memento, secrets });
+    assert.equal(globalState.getCookie(), undefined);
+    assert.equal(secrets.values.size, 0);
 });

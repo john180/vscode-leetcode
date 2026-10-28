@@ -1,12 +1,13 @@
 {
     "compilerOptions": {
         "module": "commonjs",
-        "target": "es2020",
+        "target": "es2024",
         "outDir": "out",
         "noEmit": true,
         "lib": [
-            "es2020"
+            "es2024"
         ],
+        "types": ["node", "vscode"],
         "sourceMap": true,
         "rootDir": ".",
         "noUnusedLocals": true,

@@ -35,7 +35,7 @@ function l10nKeys(): string[] {
 }
 
 test("every l10n key used in src has a translation for each locale", () => {
-    for (const locale of ["zh-cn", "ja", "ko"]) {
+    for (const locale of ["zh-cn"]) {
         const bundle = JSON.parse(readFileSync(join(process.cwd(), "l10n", `bundle.l10n.${locale}.json`), "utf8"));
         const missing: string[] = [...new Set(l10nKeys())].filter((key: string) => !(key in bundle));
         assert.deepEqual(missing, [], `${locale} is missing ${missing.join(", ")}`);
@@ -44,7 +44,7 @@ test("every l10n key used in src has a translation for each locale", () => {
 
 test("manifest translations cover every package.nls key", () => {
     const base = JSON.parse(readFileSync(join(process.cwd(), "package.nls.json"), "utf8"));
-    for (const locale of ["zh-cn", "ja", "ko"]) {
+    for (const locale of ["zh-cn"]) {
         const translated = JSON.parse(readFileSync(join(process.cwd(), `package.nls.${locale}.json`), "utf8"));
         assert.deepEqual(Object.keys(base).sort(), Object.keys(translated).sort(), `${locale} manifest keys differ`);
     }

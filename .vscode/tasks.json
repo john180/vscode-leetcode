@@ -2,32 +2,24 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "npm",
-            "type": "shell",
-            "command": "npm",
+            "label": "build extension",
+            "type": "npm",
+            "script": "compile",
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "args": [
-                "run",
-                "compile",
-                "--loglevel",
-                "silent"
-            ],
-            "isBackground": true,
-            "presentation": {
-                "reveal": "silent"
-            },
-            "problemMatcher": "$tsc-watch"
+            "problemMatcher": []
+        },
+        {
+            "type": "npm",
+            "script": "typecheck",
+            "problemMatcher": "$tsc"
         },
         {
             "type": "npm",
             "script": "lint",
-            "problemMatcher": {
-                "base": "$tslint5",
-                "fileLocation": "absolute"
-            }
+            "problemMatcher": "$eslint-stylish"
         }
     ]
 }

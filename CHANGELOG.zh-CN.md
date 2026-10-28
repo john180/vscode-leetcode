@@ -4,6 +4,20 @@
 
 本文件维护社区分支从 0.19.0 开始的中文更新记录。0.18.4 及更早版本属于上游历史，见英文版。
 
+## [Unreleased]
+
+## [0.25.0] - 2026-10-28
+### 变更
+- 仓库迁移至 `john180/vscode-leetcode`，主分支改为 `main`，保留 `community` 的历史。
+- 扩展标识改为 `john180.vscode-leetcode`，显示名称简化为 `LeetCode`，同步登录回调、安装说明和测试。
+- 仓库规则检查合并至主 CI 流程，精简中英文 README。
+- 定位为 Windows 个人自用插件，仅保留简体中文与英文。
+- 改为本地 VSIX 安装和 Windows CI，更新开发调试任务及打包依赖声明。
+
+### 移除
+- 日语与韩语翻译、商店发布流程、公共反馈模板、无引用文档素材及历史适配计划。
+- 旧版 `leetcode.showCommentDescription` 配置兼容和明文 Cookie 迁移；请使用 `leetcode.showDescription`，必要时重新登录。
+
 ## [0.24.3] - 2026-10-22
 ### 变更
 - 四种 README 顶部统一放置 CI、Marketplace、VS Code 与 MIT 许可证 badge。

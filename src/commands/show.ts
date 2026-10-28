@@ -1,8 +1,11 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import * as fse from "fs-extra";
-import * as _ from "lodash";
+import * as fs from "node:fs/promises";
+import camelCase = require("lodash/camelCase");
+import upperFirst = require("lodash/upperFirst");
+import kebabCase = require("lodash/kebabCase");
+import snakeCase = require("lodash/snakeCase");
 import * as path from "path";
 import * as vscode from "vscode";
 import { buildProblemFile } from "../api/problemFile";
@@ -210,7 +213,7 @@ async function showProblemInternal(node: IProblem): Promise<void> {
         const needTranslation: boolean = settingUtils.shouldUseEndpointTranslation();
         const detail: IQuestionDetail = await fetchQuestionDetail(getLeetCodeRequest(), node.slug);
 
-        if (!await fse.pathExists(finalPath)) {
+        if (!await fs.access(finalPath).then(() => true, () => false)) {
             const endpointName: string = getLeetCodeEndpoint() === Endpoint.LeetCodeCN ? "leetcode.cn" : "leetcode.com";
             const fileContent: string = buildProblemFile({
                 detail,
@@ -220,7 +223,7 @@ async function showProblemInternal(node: IProblem): Promise<void> {
                 useTranslation: needTranslation,
                 endpoint: endpointName,
             });
-            await fse.writeFile(finalPath, fileContent);
+            await fs.writeFile(finalPath, fileContent);
         }
 
         const promises: any[] = [
@@ -312,15 +315,15 @@ async function resolveRelativePath(relativePath: string, node: IProblem, selecte
             case "name":
                 return node.name;
             case "camelcasename":
-                return _.camelCase(node.name);
+                return camelCase(node.name);
             case "pascalcasename":
-                return _.upperFirst(_.camelCase(node.name));
+                return upperFirst(camelCase(node.name));
             case "kebabcasename":
             case "kebab-case-name":
-                return _.kebabCase(node.name) || node.slug;
+                return kebabCase(node.name) || node.slug;
             case "snakecasename":
             case "snake_case_name":
-                return _.snakeCase(node.name);
+                return snakeCase(node.name);
             case "ext":
                 return genFileExt(selectedLanguage);
             case "language":

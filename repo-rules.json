@@ -4,11 +4,10 @@
     ".git",
     ".vscode",
     ".vscode-test",
-    ".repo-rules",
     "node_modules",
     "dist",
-    "out",
-    "out-test"
+    "out-test",
+    ".idea"
   ],
   "skip_prefixes": [],
   "skip_globs": [
@@ -93,24 +92,6 @@
       "message": "use registry.npmjs.org; the cnpm mirror certificate is expired"
     },
     {
-      "id": "official-publisher",
-      "globs": [
-        "package.json"
-      ],
-      "pattern": "\"publisher\":\\s*\"LeetCode\"",
-      "message": "publish under yanxijian, not the official publisher"
-    },
-    {
-      "id": "global-readme-no-cn-url",
-      "globs": [
-        "README.en.md",
-        "README.ja.md",
-        "README.ko.md"
-      ],
-      "pattern": "leetcode\\.cn|力扣|CHANGELOG\\.zh-CN\\.md",
-      "message": "non-Chinese READMEs must use leetcode.com and the English changelog"
-    },
-    {
       "id": "no-extension-telemetry",
       "globs": [
         "src/*.ts",
@@ -122,14 +103,9 @@
       "message": "telemetry was inherited from upstream and intentionally removed; do not reintroduce it"
     }
   ],
-  "headers": {
-    "globs": [],
-    "first_line": "#pragma once",
-    "forbid_namespace_using": true
-  },
   "versions": [
     {
-      "id": "release-version",
+      "id": "package-version",
       "sources": [
         {
           "path": "package.json",
@@ -142,22 +118,6 @@
         {
           "path": "CHANGELOG.md",
           "pattern": "(?m)^## \\[(\\d+)\\.(\\d+)\\.(\\d+)\\]"
-        },
-        {
-          "path": "README.md",
-          "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
-        },
-        {
-          "path": "README.en.md",
-          "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
-        },
-        {
-          "path": "README.ja.md",
-          "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
-        },
-        {
-          "path": "README.ko.md",
-          "pattern": "vscode-leetcode-community-(\\d+)\\.(\\d+)\\.(\\d+)\\.vsix"
         },
         {
           "path": "CHANGELOG.zh-CN.md",
@@ -177,17 +137,12 @@
     ".vscodeignore",
     ".gitattributes",
     "src/extension.ts",
-    "docs/PUBLISHING.md",
-    "docs/PUBLISHING.zh-CN.md",
     "repo-rules.json",
     "scripts/repo_rules.py",
     ".githooks/pre-commit",
     ".githooks/commit-msg",
-    ".github/workflows/hygiene.yml",
-    "README.ja.md",
-    "README.ko.md",
-    "CHANGELOG.zh-CN.md",
-    "scripts/check-release.mjs"
+    ".github/workflows/build.yml",
+    "CHANGELOG.zh-CN.md"
   ],
   "markdown": {
     "globs": [
@@ -197,9 +152,7 @@
     "languages": {
       "default": "README.md",
       "variants": [
-        "README.en.md",
-        "README.ja.md",
-        "README.ko.md"
+        "README.en.md"
       ],
       "switch_line": true
     }
@@ -217,19 +170,5 @@
   },
   "commit_message": {
     "english": true
-  },
-  "actions": {
-    "globs": [
-      ".github/workflows/hygiene.yml"
-    ],
-    "require": {
-      "actions/checkout": "v7",
-      "actions/setup-python": "v7",
-      "actions/setup-node": "v7",
-      "actions/upload-artifact": "v7",
-      "actions/download-artifact": "v8",
-      "actions/cache": "v6"
-    },
-    "allow_sha": true
   }
 }

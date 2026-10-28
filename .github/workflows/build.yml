@@ -2,9 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [community]
+    branches: [main]
   pull_request:
-    branches: [community]
+    branches: [main]
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -12,20 +15,18 @@ concurrency:
 
 jobs:
   build:
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check repository rules
+        run: python scripts/repo_rules.py check --config repo-rules.json
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24.18.0
           cache: npm
 
       - name: Install dependencies

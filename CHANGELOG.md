@@ -6,6 +6,20 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+## [0.25.0] - 2026-10-28
+### Changed
+- Move the repository to `john180/vscode-leetcode` and use `main`, preserving the history of `community`.
+- Rename the extension to `john180.vscode-leetcode` with the display name `LeetCode`; update login callbacks, installation instructions, and tests.
+- Merge repository rule checks into the main CI workflow and simplify the Chinese and English READMEs.
+- Maintain this fork for personal Windows use with Simplified Chinese and English only.
+- Use local VSIX installation and Windows CI; refresh the development launch tasks and bundled dependency notices.
+
+### Removed
+- Japanese and Korean translations, Marketplace publishing, public issue templates, unused documentation assets and historical adaptation plans.
+- Deprecated `leetcode.showCommentDescription` support and migration from plain-text cookie storage; use `leetcode.showDescription` and sign in again if needed.
+
 ## [0.24.3] - 2026-10-22
 ### Changed
 - Move CI, Marketplace, VS Code, and MIT license badges to the top of all README variants.

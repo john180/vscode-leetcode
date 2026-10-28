@@ -4,8 +4,8 @@ import { buildAuthLoginUrl, parseAuthCallback } from "../../src/auth/login";
 
 test("buildAuthLoginUrl uses the current extension id", () => {
     assert.equal(
-        buildAuthLoginUrl("leetcode-cn", "vscode", "yanxijian.vscode-leetcode-community"),
-        "https://leetcode.cn/authorize-login/vscode/?path=yanxijian.vscode-leetcode-community",
+        buildAuthLoginUrl("leetcode-cn", "vscode", "john180.vscode-leetcode"),
+        "https://leetcode.cn/authorize-login/vscode/?path=john180.vscode-leetcode",
     );
 });
 

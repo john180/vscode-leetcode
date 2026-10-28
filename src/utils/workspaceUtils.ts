@@ -1,7 +1,7 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import * as fse from "fs-extra";
+import * as fs from "node:fs/promises";
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -19,7 +19,7 @@ export async function selectWorkspaceFolder(): Promise<string> {
         }
     }
     let needAsk: boolean = true;
-    await fse.ensureDir(workspaceFolderSetting);
+    await fs.mkdir(workspaceFolderSetting, { recursive: true });
     for (const folder of vscode.workspace.workspaceFolders || []) {
         if (isSubFolder(folder.uri.fsPath, workspaceFolderSetting)) {
             needAsk = false;

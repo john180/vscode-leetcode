@@ -21,7 +21,6 @@
     "config.hideSolved": "Hide solved problems.",
     "config.defaultLanguage": "Default language for solving the problems.",
     "config.showDescription": "Specify where to show the description.",
-    "config.showCommentDescription": "[Deprecated] Include problem description in comments.",
     "config.setDefaultLanguage": "Show a hint to set the default language.",
     "config.configWebviewMarkdown": "Show a hint to change webview appearance through markdown config.",
     "config.commentDescription": "Show a hint to enable comment description in solution code file.",
@@ -39,5 +38,5 @@
     "config.showDescription.enumDescriptions.1": "Show the problem description in the file's comment",
     "command.showSubmissions": "Show Submission History",
     "command.addToFavoriteList": "Add to Favorite List",
-    "viewsWelcome.welcome": "Welcome to LeetCode Community\n\nPreparing your LeetCode workspace..."
+    "viewsWelcome.welcome": "Welcome to LeetCode\n\nPreparing your LeetCode workspace..."
 }

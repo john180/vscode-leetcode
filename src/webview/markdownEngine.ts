@@ -8,7 +8,6 @@ import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import { leetCodeChannel } from "../leetCodeChannel";
-import { isWindows } from "../utils/osUtils";
 
 const highlightLanguages: { [name: string]: LanguageFn } = {
     bash: require("highlight.js/lib/languages/bash"),
@@ -126,7 +125,6 @@ class MarkdownEngine implements vscode.Disposable {
 
     private addCodeBlockHighlight(md: MarkdownIt): void {
         const codeBlock: MarkdownIt.Renderer.RenderRule = md.renderer.rules["code_block"] as MarkdownIt.Renderer.RenderRule;
-        // tslint:disable-next-line:typedef
         md.renderer.rules["code_block"] = (tokens, idx, options, env, self) => {
             // if any token uses lang-specified code fence, then do not highlight code block
             if (tokens.some((token: any) => token.type === "fence")) {
@@ -146,7 +144,6 @@ class MarkdownEngine implements vscode.Disposable {
 
     private addImageUrlCompletion(md: MarkdownIt): void {
         const image: MarkdownIt.Renderer.RenderRule = md.renderer.rules["image"] as MarkdownIt.Renderer.RenderRule;
-        // tslint:disable-next-line:typedef
         md.renderer.rules["image"] = (tokens, idx, options, env, self) => {
             const attrs: Array<[string, string]> | null = tokens[idx].attrs;
             const imageSrc: [string, string] | undefined = attrs
@@ -168,7 +165,6 @@ class MarkdownEngine implements vscode.Disposable {
     }
 }
 
-// tslint:disable-next-line: max-classes-per-file
 class MarkdownConfiguration {
 
     public readonly extRoot: string; // root path of vscode built-in markdown extension
@@ -186,7 +182,7 @@ class MarkdownConfiguration {
 
     private resolveFontFamily(config: vscode.WorkspaceConfiguration): string {
         let fontFamily: string = config.get<string>("preview.fontFamily", "");
-        if (isWindows() && fontFamily === config.inspect<string>("preview.fontFamily")!.defaultValue) {
+        if (fontFamily === config.inspect<string>("preview.fontFamily")!.defaultValue) {
             fontFamily = `${fontFamily}, 'Microsoft Yahei UI'`;
         }
         return fontFamily;
