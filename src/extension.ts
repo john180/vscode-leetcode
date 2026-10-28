@@ -98,9 +98,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.showSubmissions", (node: LeetCodeNode) => submissions.showSubmissionHistory(node)),
             vscode.commands.registerCommand("leetcode.refreshExplorer", async () => {
                 if (globalState.getCookie() && leetCodeManager.getStatus() === UserStatus.SignedOut) {
-                    void leetCodeManager.getLoginStatus().catch((error: unknown) => {
-            leetCodeChannel.appendLine(`[WARN] Session restoration failed: ${error}`);
-        });
+                    await leetCodeManager.getLoginStatus();
                 }
                 await leetCodeTreeDataProvider.refresh(true);
             }),
@@ -118,7 +116,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.window.registerUriHandler({ handleUri: leetCodeManager.handleUriSignIn })
         );
 
-        await leetCodeManager.getLoginStatus();
+        void leetCodeManager.getLoginStatus().catch((error: unknown) => {
+            leetCodeChannel.appendLine(`[WARN] Session restoration failed: ${error}`);
+        });
     } catch (error) {
         leetCodeChannel.appendLine(error.toString());
         promptForOpenOutputChannel("Extension initialization failed. Please open output channel for details.", DialogType.error);
