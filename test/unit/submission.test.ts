@@ -207,6 +207,64 @@ test("submitSolution polls pending results until a terminal state", async () => 
     }
 });
 
+function checkFailure(status: number | undefined, config: any): any {
+    const error: any = new Error(status ? `Request failed with status code ${status}` : "socket hang up");
+    error.config = config;
+    if (status) {
+        error.response = { status, headers: { "retry-after": "0" }, data: {} };
+    }
+    return error;
+}
+
+test("submitSolution keeps polling through transient check failures", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let checks: number = 0;
+    axios.defaults.adapter = async (config: any) => {
+        if (config.method === "post") {
+            return response({ submission_id: 13 }, config);
+        }
+        checks += 1;
+        if (checks === 1) {
+            throw checkFailure(undefined, config);
+        }
+        if (checks === 2) {
+            throw checkFailure(503, config);
+        }
+        return response({ state: "SUCCESS", status_msg: "Accepted" }, config);
+    };
+    try {
+        const result = await submitSolution(request, target, "cpp", "code", { pollIntervalMs: 0, pollTimeoutMs: 5000 });
+        assert.equal(checks, 3);
+        assert.equal(result.statusMessage, "Accepted");
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("submitSolution stops polling on a persistent or non-transient check failure", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let checks: number = 0;
+    let status: number = 503;
+    axios.defaults.adapter = async (config: any) => {
+        if (config.method === "post") {
+            return response({ submission_id: 14 }, config);
+        }
+        checks += 1;
+        throw checkFailure(status, config);
+    };
+    try {
+        await assert.rejects(submitSolution(request, target, "cpp", "code", { pollIntervalMs: 0, pollTimeoutMs: 5000 }), /503/);
+        assert.equal(checks, 3, "the first check and two retries");
+
+        checks = 0;
+        status = 403;
+        await assert.rejects(submitSolution(request, target, "cpp", "code", { pollIntervalMs: 0, pollTimeoutMs: 5000 }), /403/);
+        assert.equal(checks, 1);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
 test("submitSolution retries a rate-limited post", async () => {
     const originalAdapter = axios.defaults.adapter;
     let posts: number = 0;

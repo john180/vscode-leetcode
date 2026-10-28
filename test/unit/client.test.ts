@@ -69,6 +69,54 @@ test("graphql joins GraphQL errors and does not retry", async () => {
     }
 });
 
+test("graphql keeps the GraphQL errors of a 400 response", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let calls = 0;
+    axios.defaults.adapter = async (config: any): Promise<any> => {
+        calls += 1;
+        const error: any = new Error("Request failed with status code 400");
+        error.config = config;
+        error.response = {
+            status: 400,
+            headers: {},
+            data: { errors: [{ message: "Cannot query field \"noSuchField\" on type \"QuestionNode\"." }] },
+        };
+        throw error;
+    };
+    try {
+        await assert.rejects(graphql(request, "query { ok }"), (error: any) => {
+            assert.match(error.message, /HTTP 400.*Cannot query field "noSuchField"/);
+            assert.equal(error.response.status, 400, "callers can still read the status");
+            return true;
+        });
+        assert.equal(calls, 1);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("graphql explains a web page returned instead of JSON", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    const page = "<!DOCTYPE html><html><title>Just a moment...</title></html>";
+    let status = 200;
+    axios.defaults.adapter = async (config: any): Promise<any> => {
+        if (status !== 200) {
+            const error: any = new Error(`Request failed with status code ${status}`);
+            error.config = config;
+            error.response = { status, headers: {}, data: page };
+            throw error;
+        }
+        return { data: page, status, statusText: "OK", headers: {}, config };
+    };
+    try {
+        await assert.rejects(graphql(request, "query { ok }"), /HTTP 200 with a web page instead of JSON/);
+        status = 403;
+        await assert.rejects(graphql(request, "query { ok }"), /HTTP 403 with a web page instead of JSON/);
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
 test("graphql rejects an empty data response", async () => {
     const originalAdapter = axios.defaults.adapter;
     axios.defaults.adapter = async (config: any): Promise<any> => ({

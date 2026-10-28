@@ -3,25 +3,13 @@
 
 import axios from "axios";
 import type { IProblem } from "../shared";
-import { IGraphQLRequest } from "./client";
+import { graphql, IGraphQLRequest } from "./client";
 
 interface IDailyQuestion {
-    id?: string;
-    name?: string;
-    slug?: string;
-    progress?: number;
-    link?: string;
-}
-
-interface IHomeSsrData {
-    taskSchedule?: {
-        dailyQuestions?: IDailyQuestion[];
-    };
-}
-
-interface IGlobalDailyQuestion {
+    questionId?: string;
     questionFrontendId?: string;
     title?: string;
+    translatedTitle?: string;
     titleSlug?: string;
     difficulty?: string;
     paidOnly?: boolean;
@@ -34,53 +22,46 @@ interface IGlobalDailyQuestion {
 interface IGlobalDailyResponse {
     data?: {
         activeDailyCodingChallengeQuestion?: {
-            question?: IGlobalDailyQuestion;
+            question?: IDailyQuestion;
         };
     };
 }
 
+interface ICnDailyData {
+    todayRecord?: Array<{ question?: IDailyQuestion }>;
+}
+
+const CN_DAILY_QUERY: string = `query questionOfToday {
+    todayRecord {
+        question {
+            questionId
+            questionFrontendId
+            title
+            translatedTitle
+            titleSlug
+            difficulty
+            isPaidOnly
+            acRate
+            status
+            topicTags { name slug }
+        }
+    }
+}`;
+
 const CACHE_TTL_MS = 5 * 60 * 1000;
 let dailyCache: { origin: string; at: number; value: IProblem | undefined } | undefined;
 
-/**
- * LeetCode CN does not expose the daily challenge through GraphQL. The homepage
- * embeds it in __NEXT_DATA__; keep the parser isolated so a markup change only
- * disables the Daily node instead of breaking the problem list.
- */
-export function parseDailyChallenge(html: string): IProblem | undefined {
-    const match: RegExpMatchArray | null = html.match(
-        /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/,
-    );
-    if (!match) {
-        return undefined;
-    }
-    let data: { props?: { pageProps?: { HomeSsrData?: IHomeSsrData } } };
-    try {
-        data = JSON.parse(match[1]);
-    } catch {
-        return undefined;
-    }
-    const daily: IDailyQuestion | undefined = data.props?.pageProps?.HomeSsrData?.taskSchedule?.dailyQuestions?.[0];
-    if (!daily?.slug || !daily.name) {
-        return undefined;
-    }
-    return {
-        id: daily.id || daily.slug,
-        questionId: daily.id,
-        slug: daily.slug,
-        name: daily.name,
-        difficulty: "",
-        passRate: "",
-        state: (daily.progress ? 1 : 3) as IProblem["state"],
-        locked: false,
-        isFavorite: false,
-        companies: [],
-        tags: [],
-    };
+export function parseGlobalDailyChallenge(data: unknown): IProblem | undefined {
+    return mapDailyQuestion((data as IGlobalDailyResponse | undefined)?.data?.activeDailyCodingChallengeQuestion?.question);
 }
 
-export function parseGlobalDailyChallenge(data: unknown): IProblem | undefined {
-    const question = (data as IGlobalDailyResponse | undefined)?.data?.activeDailyCodingChallengeQuestion?.question;
+/** Reads the `data` of LeetCode CN's todayRecord query. */
+export function parseCnDailyChallenge(data: unknown): IProblem | undefined {
+    const question = (data as ICnDailyData | undefined)?.todayRecord?.[0]?.question;
+    return mapDailyQuestion(question && { ...question, title: question.translatedTitle || question.title });
+}
+
+function mapDailyQuestion(question: IDailyQuestion | undefined): IProblem | undefined {
     if (!question?.titleSlug || !question.title) {
         return undefined;
     }
@@ -88,7 +69,7 @@ export function parseGlobalDailyChallenge(data: unknown): IProblem | undefined {
     const difficulty: string = (question.difficulty || "").trim();
     return {
         id,
-        questionId: question.questionFrontendId,
+        questionId: question.questionId || question.questionFrontendId,
         slug: question.titleSlug,
         name: question.title,
         difficulty: difficulty ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase() : "",
@@ -144,14 +125,7 @@ export async function fetchDailyChallenge(request: IGraphQLRequest, forceRefresh
         );
         value = parseGlobalDailyChallenge(response.data);
     } else {
-        const response = await axios.get<string>(`${request.origin}/`, {
-            timeout: 20000,
-            responseType: "text",
-            headers: {
-                "referer": `${request.origin}/problemset/`,
-            },
-        });
-        value = parseDailyChallenge(response.data);
+        value = parseCnDailyChallenge(await graphql<ICnDailyData>(request, CN_DAILY_QUERY));
     }
     dailyCache = { origin: request.origin, at: Date.now(), value };
     return value;

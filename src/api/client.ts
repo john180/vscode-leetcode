@@ -29,15 +29,53 @@ export async function graphql<T>(
         throw new Error("LeetCode endpoint is not configured.");
     }
 
-    const response = await postWithRetry<T>(request, query, variables);
+    let response: AxiosResponse<IGraphQLResponse<T>>;
+    try {
+        response = await postWithRetry<T>(request, query, variables);
+    } catch (error) {
+        throw describeFailure(error);
+    }
     const body = response.data;
-    if (body?.errors && body.errors.length > 0) {
-        throw new Error(body.errors.map((error) => error.message).join("; "));
+    if (isPage(body)) {
+        throw new Error(pageMessage(response.status));
+    }
+    const messages: string | undefined = errorMessages(body);
+    if (messages) {
+        throw new Error(messages);
     }
     if (!body?.data) {
         throw new Error("LeetCode returned an empty GraphQL response.");
     }
     return body.data;
+}
+
+/**
+ * LeetCode answers a query that does not match its schema with a 400 whose body
+ * says what is wrong; keep that, and the response for callers that check the status.
+ */
+function describeFailure(error: unknown): unknown {
+    const response = (error as { response?: { status?: number; data?: unknown } } | undefined)?.response;
+    const messages: string | undefined = errorMessages(response?.data);
+    const message: string | undefined = messages
+        ? `LeetCode rejected the GraphQL request (HTTP ${response?.status}): ${messages}`
+        : isPage(response?.data) ? pageMessage(response?.status) : undefined;
+    return message ? Object.assign(new Error(message), { response }) : error;
+}
+
+function errorMessages(body: unknown): string | undefined {
+    const errors: unknown = (body as IGraphQLResponse<unknown> | undefined)?.errors;
+    return Array.isArray(errors) && errors.length > 0
+        ? errors.map((error: { message?: string }) => error?.message || "Unknown error").join("; ")
+        : undefined;
+}
+
+/** A body that is not JSON, such as a CAPTCHA or proxy page. */
+function isPage(body: unknown): boolean {
+    return typeof body === "string" && body.trim().length > 0;
+}
+
+function pageMessage(status: number | undefined): string {
+    return `LeetCode answered HTTP ${status} with a web page instead of JSON; a CAPTCHA, proxy or firewall may be blocking the request.`;
 }
 
 async function postWithRetry<T>(

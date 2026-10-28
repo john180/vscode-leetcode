@@ -3,6 +3,7 @@
 
 import axios from "axios";
 import { IGraphQLRequest } from "./client";
+import { isRetryableError, MAX_RETRIES, retryDelayMs } from "./retry";
 
 const DEFAULT_POLL_INTERVAL_MS = 1000;
 const DEFAULT_POLL_TIMEOUT_MS = 90000;
@@ -238,14 +239,27 @@ async function pollResult(
     const intervalMs: number = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
     const timeoutMs: number = options.pollTimeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
     const startedAt: number = Date.now();
+    let failures: number = 0;
     while (Date.now() - startedAt < timeoutMs) {
-        const response = await axios.get<ICheckResponse>(
-            `${request.origin}/submissions/detail/${checkId}/check/`,
-            { headers, timeout: 15000 },
-        );
-        const state: string = response.data.state || "";
+        let data: ICheckResponse;
+        try {
+            data = (await axios.get<ICheckResponse>(
+                `${request.origin}/submissions/detail/${checkId}/check/`,
+                { headers, timeout: 15000 },
+            )).data;
+            failures = 0;
+        } catch (error) {
+            // The code is already judged; one failed check must not lose its result.
+            if (failures >= MAX_RETRIES || !isRetryableError(error)) {
+                throw error;
+            }
+            await delay(retryDelayMs(failures, error));
+            failures += 1;
+            continue;
+        }
+        const state: string = data.state || "";
         if (state && state !== "PENDING" && state !== "STARTED") {
-            return response.data;
+            return data;
         }
         await delay(intervalMs);
     }
@@ -260,7 +274,7 @@ async function postJson(
     options: ISubmissionOptions = {},
 ): Promise<{ [key: string]: unknown }> {
     const headers: { [key: string]: string } = getHeaders(request, slug);
-    const retryDelayMs: number = options.rateLimitDelayMs ?? DEFAULT_RATE_LIMIT_DELAY_MS;
+    const rateLimitDelayMs: number = options.rateLimitDelayMs ?? DEFAULT_RATE_LIMIT_DELAY_MS;
     for (let attempt: number = 0; attempt < 3; attempt += 1) {
         try {
             const response = await axios.post<{ [key: string]: unknown }>(
@@ -272,7 +286,7 @@ async function postJson(
             const bodyError: string = typeof data.error === "string" ? data.error : "";
             if (bodyError) {
                 if (bodyError.includes("too soon")) {
-                    await delay(retryDelayMs * (attempt + 1));
+                    await delay(rateLimitDelayMs * (attempt + 1));
                     continue;
                 }
                 throw new Error(bodyError);
@@ -282,7 +296,7 @@ async function postJson(
             const data: { error?: string } | undefined = (error as { response?: { data?: { error?: string } } } | undefined)?.response?.data;
             const message: string = data?.error || "";
             if (message.includes("too soon")) {
-                await delay(retryDelayMs * (attempt + 1));
+                await delay(rateLimitDelayMs * (attempt + 1));
                 continue;
             }
             throw error;

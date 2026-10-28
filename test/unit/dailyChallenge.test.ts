@@ -1,28 +1,57 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { parseDailyChallenge, parseGlobalDailyChallenge } from "../../src/api/dailyChallenge";
+import axios from "axios";
+import { fetchDailyChallenge, parseCnDailyChallenge, parseGlobalDailyChallenge } from "../../src/api/dailyChallenge";
 
-test("parseDailyChallenge reads the homepage SSR daily question", () => {
-    const html = `<script id="__NEXT_DATA__" type="application/json">${JSON.stringify({
-        props: {
-            pageProps: {
-                HomeSsrData: {
-                    taskSchedule: {
-                        dailyQuestions: [{ id: "3863", name: "最小操作次数", slug: "minimum-operations", progress: 0 }],
-                    },
-                },
-            },
+const cnToday = {
+    todayRecord: [{
+        question: {
+            questionId: "4205",
+            questionFrontendId: "3882",
+            title: "Minimum XOR Path in a Grid",
+            translatedTitle: "网格图中最小异或路径",
+            titleSlug: "minimum-xor-path-in-a-grid",
+            difficulty: "Medium",
+            isPaidOnly: false,
+            acRate: 0.6029,
+            status: null,
+            topicTags: [{ name: "Array", slug: "array" }],
         },
-    })}</script>`;
-    const daily = parseDailyChallenge(html);
-    assert.equal(daily?.id, "3863");
-    assert.equal(daily?.slug, "minimum-operations");
-    assert.equal(daily?.name, "最小操作次数");
+    }],
+};
+
+test("parseCnDailyChallenge maps the todayRecord question", () => {
+    const daily = parseCnDailyChallenge(cnToday);
+    assert.equal(daily?.id, "3882");
+    assert.equal(daily?.questionId, "4205", "the backend id, which submissions use");
+    assert.equal(daily?.slug, "minimum-xor-path-in-a-grid");
+    assert.equal(daily?.name, "网格图中最小异或路径");
+    assert.equal(daily?.difficulty, "Medium");
+    assert.equal(daily?.passRate, "60.3 %");
+    assert.equal(daily?.state, 3);
 });
 
-test("parseDailyChallenge ignores malformed or missing data", () => {
-    assert.equal(parseDailyChallenge("<html></html>"), undefined);
-    assert.equal(parseDailyChallenge('<script id="__NEXT_DATA__" type="application/json">{bad json}</script>'), undefined);
+test("parseCnDailyChallenge ignores missing data", () => {
+    assert.equal(parseCnDailyChallenge(undefined), undefined);
+    assert.equal(parseCnDailyChallenge({ todayRecord: [] }), undefined);
+    assert.equal(parseCnDailyChallenge({ todayRecord: [{ question: { title: "No slug" } }] }), undefined);
+});
+
+test("fetchDailyChallenge asks LeetCode CN's GraphQL endpoint for todayRecord", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let posted: any;
+    axios.defaults.adapter = async (config: any): Promise<any> => {
+        posted = { url: config.url, body: JSON.parse(config.data) };
+        return { data: { data: cnToday }, status: 200, statusText: "OK", headers: {}, config };
+    };
+    try {
+        const daily = await fetchDailyChallenge({ endpoint: "https://leetcode.cn/graphql", origin: "https://leetcode.cn" }, true);
+        assert.equal(posted.url, "https://leetcode.cn/graphql");
+        assert.match(posted.body.query, /todayRecord/);
+        assert.equal(daily?.slug, "minimum-xor-path-in-a-grid");
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
 });
 
 test("parseGlobalDailyChallenge maps the GraphQL daily question", () => {

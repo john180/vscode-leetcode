@@ -15,6 +15,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - `Add to Favorite List` is hidden from the Command Palette, where it had no problem to act on.
 - Every `leetcode.showDescription` value has a description in Settings.
 - Choosing the active session in `Manage Sessions` no longer switches to it again in the Chinese UI.
+- The Daily Challenge on leetcode.cn shows today's problem again; it is read from LeetCode's GraphQL API, since the homepage no longer embeds it.
+- A request that LeetCode rejects with 401 or 403 no longer deletes the saved session unless LeetCode confirms that the session is signed out; a 403 can also come from a CAPTCHA or CSRF check.
+- When LeetCode rejects a query, the output channel shows LeetCode's reason instead of "Request failed with status code 400", and a CAPTCHA or proxy page is reported as such.
+- A brief network failure while waiting for a judge result no longer loses the result of a test or submission that LeetCode already accepted.
 
 ### Changed
 - Commands and views are registered before the stored session is restored, so a failure there no longer leaves the commands missing.

@@ -20,9 +20,10 @@ export function isSessionExpiredError(error: unknown): boolean {
 let interceptorInstalled: boolean = false;
 
 /**
- * Turns an expired authenticated request into one session event. The manager
- * owns the state transition and the user prompt, so every HTTP path shares the
- * same behaviour.
+ * Turns a 401/403 into one session event. The manager verifies the session
+ * before signing out, since LeetCode also answers 403 to CSRF failures and bot
+ * challenges, and owns the state transition and the user prompt, so every HTTP
+ * path shares the same behaviour.
  */
 export function installSessionInterceptor(): void {
     if (interceptorInstalled) {

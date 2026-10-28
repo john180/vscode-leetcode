@@ -13,11 +13,15 @@ import { getLeetCodeEndpoint } from "./commands/plugin";
 import { globalState } from "./globalState";
 import { queryUserData } from "./request/query-user-data";
 
+/** How long a session that survived a 401/403 check is trusted before checking again. */
+const SESSION_RECHECK_INTERVAL_MS = 60 * 1000;
+
 class LeetCodeManager extends EventEmitter {
     private currentUser: string | undefined;
     private userStatus: UserStatus;
     private handlingUriSignIn: boolean = false;
     private handlingSessionExpired: boolean = false;
+    private sessionKept: { cookie: string; at: number } | undefined;
     private authenticating: boolean = false;
     private authRevision: number = 0;
     private signingInRevision: number | undefined;
@@ -299,14 +303,32 @@ class LeetCodeManager extends EventEmitter {
         vscode.window.showInformationMessage(vscode.l10n.t("Successfully signed out."));
     }
 
+    /**
+     * A 401/403 only suggests that the session expired: LeetCode also answers
+     * 403 to CSRF failures and bot challenges. The stored cookie is cleared only
+     * once userStatus confirms that it is signed out.
+     */
     public async handleSessionExpired(): Promise<void> {
         if (this.userStatus !== UserStatus.SignedIn || this.handlingSessionExpired || this.authenticating) {
             return;
         }
+        const cookie: string | undefined = globalState.getCookie();
+        if (cookie && this.sessionKept?.cookie === cookie && Date.now() - this.sessionKept.at < SESSION_RECHECK_INTERVAL_MS) {
+            return;
+        }
         this.handlingSessionExpired = true;
-        ++this.authRevision;
-        this.pendingWebLogin = undefined;
+        const revision = this.authRevision;
         try {
+            if (cookie && !await this.isSignedOut(cookie)) {
+                leetCodeChannel.warn("LeetCode rejected a request, but the session is not signed out; keeping it.");
+                this.sessionKept = { cookie, at: Date.now() };
+                return;
+            }
+            if (revision !== this.authRevision || this.userStatus !== UserStatus.SignedIn) {
+                return;
+            }
+            ++this.authRevision;
+            this.pendingWebLogin = undefined;
             leetCodeChannel.warn("LeetCode session expired; signing out.");
             this.currentUser = undefined;
             this.userStatus = UserStatus.SignedOut;
@@ -323,6 +345,17 @@ class LeetCodeManager extends EventEmitter {
             }
         } finally {
             this.handlingSessionExpired = false;
+        }
+    }
+
+    /** A failed check proves nothing, except a 401 from the check itself. */
+    private async isSignedOut(cookie: string): Promise<boolean> {
+        try {
+            const data = await queryUserData(cookie);
+            return !data.isSignedIn || !data.username;
+        } catch (error) {
+            leetCodeChannel.warn(`Failed to verify the LeetCode session: ${error}`);
+            return (error as { response?: { status?: number } } | undefined)?.response?.status === 401;
         }
     }
 

@@ -128,9 +128,11 @@ test("leetCodeManager transitions through signing in, signed in, expiry, and sig
     assert.deepEqual(statuses.slice(0, 2), [UserStatus.SigningIn, UserStatus.SignedIn]);
 
     warnings = 0;
+    queryResult = { isSignedIn: false, username: "", isPremium: false, avatar: "" };
     await leetCodeManager.handleSessionExpired();
     assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
     assert.equal(leetCodeManager.getUser(), undefined);
+    assert.equal(globalState.getCookie(), undefined);
     assert.equal(warnings, 1);
     await leetCodeManager.handleSessionExpired();
     assert.equal(warnings, 1);
@@ -142,6 +144,57 @@ test("leetCodeManager transitions through signing in, signed in, expiry, and sig
     await leetCodeManager.getLoginStatus();
     assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
     assert.deepEqual(statuses, [UserStatus.SigningIn, UserStatus.SignedOut]);
+});
+
+test("a rejected request keeps a session that LeetCode still reports as signed in", async () => {
+    await leetCodeManager.signOut();
+    const cookie = "LEETCODE_SESSION=alive; csrftoken=csrf";
+    await globalState.initialize(contextWithCookie(cookie));
+    queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
+    await leetCodeManager.getLoginStatus();
+    let checks = 0;
+    query = async () => { checks++; return queryResult; };
+    warnings = 0;
+    try {
+        await leetCodeManager.handleSessionExpired();
+        assert.equal(checks, 1);
+        assert.equal(leetCodeManager.getStatus(), UserStatus.SignedIn);
+        assert.equal(globalState.getCookie(), cookie);
+        assert.equal(warnings, 0);
+
+        await leetCodeManager.handleSessionExpired();
+        assert.equal(checks, 1, "a session that was just confirmed is not checked again");
+    } finally {
+        query = async () => queryResult;
+    }
+});
+
+test("a rejected request keeps the session when the check itself fails", async () => {
+    for (const status of [undefined, 403, 500]) {
+        await leetCodeManager.signOut();
+        const cookie = `LEETCODE_SESSION=blocked-${status}; csrftoken=csrf`;
+        await globalState.initialize(contextWithCookie(cookie));
+        queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
+        query = async () => queryResult;
+        await leetCodeManager.getLoginStatus();
+        query = async () => { throw { response: { status } }; };
+        warnings = 0;
+        await leetCodeManager.handleSessionExpired();
+        assert.equal(leetCodeManager.getStatus(), UserStatus.SignedIn);
+        assert.equal(globalState.getCookie(), cookie);
+        assert.equal(warnings, 0);
+    }
+
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie("LEETCODE_SESSION=revoked; csrftoken=csrf"));
+    query = async () => queryResult;
+    await leetCodeManager.getLoginStatus();
+    query = async () => { throw { response: { status: 401 } }; };
+    await leetCodeManager.handleSessionExpired();
+    assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
+    assert.equal(globalState.getCookie(), undefined);
+    assert.equal(warnings, 1);
+    query = async () => queryResult;
 });
 
 test("leetCodeManager starts signed out without a cookie", async () => {
