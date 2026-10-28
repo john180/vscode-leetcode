@@ -20,8 +20,21 @@ class LeetCodeManager extends EventEmitter {
     private handlingSessionExpired: boolean = false;
     private authenticating: boolean = false;
     private authRevision: number = 0;
+    private signingInRevision: number | undefined;
     private pendingWebLogin: { expiresAt: number; endpoint: string } | undefined;
     private authWrites: Promise<void> = Promise.resolve();
+
+    /** Starts an auth operation that supersedes any in-flight restoration. */
+    private beginAuth(): number {
+        this.pendingWebLogin = undefined;
+        if (this.userStatus === UserStatus.SigningIn) {
+            // The restoration will be discarded, so it no longer owns "Signing in...".
+            this.currentUser = undefined;
+            this.userStatus = UserStatus.SignedOut;
+            this.emit("statusChanged");
+        }
+        return ++this.authRevision;
+    }
 
     private commitAuth(revision: number, write: () => Promise<void>): Promise<void> {
         const result = this.authWrites.then(async () => {
@@ -54,6 +67,7 @@ class LeetCodeManager extends EventEmitter {
         const storedCookie: string | undefined = globalState.getCookie();
         if (storedCookie) {
             this.userStatus = UserStatus.SigningIn;
+            this.signingInRevision = revision;
             this.emit("statusChanged");
         }
         try {
@@ -95,18 +109,18 @@ class LeetCodeManager extends EventEmitter {
                 await globalState.removeAll();
             });
         } finally {
+            // A superseded restoration must not leave its own "Signing in..." behind,
+            // e.g. when the operation that replaced it failed.
+            if (this.userStatus === UserStatus.SigningIn && this.signingInRevision === revision) {
+                this.currentUser = undefined;
+                this.userStatus = UserStatus.SignedOut;
+            }
             this.emit("statusChanged");
         }
     }
 
     private async updateUserStatusWithCookie(cookie: string, confirmAccount: boolean = false): Promise<void> {
-        const revision = ++this.authRevision;
-        this.pendingWebLogin = undefined;
-        if (this.userStatus === UserStatus.SigningIn) {
-            this.currentUser = undefined;
-            this.userStatus = UserStatus.SignedOut;
-            this.emit("statusChanged");
-        }
+        const revision = this.beginAuth();
         const validationError: string | undefined = validateCookie(cookie);
         if (validationError) {
             throw new Error(validationError);
@@ -251,12 +265,7 @@ class LeetCodeManager extends EventEmitter {
         }
 
         if (choice.value === "WebAuth") {
-            ++this.authRevision;
-            if (this.userStatus === UserStatus.SigningIn) {
-                this.userStatus = UserStatus.SignedOut;
-                this.currentUser = undefined;
-                this.emit("statusChanged");
-            }
+            this.beginAuth();
             this.pendingWebLogin = { expiresAt: Date.now() + 5 * 60 * 1000, endpoint: getLeetCodeEndpoint() };
             await openUrl(this.getAuthLoginUrl());
             vscode.window.showInformationMessage(
@@ -318,8 +327,7 @@ class LeetCodeManager extends EventEmitter {
     }
 
     public async switchProfile(name: string): Promise<void> {
-        const revision = ++this.authRevision;
-        this.pendingWebLogin = undefined;
+        const revision = this.beginAuth();
         const cookie: string = await globalState.getProfileCookie(name);
         const data = await queryUserData(cookie);
         if (!data.isSignedIn || !data.username) {
@@ -339,12 +347,11 @@ class LeetCodeManager extends EventEmitter {
     }
 
     public async createProfile(name: string, cookie: string): Promise<void> {
-        const revision = ++this.authRevision;
-        this.pendingWebLogin = undefined;
         const validationError: string | undefined = validateCookie(cookie);
         if (validationError) {
             throw new Error(validationError);
         }
+        const revision = this.beginAuth();
         const normalizedCookie: string = normalizeCookie(cookie);
         const data = await queryUserData(normalizedCookie);
         if (!data.isSignedIn || !data.username) {
@@ -364,8 +371,8 @@ class LeetCodeManager extends EventEmitter {
     }
 
     public async deleteProfile(name: string): Promise<void> {
-        const revision = ++this.authRevision;
-        this.pendingWebLogin = undefined;
+        const restoring = this.userStatus === UserStatus.SigningIn;
+        const revision = this.beginAuth();
         await this.commitAuth(revision, () => globalState.deleteProfile(name));
         invalidateProblemCache();
         if (!globalState.getCookie()) {
@@ -374,6 +381,12 @@ class LeetCodeManager extends EventEmitter {
         }
         this.emit("statusChanged");
         vscode.window.showInformationMessage(vscode.l10n.t("Session \"{0}\" deleted.", name));
+        if (restoring && globalState.getCookie()) {
+            // Deleting another session interrupted restoring the current one; resume it.
+            void this.getLoginStatus().catch((error: unknown) => {
+                leetCodeChannel.appendLine(`[WARN] Session restoration failed: ${error}`);
+            });
+        }
     }
 
     public getStatus(): UserStatus {

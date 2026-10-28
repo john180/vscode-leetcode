@@ -311,6 +311,66 @@ test("a rejected profile switch leaves the current credential unchanged", async 
     assert.equal(leetCodeManager.getUser(), "bob");
 });
 
+test("a failed profile switch during restoration does not leave the view signing in", async () => {
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie());
+    queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
+    await leetCodeManager.createProfile("alice", "LEETCODE_SESSION=alice; csrftoken=csrf");
+    queryResult = { isSignedIn: true, username: "bob", isPremium: false, avatar: "" };
+    await leetCodeManager.createProfile("bob", "LEETCODE_SESSION=bob; csrftoken=csrf");
+
+    let resolveRestore!: (value: any) => void;
+    query = () => new Promise((resolve) => { resolveRestore = resolve; });
+    const restoration = leetCodeManager.getLoginStatus();
+    assert.equal(leetCodeManager.getStatus(), UserStatus.SigningIn);
+    const resolvePending = resolveRestore;
+    query = async () => ({ isSignedIn: false, username: "", isPremium: false, avatar: "" });
+    await assert.rejects(leetCodeManager.switchProfile("alice"), /no longer signed in/);
+    assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
+    resolvePending({ isSignedIn: true, username: "bob", isPremium: false, avatar: "" });
+    await restoration;
+    assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
+    assert.equal(globalState.getCookie(), "LEETCODE_SESSION=bob; csrftoken=csrf", "the credential is kept for a manual refresh");
+    query = async () => queryResult;
+});
+
+test("a superseded restoration does not leave the view signing in", async () => {
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie("LEETCODE_SESSION=kept; csrftoken=csrf"));
+    let resolveRestore!: (value: any) => void;
+    query = () => new Promise((resolve) => { resolveRestore = resolve; });
+    const restoration = leetCodeManager.getLoginStatus();
+    (leetCodeManager as any).authRevision++;
+    resolveRestore({ isSignedIn: true, username: "kept", isPremium: false, avatar: "" });
+    await restoration;
+    assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
+    query = async () => queryResult;
+});
+
+test("deleting another session during restoration resumes restoring the current one", async () => {
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie());
+    queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
+    await leetCodeManager.createProfile("alice", "LEETCODE_SESSION=alice; csrftoken=csrf");
+    queryResult = { isSignedIn: true, username: "bob", isPremium: false, avatar: "" };
+    await leetCodeManager.createProfile("bob", "LEETCODE_SESSION=bob; csrftoken=csrf");
+
+    let resolveFirst!: (value: any) => void;
+    query = () => new Promise((resolve) => { resolveFirst = resolve; });
+    const restoration = leetCodeManager.getLoginStatus();
+    const resolveInterrupted = resolveFirst;
+    const resumed = new Promise<void>((resolve) => {
+        query = async () => { resolve(); return { isSignedIn: true, username: "bob", isPremium: false, avatar: "" }; };
+    });
+    await leetCodeManager.deleteProfile("alice");
+    resolveInterrupted({ isSignedIn: true, username: "bob", isPremium: false, avatar: "" });
+    await Promise.all([restoration, resumed]);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(leetCodeManager.getStatus(), UserStatus.SignedIn);
+    assert.equal(leetCodeManager.getUser(), "bob");
+    query = async () => queryResult;
+});
+
 test("a rejected later login cannot cancel queued sign-out cleanup", async () => {
     await leetCodeManager.signOut();
     const context = contextWithCookie("LEETCODE_SESSION=old; csrftoken=csrf");
