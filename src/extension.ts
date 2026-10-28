@@ -34,6 +34,7 @@ import { registerProblemDocumentContext } from "./utils/problemDocumentContext";
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     try {
         setExtensionId(context.extension.id);
+        markdownEngine.initialize(context.extensionUri);
         registerProblemDocumentContext(context);
         sessionEvents.on("expired", () => {
             void leetCodeManager.handleSessionExpired();

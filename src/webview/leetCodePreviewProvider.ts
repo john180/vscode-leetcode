@@ -7,8 +7,10 @@ import { getLeetCodeEndpoint } from "../commands/plugin";
 import { Endpoint, IProblem } from "../shared";
 import { ILeetCodeWebviewOption, LeetCodeWebview } from "./LeetCodeWebview";
 import { markdownEngine } from "./markdownEngine";
+import { sanitizeProblemHtml } from "./sanitize";
 
 class LeetCodePreviewProvider extends LeetCodeWebview {
+    protected readonly enableScripts: boolean = true;
     protected readonly viewType: string = "leetcode.preview";
     private node: IProblem;
     private detail: IQuestionDetail;
@@ -57,7 +59,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
                     border: 0;
                     margin: 1rem 0;
                     padding: 0.2rem 1rem;
-                    color: white;
+                    color: var(--vscode-button-foreground);
                     background-color: var(--vscode-button-background);
                 }
                 #solve:hover {
@@ -115,6 +117,8 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
             <head>
                 <meta http-equiv="Content-Security-Policy" content="
                     default-src 'none';
+                    base-uri 'none';
+                    form-action 'none';
                     worker-src 'self' ${webview.cspSource};
                     img-src https: data: ${webview.cspSource};
                     style-src ${webview.cspSource} 'unsafe-inline';
@@ -131,7 +135,7 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
                 ${info}
                 ${tags}
                 ${companies}
-                ${body}
+                ${sanitizeProblemHtml(body)}
                 <hr />
                 ${links}
                 ${!this.sideMode ? button.element : ""}
@@ -149,7 +153,10 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
         this.sideMode = false;
     }
 
-    protected async onDidReceiveMessage(message: IWebViewMessage): Promise<void> {
+    protected async onDidReceiveMessage(message: unknown): Promise<void> {
+        if (!message || typeof message !== "object" || !("command" in message)) {
+            return;
+        }
         switch (message.command) {
             case "ShowProblem": {
                 await commands.executeCommand("leetcode.showProblem", this.node);
@@ -183,10 +190,6 @@ class LeetCodePreviewProvider extends LeetCodeWebview {
     private getSubmissionsLink(url: string): string {
         return url.replace("/description/", "/submissions/") + "?source=vscode";
     }
-}
-
-interface IWebViewMessage {
-    command: string;
 }
 
 export const leetCodePreviewProvider: LeetCodePreviewProvider = new LeetCodePreviewProvider();

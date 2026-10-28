@@ -5,9 +5,8 @@ import hljs from "highlight.js/lib/core";
 import type { LanguageFn } from "highlight.js";
 import MarkdownIt = require("markdown-it");
 import * as os from "os";
-import * as path from "path";
 import * as vscode from "vscode";
-import { leetCodeChannel } from "../leetCodeChannel";
+import { safeFontFamily } from "./sanitize";
 
 const highlightLanguages: { [name: string]: LanguageFn } = {
     bash: require("highlight.js/lib/languages/bash"),
@@ -38,6 +37,11 @@ class MarkdownEngine implements vscode.Disposable {
     private engine: MarkdownIt;
     private config: MarkdownConfiguration;
     private listener: vscode.Disposable;
+    private resourceRoot: vscode.Uri | undefined;
+
+    public initialize(extensionUri: vscode.Uri): void {
+        this.resourceRoot = vscode.Uri.joinPath(extensionUri, "resources", "webview");
+    }
 
     public constructor() {
         this.reload();
@@ -49,7 +53,7 @@ class MarkdownEngine implements vscode.Disposable {
     }
 
     public get localResourceRoots(): vscode.Uri[] {
-        return [vscode.Uri.file(path.join(this.config.extRoot, "media"))];
+        return this.resourceRoot ? [this.resourceRoot] : [];
     }
 
     public dispose(): void {
@@ -73,14 +77,11 @@ class MarkdownEngine implements vscode.Disposable {
     }
 
     private getBuiltinStyles(webview: vscode.Webview): string {
-        let styles: vscode.Uri[] = [];
-        try {
-            const stylePaths: string[] = require(path.join(this.config.extRoot, "package.json"))["contributes"]["markdown.previewStyles"];
-            styles = stylePaths.map((p: string) => webview.asWebviewUri(vscode.Uri.file(path.join(this.config.extRoot, p))));
-        } catch (error) {
-            leetCodeChannel.appendLine("[Error] Fail to load built-in markdown style file.");
+        if (!this.resourceRoot) {
+            return "";
         }
-        return styles.map((style: vscode.Uri) => `<link rel="stylesheet" type="text/css" href="${style.toString()}">`).join(os.EOL);
+        const style = webview.asWebviewUri(vscode.Uri.joinPath(this.resourceRoot, "markdown.css"));
+        return `<link rel="stylesheet" href="${style.toString()}">`;
     }
 
     private getSettingsStyles(): string {
@@ -167,14 +168,12 @@ class MarkdownEngine implements vscode.Disposable {
 
 class MarkdownConfiguration {
 
-    public readonly extRoot: string; // root path of vscode built-in markdown extension
     public readonly lineHeight: number;
     public readonly fontSize: number;
     public readonly fontFamily: string;
 
     public constructor() {
         const markdownConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration("markdown", null);
-        this.extRoot = path.join(vscode.env.appRoot, "extensions", "markdown-language-features");
         this.lineHeight = Math.max(0.6, +markdownConfig.get<number>("preview.lineHeight", NaN));
         this.fontSize = Math.max(8, +markdownConfig.get<number>("preview.fontSize", NaN));
         this.fontFamily = this.resolveFontFamily(markdownConfig);
@@ -185,7 +184,7 @@ class MarkdownConfiguration {
         if (fontFamily === config.inspect<string>("preview.fontFamily")!.defaultValue) {
             fontFamily = `${fontFamily}, 'Microsoft Yahei UI'`;
         }
-        return fontFamily;
+        return safeFontFamily(fontFamily);
     }
 }
 

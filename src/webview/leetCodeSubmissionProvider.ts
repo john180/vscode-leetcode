@@ -78,6 +78,8 @@ class LeetCodeSubmissionProvider extends LeetCodeWebview {
             <head>
                 <meta http-equiv="Content-Security-Policy" content="
                     default-src 'none';
+                    base-uri 'none';
+                    form-action 'none';
                     worker-src 'self' ${webview.cspSource};
                     img-src https: data: ${webview.cspSource};
                     style-src ${webview.cspSource} 'unsafe-inline';

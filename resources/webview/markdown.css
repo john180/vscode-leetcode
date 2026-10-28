@@ -1,0 +1,26 @@
+body {
+    color: var(--vscode-editor-foreground);
+    background: var(--vscode-editor-background);
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    line-height: 1.6;
+    padding: 16px 24px 72px;
+    overflow-wrap: anywhere;
+}
+a { color: var(--vscode-textLink-foreground); }
+a:hover { color: var(--vscode-textLink-activeForeground); }
+a:focus, button:focus, summary:focus { outline: 1px solid var(--vscode-focusBorder); outline-offset: 2px; }
+pre, code { font-family: var(--vscode-editor-font-family); background: var(--vscode-textCodeBlock-background); }
+pre { padding: 12px; overflow: auto; }
+pre code { white-space: pre; }
+code { white-space: pre-wrap; }
+img { max-width: 100%; height: auto; }
+table { border-collapse: collapse; }
+th, td { padding: 6px 12px; border: 1px solid var(--vscode-panel-border); }
+blockquote { margin-left: 0; padding-left: 16px; border-left: 3px solid var(--vscode-textBlockQuote-border); }
+hr { border: 0; border-top: 1px solid var(--vscode-panel-border); }
+button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+button:hover { background: var(--vscode-button-hoverBackground); }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal { color: var(--vscode-symbolIcon-keywordForeground); }
+.hljs-string, .hljs-number { color: var(--vscode-symbolIcon-stringForeground); }
+.hljs-comment { color: var(--vscode-descriptionForeground); }

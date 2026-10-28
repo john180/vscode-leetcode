@@ -4,11 +4,13 @@
 import { commands, ConfigurationChangeEvent, Disposable, l10n, ViewColumn, Webview, WebviewPanel, window, workspace } from "vscode";
 import { openSettingsEditor, promptHintMessage } from "../utils/uiUtils";
 import { markdownEngine } from "./markdownEngine";
+import { randomBytes } from "node:crypto";
 
 export abstract class LeetCodeWebview implements Disposable {
 
     protected readonly viewType: string = "leetcode.webview";
     protected panel: WebviewPanel | undefined;
+    protected readonly enableScripts: boolean = false;
     private listeners: Disposable[] = [];
 
     public dispose(): void {
@@ -21,9 +23,8 @@ export abstract class LeetCodeWebview implements Disposable {
         const { title, viewColumn, preserveFocus } = this.getWebviewOption();
         if (!this.panel) {
             this.panel = window.createWebviewPanel(this.viewType, title, { viewColumn, preserveFocus }, {
-                enableScripts: true,
+                enableScripts: this.enableScripts,
                 enableFindWidget: true,
-                retainContextWhenHidden: true, // avoid webview service-worker re-registration races (microsoft/vscode#125993)
                 localResourceRoots: markdownEngine.localResourceRoots,
             });
             this.panel.onDidDispose(this.onDidDisposeWebview, this, this.listeners);
@@ -68,12 +69,7 @@ export abstract class LeetCodeWebview implements Disposable {
     }
 
     protected getNonce(): string {
-        let text: string = "";
-        const possible: string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        for (let i: number = 0; i < 32; i += 1) {
-            text += possible.charAt(Math.floor(Math.random() * possible.length));
-        }
-        return text;
+        return randomBytes(24).toString("base64");
     }
 
     private async showMarkdownConfigHint(): Promise<void> {
