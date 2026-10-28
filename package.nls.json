@@ -38,5 +38,6 @@
     "config.showDescription.enumDescriptions.1": "Show the problem description in the file's comment",
     "command.showSubmissions": "Show Submission History",
     "command.addToFavoriteList": "Add to Favorite List",
-    "viewsWelcome.welcome": "Welcome to LeetCode\n\nPreparing your LeetCode workspace..."
+    "viewsWelcome.welcome": "Welcome to LeetCode\n\nPreparing your LeetCode workspace...",
+    "capabilities.virtualWorkspaces": "LeetCode creates solution files on disk. Open a local folder or a Remote Development workspace to use this extension."
 }

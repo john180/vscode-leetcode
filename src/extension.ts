@@ -29,10 +29,12 @@ import { leetCodeSubmissionProvider } from "./webview/leetCodeSubmissionProvider
 import { markdownEngine } from "./webview/markdownEngine";
 import { globalState } from "./globalState";
 import { problemCache } from "./api/problemCache";
+import { registerProblemDocumentContext } from "./utils/problemDocumentContext";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     try {
         setExtensionId(context.extension.id);
+        registerProblemDocumentContext(context);
         sessionEvents.on("expired", () => {
             void leetCodeManager.handleSessionExpired();
         });
@@ -87,9 +89,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.signin", () => leetCodeManager.signIn()),
             vscode.commands.registerCommand("leetcode.signout", () => leetCodeManager.signOut()),
             vscode.commands.registerCommand("leetcode.manageSessions", () => session.manageSessions()),
-            vscode.commands.registerCommand("leetcode.previewProblem", (node: LeetCodeNode) => {
-                show.previewProblem(node);
-            }),
+            vscode.commands.registerCommand("leetcode.previewProblem", (input?: LeetCodeNode | vscode.Uri) => show.previewProblem(input)),
             vscode.commands.registerCommand("leetcode.showProblem", (node: LeetCodeNode) => show.showProblem(node)),
             vscode.commands.registerCommand("leetcode.pickOne", () => show.pickOne()),
             vscode.commands.registerCommand("leetcode.searchProblem", () => show.searchProblem()),

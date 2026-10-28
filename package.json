@@ -264,18 +264,19 @@
             "explorer/context": [
                 {
                     "command": "leetcode.testSolution",
-                    "when": "explorerResourceIsFolder == false",
+                    "when": "resourceScheme == file && resource in leetcode.problemResources",
                     "group": "leetcode@1"
                 },
                 {
                     "command": "leetcode.submitSolution",
-                    "when": "explorerResourceIsFolder == false",
+                    "when": "resourceScheme == file && resource in leetcode.problemResources",
                     "group": "leetcode@2"
                 }
             ],
             "editor/context": [
                 {
-                    "submenu": "leetcode.editorAction"
+                    "submenu": "leetcode.editorAction",
+                    "when": "resourceScheme == file && leetcode.isProblem"
                 }
             ],
             "leetcode.editorAction": [
@@ -706,7 +707,7 @@
         "watch": "node esbuild.js --watch",
         "typecheck": "tsc -p ./ --noEmit",
         "lint": "eslint src",
-        "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/apiAdapters.test.js out-test/test/unit/client.test.js out-test/test/unit/cookie.test.js out-test/test/unit/dailyChallenge.test.js out-test/test/unit/endpointDetection.test.js out-test/test/unit/diffUtils.test.js out-test/test/unit/globalState.test.js out-test/test/unit/docs.test.js out-test/test/unit/favoriteLists.test.js out-test/test/unit/l10n.test.js out-test/test/unit/leetCodeManager.test.js out-test/test/unit/login.test.js out-test/test/unit/markdown.test.js out-test/test/unit/problemFile.test.js out-test/test/unit/privacy.test.js out-test/test/unit/webviewSecurity.test.js out-test/test/unit/problemCollection.test.js out-test/test/unit/problems.test.js out-test/test/unit/problemPagination.test.js out-test/test/unit/submission.test.js out-test/test/unit/problemMapper.test.js out-test/test/unit/retry.test.js out-test/test/unit/session.test.js out-test/test/unit/submissionHistory.test.js",
+        "test": "tsc -p tsconfig.test.json && node --test out-test/test/unit/*.test.js",
         "build": "npm run typecheck && npm run lint && npm run test && npm run compile",
         "package": "npm run build && vsce package",
         "test:integration": "npm run compile && node test/integration/runTest.js"
@@ -729,5 +730,14 @@
         "lodash": "^4.18.1",
         "markdown-it": "^14.3.3"
     },
-    "private": true
+    "private": true,
+    "capabilities": {
+        "untrustedWorkspaces": {
+            "supported": true
+        },
+        "virtualWorkspaces": {
+            "supported": false,
+            "description": "%capabilities.virtualWorkspaces%"
+        }
+    }
 }

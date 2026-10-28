@@ -18,7 +18,7 @@ import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { leetCodeManager } from "../leetCodeManager";
 import { Endpoint, IProblem, IQuickItemEx, languages, PREMIUM_URL_CN, PREMIUM_URL_GLOBAL, ProblemState } from "../shared";
-import { genFileExt, genFileName, getNodeIdFromFile } from "../utils/problemUtils";
+import { genFileExt, genFileName, getNodeIdFromText } from "../utils/problemUtils";
 import * as settingUtils from "../utils/settingUtils";
 import { IDescriptionConfiguration } from "../utils/settingUtils";
 import {
@@ -30,7 +30,7 @@ import {
     promptForSignIn,
     promptHintMessage,
 } from "../utils/uiUtils";
-import { getActiveFilePath, selectWorkspaceFolder } from "../utils/workspaceUtils";
+import { selectWorkspaceFolder } from "../utils/workspaceUtils";
 import { leetCodePreviewProvider } from "../webview/leetCodePreviewProvider";
 import { leetCodeSolutionProvider } from "../webview/leetCodeSolutionProvider";
 import { getProblemById, getProblemBySlug, getProblemCacheScope, getProblemPage, getRandomProblem, IProblemQuery } from "../api/problems";
@@ -45,12 +45,18 @@ async function findProblemById(id: string): Promise<IProblem | undefined> {
     return getProblemById(id);
 }
 
-export async function previewProblem(input: IProblem | vscode.Uri, isSideMode: boolean = false): Promise<void> {
+export async function previewProblem(input?: IProblem | vscode.Uri, isSideMode: boolean = false): Promise<void> {
     let node: IProblem;
 
+    input ??= vscode.window.activeTextEditor?.document.uri;
+    if (!input) {
+        return;
+    }
+
     if (input instanceof vscode.Uri) {
-        const activeFilePath: string = input.fsPath;
-        const id: string = await getNodeIdFromFile(activeFilePath);
+        const activeFilePath: string = input.toString();
+        const document = await vscode.workspace.openTextDocument(input);
+        const id = getNodeIdFromText(document.getText()) || path.basename(input.path).split(".")[0];
         if (!id) {
             vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem id from file: {0}.", activeFilePath));
             return;
@@ -184,17 +190,13 @@ export async function showSolution(input: LeetCodeNode | vscode.Uri): Promise<vo
     if (input instanceof LeetCodeNode) {
         node = input;
     } else {
-        let filePath: string | undefined;
-        if (input instanceof vscode.Uri) {
-            filePath = input.fsPath;
-        } else {
-            filePath = await getActiveFilePath();
-        }
-        if (!filePath) {
+        const uri = input instanceof vscode.Uri ? input : vscode.window.activeTextEditor?.document.uri;
+        if (!uri) {
             vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the current problem file."));
             return;
         }
-        const id: string = await getNodeIdFromFile(filePath);
+        const document = await vscode.workspace.openTextDocument(uri);
+        const id = getNodeIdFromText(document.getText()) || path.basename(uri.path).split(".")[0];
         node = id ? await findProblemById(id) : undefined;
     }
 
