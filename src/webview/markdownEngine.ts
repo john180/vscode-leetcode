@@ -5,6 +5,7 @@ import hljs from "highlight.js/lib/core";
 import type { LanguageFn } from "highlight.js";
 import katex = require("katex");
 import MarkdownIt = require("markdown-it");
+import type { MarkdownIt as MarkdownParser, RendererRule } from "markdown-it";
 import { randomBytes } from "node:crypto";
 import * as os from "os";
 import * as vscode from "vscode";
@@ -37,7 +38,7 @@ for (const [name, language] of Object.entries(highlightLanguages)) {
 /** LeetCode groups consecutive fences written like "```Python [sol1-Python3]" into tabs. */
 const CODE_TAB_INFO: RegExp = /^(\S+)\s*\[([^\]]*)\]$/;
 
-interface ISolutionEnv {
+interface ISolutionEnv extends MarkdownIt.Env {
     host?: string;
     lang?: string;
     /** Rendered math, filled in after sanitizing by the placeholders in `mathKey`. */
@@ -52,7 +53,9 @@ function normalizeLanguage(language: string): string {
     return aliases[name] ?? name;
 }
 
-function renderMath(env: ISolutionEnv, tex: string, displayMode: boolean): string {
+function renderMath(environment: MarkdownIt.Env | undefined, tex: string, displayMode: boolean): string {
+    // Only solutionEngine registers math rules, and renderSolution always supplies this environment.
+    const env = environment as ISolutionEnv;
     // MathML renders natively in the webview, so no KaTeX stylesheet or fonts are needed. `trust` stays off, which keeps \href and HTML out.
     env.math.push(katex.renderToString(tex, { displayMode, output: "mathml", throwOnError: false }));
     return `@@math-${env.mathKey}-${env.math.length - 1}@@`;
@@ -148,9 +151,9 @@ function groupCodeTabs(state: MarkdownIt.StateCore): void {
 class MarkdownEngine implements vscode.Disposable {
 
     // Assigned by reload(), which the constructor calls.
-    private engine!: MarkdownIt;
+    private engine!: MarkdownParser;
     /** Solutions are written by users and may embed HTML and math, so their output is sanitized. */
-    private solutionEngine!: MarkdownIt;
+    private solutionEngine!: MarkdownParser;
     private config!: MarkdownConfiguration;
     private listener: vscode.Disposable;
     private resourceRoot: vscode.Uri | undefined;
@@ -221,24 +224,24 @@ class MarkdownEngine implements vscode.Disposable {
         ].join(os.EOL);
     }
 
-    private initSolutionEngine(): MarkdownIt {
-        const md: MarkdownIt = this.initEngine(true);
+    private initSolutionEngine(): MarkdownParser {
+        const md: MarkdownParser = this.initEngine(true);
         md.inline.ruler.after("escape", "math_inline", mathInline);
         md.block.ruler.after("blockquote", "math_block", mathBlock, { alt: ["paragraph", "reference", "blockquote", "list"] });
-        md.renderer.rules["math_inline"] = (tokens, idx, _options, env: ISolutionEnv) => renderMath(env, tokens[idx].content, false);
-        md.renderer.rules["math_display"] = (tokens, idx, _options, env: ISolutionEnv) => renderMath(env, tokens[idx].content, true);
-        md.renderer.rules["math_block"] = (tokens, idx, _options, env: ISolutionEnv) => `<div>${renderMath(env, tokens[idx].content, true)}</div>\n`;
+        md.renderer.rules["math_inline"] = (tokens, idx, _options, env) => renderMath(env, tokens[idx].content, false);
+        md.renderer.rules["math_display"] = (tokens, idx, _options, env) => renderMath(env, tokens[idx].content, true);
+        md.renderer.rules["math_block"] = (tokens, idx, _options, env) => `<div>${renderMath(env, tokens[idx].content, true)}</div>\n`;
         md.core.ruler.push("code_tabs", groupCodeTabs);
-        const fence: MarkdownIt.Renderer.RenderRule = md.renderer.rules["fence"] as MarkdownIt.Renderer.RenderRule;
+        const fence: RendererRule = md.renderer.rules["fence"];
         md.renderer.rules["fence"] = (tokens, idx, options, env, self) => {
             const html: string = fence(tokens, idx, options, env, self);
-            const tab: { tab: string; open: boolean; first: boolean; last: boolean } | undefined = tokens[idx].meta?.tab ? tokens[idx].meta : undefined;
-            if (!tab) {
+            const tab = tokens[idx].meta;
+            if (!tab?.tab) {
                 return html;
             }
             return [
                 tab.first ? `<div class="code-group">` : "",
-                `<details${tab.open ? " open" : ""}><summary>${escapeHtml(tab.tab)}</summary>`,
+                `<details${tab.open ? " open" : ""}><summary>${escapeHtml(String(tab.tab))}</summary>`,
                 html,
                 `</details>`,
                 tab.last ? `</div>` : "",
@@ -247,8 +250,8 @@ class MarkdownEngine implements vscode.Disposable {
         return md;
     }
 
-    private initEngine(html: boolean): MarkdownIt {
-        const md: MarkdownIt = new MarkdownIt({
+    private initEngine(html: boolean): MarkdownParser {
+        const md: MarkdownParser = new MarkdownIt({
             html,
             linkify: true,
             typographer: true,
@@ -270,14 +273,16 @@ class MarkdownEngine implements vscode.Disposable {
             },
         });
 
+        // Preserve automatic links for bare domains after linkify-it 6 changed its default.
+        md.linkify.set({ fuzzyLink: true });
         this.addCodeBlockHighlight(md);
         this.addImageUrlCompletion(md);
         this.addLinkValidator(md);
         return md;
     }
 
-    private addCodeBlockHighlight(md: MarkdownIt): void {
-        const codeBlock: MarkdownIt.Renderer.RenderRule = md.renderer.rules["code_block"] as MarkdownIt.Renderer.RenderRule;
+    private addCodeBlockHighlight(md: MarkdownParser): void {
+        const codeBlock: RendererRule = md.renderer.rules["code_block"];
         md.renderer.rules["code_block"] = (tokens, idx, options, env, self) => {
             // if any token uses lang-specified code fence, then do not highlight code block
             if (tokens.some((token: any) => token.type === "fence")) {
@@ -285,7 +290,7 @@ class MarkdownEngine implements vscode.Disposable {
             }
             // otherwise, highlight with default lang in env object.
             const highlighted: string = options.highlight
-                ? options.highlight(tokens[idx].content, env.lang, "")
+                ? options.highlight(tokens[idx].content, typeof env?.lang === "string" ? env.lang : "", "")
                 : "";
             return [
                 `<pre><code ${self.renderAttrs(tokens[idx])} >`,
@@ -295,21 +300,18 @@ class MarkdownEngine implements vscode.Disposable {
         };
     }
 
-    private addImageUrlCompletion(md: MarkdownIt): void {
-        const image: MarkdownIt.Renderer.RenderRule = md.renderer.rules["image"] as MarkdownIt.Renderer.RenderRule;
+    private addImageUrlCompletion(md: MarkdownParser): void {
+        const image: RendererRule = md.renderer.rules["image"];
         md.renderer.rules["image"] = (tokens, idx, options, env, self) => {
-            const attrs: Array<[string, string]> | null = tokens[idx].attrs;
-            const imageSrc: [string, string] | undefined = attrs
-                ? attrs.find((value: [string, string]) => value[0] === "src")
-                : undefined;
-            if (env.host && imageSrc && imageSrc[1].startsWith("/")) {
+            const imageSrc = tokens[idx].attrs?.find(([name]) => name === "src");
+            if (typeof env?.host === "string" && env.host && typeof imageSrc?.[1] === "string" && imageSrc[1].startsWith("/")) {
                 imageSrc[1] = `${env.host}${imageSrc[1]}`;
             }
             return image(tokens, idx, options, env, self);
         };
     }
 
-    private addLinkValidator(md: MarkdownIt): void {
+    private addLinkValidator(md: MarkdownParser): void {
         const validateLink: (link: string) => boolean = md.validateLink;
         md.validateLink = (link: string): boolean => {
             // support file:// protocal link

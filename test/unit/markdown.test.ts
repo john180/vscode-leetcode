@@ -62,6 +62,13 @@ test("markdownEngine allows https and file links", () => {
     assert.match(markdownEngine.render("[file](file:///tmp/a)", {}), /href="file:\/\/\/tmp\/a"/);
 });
 
+test("markdownEngine keeps automatic links for bare domains and email addresses", () => {
+    const html: string = markdownEngine.render("Visit example.com or contact reader@example.com.", {});
+    assert.match(html, /href="http:\/\/example\.com"/);
+    assert.match(html, /href="mailto:reader@example\.com"/);
+    assert.match(markdownEngine.renderSolution("https://example.com"), /href="https:\/\/example\.com"/);
+});
+
 test("markdownEngine escapes HTML inside code fences", () => {
     const html: string = markdownEngine.render("```cpp\n<script>alert(1)</script>\n```", { lang: "cpp" });
     assert.doesNotMatch(html, /<script>/);
@@ -102,6 +109,22 @@ test("math in code stays code, and solution text cannot forge a math placeholder
     assert.match(html, /@@math-0000000000000000-0@@/);
     assert.match(html, /\$\$y\$\$/);
     assert.doesNotMatch(html, /<math/);
+});
+
+test("solution math ignores an inherited trust setting", () => {
+    const original = Object.getOwnPropertyDescriptor(Object.prototype, "trust");
+    try {
+        Object.defineProperty(Object.prototype, "trust", { value: true, writable: true, configurable: true });
+        const html: string = markdownEngine.renderSolution("$\\href{https://example.com}{x}$ $\\htmlClass{injected}{y}$");
+        assert.match(html, /<math/);
+        assert.doesNotMatch(html, /<a\b|href=|class="injected"/);
+    } finally {
+        if (original) {
+            Object.defineProperty(Object.prototype, "trust", original);
+        } else {
+            Reflect.deleteProperty(Object.prototype, "trust");
+        }
+    }
 });
 
 test("LeetCode code groups become tabs that open on the default language", () => {
