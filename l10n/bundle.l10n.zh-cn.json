@@ -1,4 +1,6 @@
 {
+    "White background": "白色背景",
+    "Toggle a white background to make this image easier to read": "切换白色背景，让图片更易辨认",
     "Successfully signed in as {0}.": "已登录，账号：{0}。",
     "Paste the Cookie header copied from leetcode.cn": "粘贴从 leetcode.cn 复制的 Cookie 请求头",
     "LeetCode Cookie": "LeetCode Cookie",

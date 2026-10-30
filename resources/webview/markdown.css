@@ -37,8 +37,21 @@ pre { padding: 12px; overflow: auto; }
 pre code { white-space: pre; background: none; }
 code { white-space: pre-wrap; }
 img { max-width: 100%; height: auto; }
-/* Problem diagrams are drawn in black on a transparent background. */
-body.vscode-dark img, body.vscode-high-contrast:not(.vscode-high-contrast-light) img { padding: 2px; border-radius: 4px; background: #fff; }
+/* The preview backs an image with white, without recoloring its pixels, in dark themes or when the reader asks. */
+img.light-background { box-sizing: border-box; padding: 2px; border-radius: 4px; background: #fff; }
+/* Block children keep an inline image's baseline without a gap below it, so the control sits on the image's corner. */
+.image-frame { position: relative; display: inline-block; max-width: 100%; }
+.image-frame > img, .image-frame > a, .image-frame > a > img { display: block; }
+.image-background { position: absolute; right: 4px; bottom: 4px; opacity: 0; line-height: 1.4; font-size: 12px; }
+.image-background { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+.image-background { border: 1px solid var(--vscode-contrastBorder, var(--vscode-panel-border)); }
+.image-background:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.image-frame:hover > .image-background, .image-frame:focus-within > .image-background { opacity: 1; }
+@media (hover: none) { .image-background { opacity: 1; } }
+.image-frame.compact > .image-background { visibility: hidden; }
+/* Microsoft Codicons, CC BY 4.0; see icons/LICENSE and ../ASSETS.md. */
+.favorite-icon { display: block; width: 100%; height: 100%; background: currentColor; mask: url("icons/star-empty.svg") center / contain no-repeat; }
+.starred .favorite-icon { mask-image: url("icons/star-full.svg"); }
 table { border-collapse: collapse; }
 th, td { padding: 6px 12px; border: 1px solid var(--vscode-panel-border); }
 blockquote { margin-left: 0; padding-left: 16px; border-left: 3px solid var(--vscode-textBlockQuote-border); }

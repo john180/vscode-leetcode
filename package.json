@@ -109,19 +109,13 @@
                 "command": "leetcode.addFavorite",
                 "title": "%command.addFavorite%",
                 "category": "LeetCode",
-                "icon": {
-                    "light": "resources/light/like.png",
-                    "dark": "resources/dark/like.png"
-                }
+                "icon": "$(star-empty)"
             },
             {
                 "command": "leetcode.removeFavorite",
                 "title": "%command.removeFavorite%",
                 "category": "LeetCode",
-                "icon": {
-                    "light": "resources/light/dislike.png",
-                    "dark": "resources/dark/dislike.png"
-                }
+                "icon": "$(star-full)"
             },
             {
                 "command": "leetcode.switchDefaultLanguage",

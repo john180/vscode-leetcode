@@ -64,7 +64,9 @@ const style: string = `
     button { border: 0; padding: 3px 8px; border-radius: 2px; cursor: pointer; }
     button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
     button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
-    button.icon, button.icon:hover { flex: none; padding: 0 4px; font-size: 1.15em; line-height: 1.4; color: var(--vscode-icon-foreground); background: none; }
+    /* Sized in em so the icon follows the preview font size, as the glyph it replaced did. */
+    button.icon, button.icon:hover { display: flex; align-items: center; justify-content: center; flex: none; width: 1.85em; height: 1.85em; padding: 0.3em; }
+    button.icon, button.icon:hover { font-size: inherit; color: var(--vscode-icon-foreground); background: none; }
     button.icon:hover { background: var(--vscode-toolbar-hoverBackground); }
     button.icon.starred { color: var(--vscode-charts-yellow); }
     /* Only the tabs stay in view, so the description gets the rest of the sidebar. */
@@ -104,7 +106,9 @@ const style: string = `
 const script: string = `
     const vscode = acquireVsCodeApi();
     const root = document.getElementById("root");
-    const pages = (vscode.getState() || {}).pages || {};
+    const state = vscode.getState() || {};
+    const pages = state.pages || {};
+    const imageBackgrounds = state.imageBackgrounds || {};
     let { version, page } = JSON.parse(document.getElementById("initial").textContent);
     // A position to keep while images above it load, until the user scrolls.
     let target = null;
@@ -119,7 +123,83 @@ const script: string = `
         }
     }
 
+    function saveState() {
+        vscode.setState({ pages, imageBackgrounds });
+    }
+
+    // Keeps the most recently written keys, dropping the oldest past the limit.
+    function remember(store, key, value, limit) {
+        delete store[key];
+        store[key] = value;
+        const keys = Object.keys(store);
+        if (keys.length > limit) {
+            delete store[keys[0]];
+        }
+    }
+
+    function isDark() {
+        const theme = document.body.classList;
+        return theme.contains("vscode-dark") || (theme.contains("vscode-high-contrast") && !theme.contains("vscode-high-contrast-light"));
+    }
+
+    function imageKey(image) {
+        return JSON.stringify([page, image.getAttribute("src")]);
+    }
+
+    // Problem diagrams are often black lines on transparency, so dark themes back images with white unless the reader chose otherwise.
+    function applyBackgrounds() {
+        const dark = isDark();
+        for (const image of root.querySelectorAll("img")) {
+            const light = imageBackgrounds[imageKey(image)] ?? dark;
+            image.classList.toggle("light-background", light);
+            image.closest(".image-frame")?.querySelector(".image-background").setAttribute("aria-pressed", String(light));
+        }
+    }
+
+    // The control stays hidden on images too small to hold it, where it would cover them and the text beside them.
+    const sizes = new ResizeObserver((entries) => {
+        for (const { target: frame } of entries) {
+            const toggle = frame.querySelector(".image-background");
+            frame.classList.toggle("compact", frame.offsetWidth < toggle.offsetWidth + 8 || frame.offsetHeight < toggle.offsetHeight + 8);
+        }
+    });
+    // VS Code switches these classes when the color theme changes.
+    new MutationObserver(applyBackgrounds).observe(document.body, { attributeFilter: ["class"] });
+
     function enhance() {
+        for (const image of root.querySelectorAll("img")) {
+            // The control stays outside a linked image's anchor; links that hold more than the image keep the theme default.
+            const link = image.closest("a");
+            const content = !link ? image : link.textContent.trim() === "" && link.querySelectorAll("img").length === 1 ? link : null;
+            if (!content || image.closest(".image-frame")) {
+                continue;
+            }
+            const frame = document.createElement("span");
+            frame.className = "image-frame";
+            content.replaceWith(frame);
+            frame.append(content);
+            const toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = "image-background";
+            toggle.textContent = root.dataset.imageBackground;
+            toggle.title = root.dataset.imageBackgroundHint;
+            toggle.addEventListener("click", () => {
+                const key = imageKey(image);
+                const light = !image.classList.contains("light-background");
+                // Only choices that differ from the theme default are kept.
+                if (light === isDark()) {
+                    delete imageBackgrounds[key];
+                } else {
+                    remember(imageBackgrounds, key, light, 200);
+                }
+                // Copies of the same image on the page follow the choice too.
+                applyBackgrounds();
+                saveState();
+            });
+            frame.append(toggle);
+            sizes.observe(frame);
+        }
+        applyBackgrounds();
         for (const pre of root.querySelectorAll("pre")) {
             if (pre.parentElement.classList.contains("code-block")) {
                 continue;
@@ -167,18 +247,14 @@ const script: string = `
     for (const type of ["wheel", "keydown", "pointerdown", "touchstart"]) {
         window.addEventListener(type, () => { target = null; }, { passive: true });
     }
-    let frame = 0;
+    // The state also holds the image choices, so it is saved once scrolling pauses rather than on every frame.
+    let saving = 0;
     window.addEventListener("scroll", () => {
-        cancelAnimationFrame(frame);
-        frame = requestAnimationFrame(() => {
-            delete pages[page];
-            pages[page] = window.scrollY;
-            const keys = Object.keys(pages);
-            if (keys.length > 50) {
-                delete pages[keys[0]];
-            }
-            vscode.setState({ pages });
-        });
+        clearTimeout(saving);
+        saving = setTimeout(() => {
+            remember(pages, page, window.scrollY, 50);
+            saveState();
+        }, 200);
     });
     window.addEventListener("message", (event) => {
         const message = event.data;
@@ -189,6 +265,7 @@ const script: string = `
         const opened = message.page === page ? [...root.querySelectorAll("details")].map((details) => details.open) : [];
         pages[page] = window.scrollY;
         ({ version, page } = message);
+        sizes.disconnect();
         root.innerHTML = message.html;
         const details = root.querySelectorAll("details");
         if (opened.length === details.length) {
@@ -391,7 +468,9 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
                 <style>${style}</style>
             </head>
             <body>
-                <div id="root" data-copy="${escapeHtml(l10n.t("Copy"))}">${this.getBody()}</div>
+                <div id="root" data-copy="${escapeHtml(l10n.t("Copy"))}"
+                    data-image-background="${escapeHtml(l10n.t("White background"))}"
+                    data-image-background-hint="${escapeHtml(l10n.t("Toggle a white background to make this image easier to read"))}">${this.getBody()}</div>
                 <script type="application/json" id="initial">${initial}</script>
                 <script nonce="${nonce}">${script}</script>
             </body>
@@ -441,7 +520,7 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         const label: string = problem.isFavorite ? l10n.t("Unstar") : l10n.t("Star");
         return [
             `<button class="icon${problem.isFavorite ? " starred" : ""}" data-command="${problem.isFavorite ? "unstar" : "star"}"`,
-            ` title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${problem.isFavorite ? "★" : "☆"}</button>`,
+            ` title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"><span class="favorite-icon" aria-hidden="true"></span></button>`,
         ].join("");
     }
 
