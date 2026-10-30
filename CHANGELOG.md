@@ -7,7 +7,10 @@ All notable changes to the "leetcode" extension will be documented in this file.
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
 ## [Unreleased]
+
+## [0.26.0] - 2026-10-30
 ### Fixed
+- Resolve KaTeX and MSAL Node security advisories by updating runtime and packaging dependencies.
 - "Sign up" now opens the site of the current endpoint instead of always opening leetcode.cn.
 - Failures that ask you to open the output channel now write the error there.
 - Opening a problem creates the folders named by `leetcode.filePath`, such as `${difficulty}`, instead of failing.
@@ -23,6 +26,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - `Add to Favorite List` shows each list's current number of problems right after a favorite changes, instead of counts up to five minutes old.
 
 ### Changed
+- Upgrade KaTeX to 0.19.1, markdown-it to 15.0.3, TypeScript to 6.0.3 and VSCE to 4.1.0; use markdown-it's bundled types and refresh third-party notices.
 - Commands and views are registered before the stored session is restored, so a failure there no longer leaves the commands missing.
 - The output channel is a log channel with levels and timestamps; use "Developer: Set Log Level..." to filter it.
 - Problem files update the menu context keys only when they change, not on every keystroke.
