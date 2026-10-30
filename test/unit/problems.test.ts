@@ -44,10 +44,12 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
 
 const api: typeof import("../../src/api/problems") = require("../../src/api/problems");
 const { problemCache }: typeof import("../../src/api/problemCache") = require("../../src/api/problemCache");
-const { globalState } = require("../../src/globalState");
+const { sessionController } = require("../../src/auth/sessionController");
 const { explorerNodeManager: explorer } = require("../../src/explorer/explorerNodeManager");
 const { SortingStrategy, ProblemState } = require("../../src/shared");
-globalState.getCookie = () => cookie;
+const sessionSignal = new AbortController().signal;
+// The account in use is `cookie`, on whichever site the settings name.
+sessionController.current = () => ({ site: endpoint, cookie, signal: sessionSignal });
 moduleLoader._load = originalLoad;
 const originalAdapter = axios.defaults.adapter;
 const disk = new Map<string, unknown>();

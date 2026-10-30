@@ -14,10 +14,16 @@ import { queryUserData } from "./request/query-user-data";
 import { IGraphQLRequest } from "./api/client";
 import { isCanceled } from "./api/http";
 import { verifyCredential } from "./auth/credential";
-import { sessionScope } from "./auth/sessionScope";
+import { IOperation, sessionController } from "./auth/sessionController";
+import { ISite } from "./site";
 
 /** How long a session that survived a 401/403 check is trusted before checking again. */
 const SESSION_RECHECK_INTERVAL_MS = 60 * 1000;
+
+/** Whether a later operation began, or the site changed in the settings before the change event arrived. */
+function superseded(operation: IOperation, site: ISite): boolean {
+    return !operation.isCurrent() || site !== currentSite();
+}
 
 class LeetCodeManager extends EventEmitter {
     private currentUser: string | undefined;
@@ -26,17 +32,14 @@ class LeetCodeManager extends EventEmitter {
     private handlingSessionExpired: boolean = false;
     private sessionKept: { cookie: string; at: number } | undefined;
     private authenticating: number = 0;
-    private authController = new AbortController();
     private endpointChange: { endpoint: Endpoint; task: Promise<void> } | undefined;
-    private authRevision: number = 0;
-    private signingInRevision: number | undefined;
+    /** The restoration that shows "Signing in...". */
+    private restoring: IOperation | undefined;
     private pendingWebLogin: { expiresAt: number; endpoint: string } | undefined;
-    private authWrites: Promise<void> = Promise.resolve();
 
     /** Starts an auth operation that supersedes any in-flight restoration. */
-    private beginAuth(): number {
-        this.authController.abort();
-        this.authController = new AbortController();
+    private beginAuth(): IOperation {
+        const operation = sessionController.begin();
         this.pendingWebLogin = undefined;
         if (this.userStatus === UserStatus.SigningIn) {
             // The restoration will be discarded, so it no longer owns "Signing in...".
@@ -44,36 +47,24 @@ class LeetCodeManager extends EventEmitter {
             this.userStatus = UserStatus.SignedOut;
             this.emit("statusChanged");
         }
-        return ++this.authRevision;
+        return operation;
     }
 
-    private commitAuth(revision: number, write: () => Promise<void>): Promise<void> {
-        const result = this.authWrites.then(async () => {
-            if (revision === this.authRevision) {
-                await write();
-            }
-        });
-        this.authWrites = result.catch(() => undefined);
-        return result;
-    }
-
-    private async publishUser(revision: number, data: UserDataType): Promise<boolean> {
-        if (revision !== this.authRevision) { return false; }
-        await globalState.setUserStatus(data);
-        if (revision !== this.authRevision) { return false; }
+    private async publishUser(operation: IOperation, data: UserDataType): Promise<boolean> {
+        if (!operation.isCurrent()) { return false; }
+        await globalState.setUserStatus(data, operation);
+        if (!operation.isCurrent()) { return false; }
         this.currentUser = data.username;
         this.userStatus = UserStatus.SignedIn;
         return true;
     }
 
-    private clearAuth(): Promise<void> {
-        // Cleanup must run even if a later, unsuccessful login advances the revision.
+    private clearAuth(operation: IOperation): Promise<void> {
+        // Cleanup must run even if a later, unsuccessful login supersedes this operation.
         // Successful later logins queue their writes after this cleanup.
         const endpoint = globalState.getEndpoint();
-        globalState.detach();
-        const result = this.authWrites.then(() => globalState.clearStoredSession(endpoint));
-        this.authWrites = result.catch(() => undefined);
-        return result;
+        sessionController.end(operation);
+        return sessionController.enqueue(() => globalState.clearStoredSession(endpoint));
     }
 
     constructor() {
@@ -93,27 +84,27 @@ class LeetCodeManager extends EventEmitter {
     private async restoreLoginStatus(): Promise<void> {
         // Restoring supersedes other auth work, but not a web login the user is finishing in the browser.
         const pendingWebLogin = this.pendingWebLogin;
-        const revision = this.beginAuth();
+        const operation = this.beginAuth();
         this.pendingWebLogin = pendingWebLogin;
         const site = currentSite();
         invalidateProblemCache();
         const storedCookie: string | undefined = globalState.getCookie(getLeetCodeEndpoint());
         if (storedCookie) {
             this.userStatus = UserStatus.SigningIn;
-            this.signingInRevision = revision;
+            this.restoring = operation;
             this.emit("statusChanged");
         }
         try {
             if (storedCookie) {
-                const check = await verifyCredential(storedCookie, this.authController.signal);
-                if (revision !== this.authRevision || site !== currentSite()) {
+                const check = await verifyCredential(storedCookie, operation.signal);
+                if (superseded(operation, site)) {
                     return;
                 }
                 if (check.state === "signedIn") {
                     const { user } = check;
-                    await this.commitAuth(revision, async () => {
-                        await globalState.saveProfile(globalState.getActiveProfile() || user.username, user.username, storedCookie, () => revision === this.authRevision);
-                        await this.publishUser(revision, user);
+                    await sessionController.commit(operation, async () => {
+                        await globalState.saveProfile(globalState.getActiveProfile() || user.username, user.username, storedCookie, operation);
+                        await this.publishUser(operation, user);
                     });
                     return;
                 }
@@ -128,15 +119,15 @@ class LeetCodeManager extends EventEmitter {
                 }
             }
 
-            await this.commitAuth(revision, async () => {
+            await sessionController.commit(operation, async () => {
                 this.currentUser = undefined;
                 this.userStatus = UserStatus.SignedOut;
-                await globalState.removeAll();
+                await globalState.removeAll(globalState.getEndpoint(), operation);
             });
         } finally {
             // A superseded restoration must not leave its own "Signing in..." behind,
             // e.g. when the operation that replaced it failed.
-            if (this.userStatus === UserStatus.SigningIn && this.signingInRevision === revision) {
+            if (this.userStatus === UserStatus.SigningIn && this.restoring === operation) {
                 this.currentUser = undefined;
                 this.userStatus = UserStatus.SignedOut;
             }
@@ -146,7 +137,7 @@ class LeetCodeManager extends EventEmitter {
 
     private async updateUserStatusWithCookie(cookie: string, confirmAccount: boolean = false): Promise<void> {
         if (globalState.getEndpoint() !== getLeetCodeEndpoint()) { return; }
-        const revision = this.beginAuth();
+        const operation = this.beginAuth();
         const validationError: string | undefined = validateCookie(cookie);
         if (validationError) {
             throw new Error(validationError);
@@ -157,13 +148,13 @@ class LeetCodeManager extends EventEmitter {
 
         this.authenticating++;
         try {
-            const data = await queryUserData(normalizedCookie, this.authController.signal);
+            const data = await queryUserData(normalizedCookie, operation.signal);
             leetCodeChannel.info(`Sign-in result: signedIn=${data.isSignedIn}, username=${data.username ? "present" : "missing"}`);
             if (!data.isSignedIn || !data.username) {
                 throw new Error(vscode.l10n.t("The cookie is not signed in for {0}. Check that leetcode.endpoint matches the cookie's site, then copy a fresh cookie.", site.host));
             }
 
-            if (revision !== this.authRevision || site !== currentSite()) {
+            if (superseded(operation, site)) {
                 return;
             }
             // LeetCode's callback does not return an OAuth state value. Require
@@ -175,15 +166,15 @@ class LeetCodeManager extends EventEmitter {
                     { modal: true, detail: vscode.l10n.t("Continue only if this is the account you just authorized in your browser.") },
                     accept,
                 );
-                if (choice !== accept || revision !== this.authRevision || site !== currentSite()) {
+                if (choice !== accept || superseded(operation, site)) {
                     return;
                 }
             }
 
-            await this.commitAuth(revision, async () => {
+            await sessionController.commit(operation, async () => {
                 invalidateProblemCache();
-                await globalState.saveProfile(data.username, data.username, normalizedCookie, () => revision === this.authRevision);
-                if (await this.publishUser(revision, data)) {
+                await globalState.saveProfile(data.username, data.username, normalizedCookie, operation);
+                if (await this.publishUser(operation, data)) {
                     this.emit("statusChanged");
                     vscode.window.showInformationMessage(vscode.l10n.t("Successfully signed in as {0}.", data.username));
                 }
@@ -239,7 +230,7 @@ class LeetCodeManager extends EventEmitter {
 
     public async handleInputCookieSignIn(): Promise<void> {
         const endpoint = getLeetCodeEndpoint();
-        const revision = this.authRevision;
+        const operation = sessionController.latest();
         const cookie: string | undefined = await vscode.window.showInputBox({
             prompt: vscode.l10n.t("Paste the Cookie header copied from {0}", currentSite().host),
             placeHolder: "LEETCODE_SESSION=...; csrftoken=...",
@@ -247,7 +238,7 @@ class LeetCodeManager extends EventEmitter {
             ignoreFocusOut: true,
             validateInput: (value: string): string | undefined => validateCookie(value),
         });
-        if (!cookie || endpoint !== getLeetCodeEndpoint() || revision !== this.authRevision) {
+        if (!cookie || endpoint !== getLeetCodeEndpoint() || !operation.isCurrent()) {
             return;
         }
 
@@ -316,12 +307,11 @@ class LeetCodeManager extends EventEmitter {
     }
 
     public async signOut(): Promise<void> {
-        this.beginAuth();
+        const operation = this.beginAuth();
         this.sessionKept = undefined;
-        this.pendingWebLogin = undefined;
         this.currentUser = undefined;
         this.userStatus = UserStatus.SignedOut;
-        await this.clearAuth();
+        await this.clearAuth(operation);
         invalidateProblemCache();
         this.emit("statusChanged");
         vscode.window.showInformationMessage(vscode.l10n.t("Successfully signed out."));
@@ -333,8 +323,8 @@ class LeetCodeManager extends EventEmitter {
      * once userStatus confirms that it is signed out.
      */
     public async handleSessionExpired(request?: IGraphQLRequest): Promise<void> {
-        if (request && (request.isCurrent?.() === false || request.sessionSignal?.aborted
-            || request.cookie !== globalState.getCookie() || request.endpoint !== currentSite().graphql)) { return; }
+        // A request of an ended session, of another site, or signed in with a cookie being checked says nothing about this session.
+        if (request && (request.isCurrent?.() === false || request.sessionSignal?.aborted || request.cookie !== globalState.getCookie())) { return; }
         if (this.userStatus !== UserStatus.SignedIn || this.handlingSessionExpired || this.authenticating) {
             return;
         }
@@ -343,24 +333,23 @@ class LeetCodeManager extends EventEmitter {
             return;
         }
         this.handlingSessionExpired = true;
-        const revision = this.authRevision;
+        const operation = sessionController.latest();
         try {
-            if (cookie && !await this.isSignedOut(cookie)) {
-                if (revision !== this.authRevision) { return; }
+            if (cookie && !await this.isSignedOut(cookie, operation.signal)) {
+                if (!operation.isCurrent()) { return; }
                 leetCodeChannel.warn("LeetCode rejected a request, but the session is not signed out; keeping it.");
                 this.sessionKept = { cookie, at: Date.now() };
                 return;
             }
-            if (revision !== this.authRevision || this.userStatus !== UserStatus.SignedIn) {
+            if (!operation.isCurrent() || this.userStatus !== UserStatus.SignedIn) {
                 return;
             }
-            this.beginAuth();
+            const signOut = this.beginAuth();
             this.sessionKept = undefined;
-            this.pendingWebLogin = undefined;
             leetCodeChannel.warn("LeetCode session expired; signing out.");
             this.currentUser = undefined;
             this.userStatus = UserStatus.SignedOut;
-            await this.clearAuth();
+            await this.clearAuth(signOut);
             invalidateProblemCache();
             this.emit("statusChanged");
 
@@ -376,8 +365,8 @@ class LeetCodeManager extends EventEmitter {
         }
     }
 
-    private async isSignedOut(cookie: string): Promise<boolean> {
-        const check = await verifyCredential(cookie, this.authController.signal);
+    private async isSignedOut(cookie: string, signal: AbortSignal): Promise<boolean> {
+        const check = await verifyCredential(cookie, signal);
         if ("error" in check) {
             leetCodeChannel.warn(`Failed to verify the LeetCode session: ${check.error}`);
         }
@@ -386,19 +375,19 @@ class LeetCodeManager extends EventEmitter {
 
     public async switchProfile(name: string): Promise<void> {
         if (globalState.getEndpoint() !== getLeetCodeEndpoint()) { return; }
-        const revision = this.beginAuth();
+        const operation = this.beginAuth();
         const site = currentSite();
         const cookie: string = await globalState.getProfileCookie(name);
-        if (revision !== this.authRevision || site !== currentSite()) { return; }
-        const data = await queryUserData(cookie, this.authController.signal);
-        if (revision !== this.authRevision || site !== currentSite()) { return; }
+        if (superseded(operation, site)) { return; }
+        const data = await queryUserData(cookie, operation.signal);
+        if (superseded(operation, site)) { return; }
         if (!data.isSignedIn || !data.username) {
             throw new Error(vscode.l10n.t("The selected session \"{0}\" is no longer signed in for {1}.", name, site.host));
         }
-        await this.commitAuth(revision, async () => {
+        await sessionController.commit(operation, async () => {
             invalidateProblemCache();
-            await globalState.activateProfile(name, () => revision === this.authRevision);
-            if (await this.publishUser(revision, data)) {
+            await globalState.activateProfile(name, operation);
+            if (await this.publishUser(operation, data)) {
                 this.emit("statusChanged");
                 vscode.window.showInformationMessage(vscode.l10n.t("Switched to session \"{0}\".", name));
             }
@@ -411,18 +400,18 @@ class LeetCodeManager extends EventEmitter {
         if (validationError) {
             throw new Error(validationError);
         }
-        const revision = this.beginAuth();
+        const operation = this.beginAuth();
         const site = currentSite();
         const normalizedCookie: string = normalizeCookie(cookie);
-        const data = await queryUserData(normalizedCookie, this.authController.signal);
-        if (revision !== this.authRevision || site !== currentSite()) { return; }
+        const data = await queryUserData(normalizedCookie, operation.signal);
+        if (superseded(operation, site)) { return; }
         if (!data.isSignedIn || !data.username) {
             throw new Error(vscode.l10n.t("The cookie is not signed in for {0}. Check that leetcode.endpoint matches the cookie's site, then copy a fresh cookie.", site.host));
         }
-        await this.commitAuth(revision, async () => {
+        await sessionController.commit(operation, async () => {
             invalidateProblemCache();
-            await globalState.saveProfile(name, data.username, normalizedCookie, () => revision === this.authRevision);
-            if (await this.publishUser(revision, data)) {
+            await globalState.saveProfile(name, data.username, normalizedCookie, operation);
+            if (await this.publishUser(operation, data)) {
                 this.emit("statusChanged");
                 vscode.window.showInformationMessage(vscode.l10n.t("Session \"{0}\" is ready.", name));
             }
@@ -431,8 +420,8 @@ class LeetCodeManager extends EventEmitter {
 
     public async deleteProfile(name: string): Promise<void> {
         const restoring = this.userStatus === UserStatus.SigningIn;
-        const revision = this.beginAuth();
-        await this.commitAuth(revision, () => globalState.deleteProfile(name));
+        const operation = this.beginAuth();
+        await sessionController.commit(operation, () => globalState.deleteProfile(name, operation));
         invalidateProblemCache();
         if (!globalState.getCookie()) {
             this.currentUser = undefined;
@@ -464,20 +453,15 @@ class LeetCodeManager extends EventEmitter {
     public handleEndpointChange(endpoint: Endpoint): Promise<void> {
         if (this.endpointChange?.endpoint === endpoint) { return this.endpointChange.task; }
         if (!this.endpointChange && endpoint === globalState.getEndpoint()) { return Promise.resolve(); }
-        const revision = this.beginAuth();
+        const operation = this.beginAuth();
         this.sessionKept = undefined;
-        globalState.selectEndpoint(endpoint);
+        sessionController.end(operation, endpoint);
         this.currentUser = undefined;
         this.userStatus = UserStatus.SignedOut;
         invalidateProblemCache();
         this.emit("statusChanged");
-        const transition = this.authWrites.then(async () => {
-            if (revision !== this.authRevision) { return; }
-            await globalState.useEndpoint(endpoint, () => revision === this.authRevision);
-        });
-        this.authWrites = transition.catch(() => undefined);
-        const task = transition.then(async () => {
-            if (revision === this.authRevision) { await this.restoreLoginStatus(); }
+        const task = sessionController.commit(operation, () => globalState.useEndpoint(endpoint, operation)).then(async () => {
+            if (operation.isCurrent()) { await this.restoreLoginStatus(); }
         }).finally(() => {
             if (this.endpointChange?.task === task) { this.endpointChange = undefined; }
         });
@@ -486,10 +470,8 @@ class LeetCodeManager extends EventEmitter {
     }
 
     public dispose(): void {
-        ++this.authRevision;
-        this.authController.abort();
+        sessionController.revoke();
         this.pendingWebLogin = undefined;
-        sessionScope.invalidate();
         this.removeAllListeners();
     }
 }

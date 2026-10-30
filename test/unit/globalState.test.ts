@@ -14,6 +14,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { globalState } = require("../../src/globalState");
 const { Endpoint } = require("../../src/shared");
+const { sessionController } = require("../../src/auth/sessionController");
 
 class FakeMemento {
     public readonly values = new Map<string, unknown>();
@@ -134,7 +135,7 @@ test("a delayed keyring read cannot restore credentials after synchronous revoca
     const get = secrets.get.bind(secrets);
     secrets.get = async (key: string) => { await gate; return get(key); };
     const reading = globalState.useEndpoint(Endpoint.LeetCode);
-    globalState.detach();
+    sessionController.revoke();
     release();
     await reading;
     assert.equal(globalState.getCookie(), undefined);
@@ -159,7 +160,7 @@ test("deleting a profile that only storage still names as active cannot bring it
     const secrets = new FakeSecrets();
     await globalState.initialize({ globalState: memento, secrets });
     await globalState.saveProfile("alice", "alice", "cookie-a");
-    globalState.detach();
+    sessionController.revoke();
     await globalState.deleteProfile("alice");
     await globalState.initialize({ globalState: memento, secrets });
     assert.equal(globalState.getCookie(), undefined);

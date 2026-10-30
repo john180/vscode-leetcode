@@ -79,6 +79,7 @@ const { leetCodeManager } = require("../../src/leetCodeManager");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { UserStatus } = require("../../src/shared");
 const { getLeetCodeRequest } = require("../../src/api/request");
+const { sessionController } = require("../../src/auth/sessionController");
 
 class FakeMemento {
     public readonly values = new Map<string, unknown>();
@@ -418,7 +419,7 @@ test("a superseded restoration does not leave the view signing in", async () => 
     let resolveRestore!: (value: any) => void;
     query = () => new Promise((resolve) => { resolveRestore = resolve; });
     const restoration = leetCodeManager.getLoginStatus();
-    (leetCodeManager as any).authRevision++;
+    sessionController.begin();
     resolveRestore({ isSignedIn: true, username: "kept", isPremium: false, avatar: "" });
     await restoration;
     assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);

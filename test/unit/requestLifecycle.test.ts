@@ -5,7 +5,7 @@ import { send, isCanceled } from "../../src/api/http";
 import { graphql } from "../../src/api/client";
 import { LeetCodeApiError } from "../../src/api/errors";
 import { sessionEvents } from "../../src/auth/session";
-import { SessionScope } from "../../src/auth/sessionScope";
+import { SessionController } from "../../src/auth/sessionController";
 import { fetchFavoriteData } from "../../src/api/favoriteLists";
 import { fetchSubmissionHistory } from "../../src/api/submissionHistory";
 import { submitSolution } from "../../src/api/submission";
@@ -42,7 +42,7 @@ test("Retry-After exceeding the remaining budget is surfaced without retrying ea
 
 test("session revocation aborts transport even with a separate view signal", async () => {
     const adapter = axios.defaults.adapter;
-    const sessions = new SessionScope();
+    const sessions = new SessionController();
     const view = new AbortController();
     let received: AbortSignal | undefined;
     axios.defaults.adapter = (config: any) => new Promise((_resolve, reject) => {
@@ -50,9 +50,9 @@ test("session revocation aborts transport even with a separate view signal", asy
         config.signal.addEventListener("abort", () => reject(new axios.CanceledError()), { once: true });
     });
     try {
-        const pending = assert.rejects(send({ ...request, ...sessions.capture("alice"), signal: view.signal }, { url: request.origin }), isCanceled);
+        const pending = assert.rejects(send({ ...request, sessionSignal: sessions.current().signal, signal: view.signal }, { url: request.origin }), isCanceled);
         await tick();
-        sessions.invalidate();
+        sessions.revoke();
         await pending;
         assert.equal(received?.aborted, true);
         assert.equal(view.signal.aborted, false);
