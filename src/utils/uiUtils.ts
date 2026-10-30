@@ -2,9 +2,8 @@
 // Licensed under the MIT license.
 
 import * as vscode from "vscode";
-import { getLeetCodeEndpoint } from "../commands/plugin";
 import { leetCodeChannel } from "../leetCodeChannel";
-import { Endpoint } from "../shared";
+import { currentSite } from "../shared";
 import { getWorkspaceConfiguration } from "./settingUtils";
 
 export namespace DialogOptions {
@@ -52,7 +51,7 @@ export async function promptForSignIn(): Promise<void> {
             await vscode.commands.executeCommand("leetcode.signin");
             break;
         case DialogOptions.singUp:
-            await openUrl(getLeetCodeEndpoint() === Endpoint.LeetCodeCN ? "https://leetcode.cn" : "https://leetcode.com");
+            await openUrl(currentSite().origin);
             break;
         default:
             break;

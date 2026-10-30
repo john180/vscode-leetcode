@@ -8,7 +8,7 @@ import { isCanceled } from "../api/http";
 import { getLeetCodeRequest } from "../api/request";
 import { testSolution as testWithLeetCode } from "../api/submission";
 import { leetCodeManager } from "../leetCodeManager";
-import { globalState } from "../globalState";
+import { testCaseStore } from "../testCaseStore";
 import { IProblem, IQuickItemEx, UserStatus } from "../shared";
 import { getLanguageFromText, getNodeIdFromText } from "../utils/problemUtils";
 import { DialogType, promptForOpenOutputChannel, promptForSignIn, showFileSelectDialog } from "../utils/uiUtils";
@@ -58,7 +58,7 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
             return;
         }
         assertRequestActive(request);
-        await globalState.saveTestCase(problem.slug, testInput);
+        await testCaseStore.save(problem.slug, testInput);
         assertRequestActive(request);
 
         // A newer run aborts this one: a test's result only matters while the panel shows it.
@@ -85,7 +85,7 @@ async function pickTestInput(
     examples: string | undefined,
     slug: string,
 ): Promise<string | undefined> {
-    const savedInput: string | undefined = globalState.getTestCase(slug);
+    const savedInput: string | undefined = testCaseStore.get(slug);
     const picks: Array<IQuickItemEx<string>> = [
         {
             label: `$(three-bars) ${vscode.l10n.t("Default test cases")}`,

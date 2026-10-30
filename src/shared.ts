@@ -3,6 +3,9 @@
 
 import * as vscode from "vscode";
 import { buildAuthLoginUrl as buildAuthLoginUrlFor } from "./auth/login";
+import { Endpoint, getSite, ISite } from "./site";
+
+export { Endpoint } from "./site";
 
 export interface IQuickItemEx<T> extends vscode.QuickPickItem {
     value: T;
@@ -59,12 +62,6 @@ export enum ProblemState {
     NotAC = 2,
     Unknown = 3,
     Locked = 4,
-}
-
-export enum Endpoint {
-    Auto = "auto",
-    LeetCode = "leetcode",
-    LeetCodeCN = "leetcode-cn",
 }
 
 export interface IProblem {
@@ -124,25 +121,6 @@ export enum SortingStrategy {
     FrequencyDesc = "Frequency (Descending)",
 }
 
-export const PREMIUM_URL_CN = "https://leetcode.cn/premium-payment/?source=vscode";
-export const PREMIUM_URL_GLOBAL = "https://leetcode.com/subscribe/?ref=lp_pl&source=vscode";
-
-export const urls = {
-    // base urls
-    base: "https://leetcode.com",
-    graphql: "https://leetcode.com/graphql",
-    userGraphql: "https://leetcode.com/graphql",
-    login: "https://leetcode.com/accounts/login/",
-};
-
-export const urlsCn = {
-    // base urls
-    base: "https://leetcode.cn",
-    graphql: "https://leetcode.cn/graphql",
-    userGraphql: "https://leetcode.cn/graphql/",
-    login: "https://leetcode.cn/accounts/login/",
-};
-
 let extensionId: string = "john180.vscode-leetcode";
 
 export function setExtensionId(id: string): void {
@@ -155,16 +133,10 @@ export function buildAuthLoginUrl(endpoint: string): string {
     return buildAuthLoginUrlFor(endpoint, vscode.env.uriScheme, extensionId);
 }
 
-export const getUrl = (key: keyof typeof urls): string => {
-    const point: Endpoint = getEffectiveEndpoint();
-    switch (point) {
-        case Endpoint.LeetCodeCN:
-            return urlsCn[key];
-        case Endpoint.LeetCode:
-        default:
-            return urls[key];
-    }
-};
+/** The site the extension talks to now. */
+export function currentSite(): ISite {
+    return getSite(getEffectiveEndpoint());
+}
 
 let resolvedEndpoint: Endpoint = Endpoint.LeetCode;
 
@@ -178,5 +150,5 @@ export function getEffectiveEndpoint(): Endpoint {
     if (configured === Endpoint.Auto) {
         return resolvedEndpoint;
     }
-    return configured === Endpoint.LeetCodeCN ? Endpoint.LeetCodeCN : Endpoint.LeetCode;
+    return getSite(configured).endpoint;
 }

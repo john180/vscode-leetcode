@@ -9,13 +9,12 @@ import type { IQuestionDetail, ISimilarQuestion } from "../api/question";
 import { getLeetCodeRequest } from "../api/request";
 import { fetchTopSolution } from "../api/solution";
 import type { ISolution } from "../api/solution";
-import { getLeetCodeEndpoint } from "../commands/plugin";
 import { searchFor } from "../commands/search";
 import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { globalState } from "../globalState";
 import { leetCodeChannel } from "../leetCodeChannel";
-import { Endpoint, IProblem, PREMIUM_URL_CN, PREMIUM_URL_GLOBAL, ProblemState } from "../shared";
+import { currentSite, IProblem, ProblemState } from "../shared";
 import { getProblemFile, problemFileEvents } from "../utils/problemDocumentContext";
 import { shouldUseEndpointTranslation } from "../utils/settingUtils";
 import { openSettingsEditor, openUrl, promptHintMessage } from "../utils/uiUtils";
@@ -519,7 +518,7 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
             return `<p class="status">${escapeHtml(l10n.t("This problem has no solution to show yet."))}</p>${more}`;
         }
         const title: string = solution.title ? `<h3>${escapeHtml(solution.title)}</h3>` : "";
-        const body: string = markdownEngine.renderSolution(cleanSolutionMarkdown(solution.content, url), { lang: "", host: this.getHost() });
+        const body: string = markdownEngine.renderSolution(cleanSolutionMarkdown(solution.content, url), { lang: "", host: currentSite().origin });
         return `${title}${body}<hr />${more}`;
     }
 
@@ -583,7 +582,7 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
                 }
                 break;
             case "premium":
-                await openUrl(getLeetCodeEndpoint() === Endpoint.LeetCode ? PREMIUM_URL_GLOBAL : PREMIUM_URL_CN);
+                await openUrl(currentSite().premium);
                 break;
             case "retry":
                 await this.show(problem);
@@ -612,14 +611,8 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         }
     }
 
-    private getHost(): string {
-        return getLeetCodeEndpoint() === Endpoint.LeetCodeCN
-            ? "https://leetcode.cn"
-            : "https://leetcode.com";
-    }
-
     private getProblemUrl(slug: string): string {
-        return `${this.getHost()}/problems/${slug}/description/`;
+        return `${currentSite().origin}/problems/${slug}/description/`;
     }
 
     private getSolutionsLink(url: string): string {

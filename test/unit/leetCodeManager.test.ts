@@ -23,7 +23,6 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
                 getConfiguration: () => ({
                     get: (key: string, defaultValue: unknown) => {
                         if (key === "endpoint") return endpoint;
-                        if (key === "userGraphql") return "https://leetcode.com/graphql";
                         return defaultValue;
                     },
                 }),
@@ -58,9 +57,6 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     }
     if (request.endsWith("request/query-user-data")) {
         return { queryUserData: (cookie?: string, signal?: AbortSignal) => query(cookie, signal) };
-    }
-    if (request.endsWith("commands/plugin")) {
-        return { getLeetCodeEndpoint: () => endpoint };
     }
     if (request.endsWith("api/problems")) {
         return { invalidateProblemCache: () => undefined };

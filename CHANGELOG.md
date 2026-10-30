@@ -35,6 +35,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Hot 100 and favorite lists load each page of up to 20 problems with one request instead of one request per problem.
 - Favorite lists and the daily problem are kept in the same cache as the problem lists, which the tree and the commands share.
 - Starting a test stops waiting for the result of the test it replaces, and switching the account, site or language stops what is still loading for the old one. A replaced submission still records its verdict.
+- Sign-in errors name the site, such as leetcode.cn, instead of its GraphQL address.
 
 ## [0.25.0] - 2026-10-28
 ### Changed

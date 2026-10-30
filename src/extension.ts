@@ -30,6 +30,7 @@ import { compileDiagnostics } from "./utils/compileDiagnostics";
 import { markdownEngine } from "./webview/markdownEngine";
 import { globalState } from "./globalState";
 import { problemCache } from "./api/problemCache";
+import { testCaseStore } from "./testCaseStore";
 import { setClientVersion } from "./api/http";
 import { registerProblemDocumentContext } from "./utils/problemDocumentContext";
 import type { IGraphQLRequest } from "./api/client";
@@ -39,6 +40,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         setExtensionId(context.extension.id);
         setClientVersion(context.extension.packageJSON?.version);
         markdownEngine.initialize(context.extensionUri);
+        testCaseStore.initialize(context.globalState);
         registerProblemDocumentContext(context);
         const expired = (request: IGraphQLRequest): void => {
             void leetCodeManager.handleSessionExpired(request).catch((error: unknown) => leetCodeChannel.warn(`Session verification failed: ${error}`));

@@ -64,7 +64,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     if (request === "../webview/leetCodeSubmissionProvider") { return { leetCodeSubmissionProvider: {
         judge: async (_problem: unknown, _document: unknown, judge: () => Promise<unknown>) => { const result = await judge(); judged.push(result); return result; },
     } }; }
-    if (request === "../globalState") { return { globalState: { getTestCase: () => undefined, saveTestCase: async () => undefined } }; }
+    if (request === "../testCaseStore") { return { testCaseStore: { get: () => undefined, save: async () => undefined } }; }
     return originalLoad.call(this, request, parent, isMain);
 };
 const { testSolution } = require("../../src/commands/test");

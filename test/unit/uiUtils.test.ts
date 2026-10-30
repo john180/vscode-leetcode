@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { beforeEach, test } from "node:test";
 import Module = require("node:module");
+import { getSite } from "../../src/site";
 
 const opened: string[] = [];
 const logged: string[] = [];
@@ -19,9 +20,8 @@ const dependencies: Record<string, unknown> = {
             showErrorMessage: async (_message: string, ...items: unknown[]) => pick(items),
         },
     },
-    "../commands/plugin": { getLeetCodeEndpoint: () => endpoint },
     "../leetCodeChannel": { leetCodeChannel: { error: (text: string) => logged.push(text), show: () => { channelShown = true; } } },
-    "../shared": { Endpoint: { LeetCode: "leetcode", LeetCodeCN: "leetcode-cn" } },
+    "../shared": { currentSite: () => getSite(endpoint) },
     "./settingUtils": { getWorkspaceConfiguration: () => ({ get: () => undefined }) },
 };
 const moduleLoader: any = Module;

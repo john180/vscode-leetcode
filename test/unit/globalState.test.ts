@@ -42,7 +42,7 @@ class FakeSecrets {
     }
 }
 
-test("globalState loads secure cookies and manages profiles/test cases", async () => {
+test("globalState loads secure cookies and manages profiles", async () => {
     const memento = new FakeMemento();
     const secrets = new FakeSecrets();
     secrets.values.set("leetcode-cookie", "LEETCODE_SESSION=current; csrftoken=current");
@@ -64,9 +64,6 @@ test("globalState loads secure cookies and manages profiles/test cases", async (
     assert.equal((await globalState.activateProfile("alice")), "LEETCODE_SESSION=a; csrftoken=a");
     assert.equal(globalState.getCookie(), "LEETCODE_SESSION=a; csrftoken=a");
     assert.equal(globalState.getActiveProfile(), "alice");
-
-    await globalState.saveTestCase("two-sum", "[1,2,3]\n4");
-    assert.equal(globalState.getTestCase("two-sum"), "[1,2,3]\n4");
 
     await globalState.deleteProfile("bob");
     assert.equal(globalState.getProfiles().map((profile: any) => profile.name).join(","), "alice");

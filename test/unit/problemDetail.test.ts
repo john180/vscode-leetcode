@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { EventEmitter } from "node:events";
 import { beforeEach, test } from "node:test";
 import Module = require("node:module");
+import { getSite } from "../../src/site";
 
 interface IFetch { slug: string; resolve: (detail: unknown) => void; reject: (error: Error) => void; }
 
@@ -49,13 +50,12 @@ const providerDependencies: Record<string, unknown> = {
         fetchTopSolution: (_request: unknown, slug: string) => new Promise((resolve, reject) => solutionFetches.push({ slug, resolve, reject })),
     },
     "../api/request": { getLeetCodeRequest: () => ({}) },
-    "../commands/plugin": { getLeetCodeEndpoint: () => "leetcode-cn" },
     "../explorer/explorerNodeManager": { explorerNodeManager: { getNodeById: () => undefined } },
     "../explorer/LeetCodeNode": { LeetCodeNode: FakeNode },
     "../globalState": { globalState: { getUserStatus: () => ({ isPremium: premium }) } },
     "../leetCodeChannel": { leetCodeChannel: { info: () => undefined, warn: () => undefined, error: () => undefined } },
     "../shared": {
-        Endpoint: { LeetCode: "leetcode", LeetCodeCN: "leetcode-cn" }, PREMIUM_URL_CN: "cn-premium", PREMIUM_URL_GLOBAL: "global-premium",
+        currentSite: () => getSite("leetcode-cn"),
         ProblemState: { AC: 1, NotAC: 2 },
     },
     "../utils/problemDocumentContext": { getProblemFile: (id: string) => problemFiles.get(id), problemFileEvents },
@@ -240,7 +240,7 @@ test("locked problems show a premium notice without fetching or coding actions",
     assert.doesNotMatch(content(view), /<img src=x>/);
 
     await post({ command: "premium" });
-    assert.deepEqual(executed, [["open", "cn-premium"]]);
+    assert.deepEqual(executed, [["open", "https://leetcode.cn/premium-payment/?source=vscode"]]);
 });
 
 test("a failed fetch offers a retry that loads the description again", async () => {

@@ -1,13 +1,14 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
+import { getSite } from "../site";
+
 /**
  * Builds the LeetCode browser-authorization URL. `path` must be the installed
  * extension id, otherwise VS Code hands the callback to the official extension.
  */
 export function buildAuthLoginUrl(endpoint: string, uriScheme: string, extensionId: string): string {
-    const base: string = endpoint === "leetcode-cn" ? "https://leetcode.cn" : "https://leetcode.com";
-    return `${base}/authorize-login/${encodeURIComponent(uriScheme)}/?path=${encodeURIComponent(extensionId)}`;
+    return `${getSite(endpoint).origin}/authorize-login/${encodeURIComponent(uriScheme)}/?path=${encodeURIComponent(extensionId)}`;
 }
 
 export interface IAuthCallback {

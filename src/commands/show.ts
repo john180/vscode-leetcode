@@ -16,7 +16,7 @@ import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { leetCodeManager } from "../leetCodeManager";
-import { Endpoint, IProblem, languages } from "../shared";
+import { currentSite, IProblem, languages } from "../shared";
 import { isProblemDocument } from "../utils/problemDocumentContext";
 import { genFileExt, genFileName, getNodeIdFromText } from "../utils/problemUtils";
 import * as settingUtils from "../utils/settingUtils";
@@ -32,7 +32,6 @@ import {
 import { selectWorkspaceFolder } from "../utils/workspaceUtils";
 import { leetCodePreviewProvider } from "../webview/leetCodePreviewProvider";
 import { getProblemById, getProblemBySlug, getProblemCacheScope, getRandomProblem } from "../api/problems";
-import { getLeetCodeEndpoint } from "./plugin";
 
 async function findProblemById(id: string): Promise<IProblem | undefined> {
     const cached: IProblem | undefined = explorerNodeManager.getNodeById(id);
@@ -207,14 +206,13 @@ async function showProblemInternal(node: IProblem): Promise<void> {
         const detail: IQuestionDetail = await fetchQuestionDetail(getLeetCodeRequest(), node.slug);
 
         if (!await fs.access(finalPath).then(() => true, () => false)) {
-            const endpointName: string = getLeetCodeEndpoint() === Endpoint.LeetCodeCN ? "leetcode.cn" : "leetcode.com";
             const fileContent: string = buildProblemFile({
                 detail,
                 problem: node,
                 language,
                 includeDescription: descriptionConfig.showInComment,
                 useTranslation: needTranslation,
-                endpoint: endpointName,
+                endpoint: currentSite().host,
             });
             // The folder setting may name folders that do not exist yet, such as "${difficulty}".
             await fs.mkdir(path.dirname(finalPath), { recursive: true });

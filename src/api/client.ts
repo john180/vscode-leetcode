@@ -5,6 +5,7 @@ import type { AxiosResponse } from "axios";
 import { send } from "./http";
 import { graphQLErrors, isAuthenticationError, LeetCodeApiError } from "./errors";
 import { reportAuthenticationFailure } from "../auth/session";
+import { Endpoint, getSite } from "../site";
 
 export interface IGraphQLRequest {
     readonly endpoint: string;
@@ -13,7 +14,6 @@ export interface IGraphQLRequest {
     /** Aborts the request, including any retries still to come. */
     readonly signal?: AbortSignal;
     readonly sessionSignal?: AbortSignal;
-    readonly revision?: number;
     readonly isCurrent?: () => boolean;
     readonly authenticationCheck?: boolean;
     /** Absolute deadline shared by requests, retries, and polling. */
@@ -23,7 +23,7 @@ export interface IGraphQLRequest {
 /** Whether a request goes to leetcode.cn, whose API differs from leetcode.com's in places. */
 export function isCnSite(request: Pick<IGraphQLRequest, "origin">): boolean {
     try {
-        return new URL(request.origin).hostname === "leetcode.cn";
+        return new URL(request.origin).hostname === getSite(Endpoint.LeetCodeCN).host;
     } catch {
         return false;
     }

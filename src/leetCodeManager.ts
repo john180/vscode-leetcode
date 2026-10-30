@@ -7,13 +7,13 @@ import { invalidateProblemCache } from "./api/problems";
 import { normalizeCookie, validateCookie } from "./auth/cookie";
 import { parseAuthCallback } from "./auth/login";
 import { leetCodeChannel } from "./leetCodeChannel";
-import { buildAuthLoginUrl, Endpoint, getEffectiveEndpoint as getLeetCodeEndpoint, getUrl, IQuickItemEx, UserStatus } from "./shared";
+import { buildAuthLoginUrl, currentSite, Endpoint, getEffectiveEndpoint as getLeetCodeEndpoint, IQuickItemEx, UserStatus } from "./shared";
 import { DialogType, openUrl, promptForOpenOutputChannel } from "./utils/uiUtils";
 import { globalState, UserDataType } from "./globalState";
 import { queryUserData } from "./request/query-user-data";
 import { IGraphQLRequest } from "./api/client";
 import { isCanceled } from "./api/http";
-import { LeetCodeApiError } from "./api/errors";
+import { verifyCredential } from "./auth/credential";
 import { sessionScope } from "./auth/sessionScope";
 
 /** How long a session that survived a 401/403 check is trusted before checking again. */
@@ -95,7 +95,7 @@ class LeetCodeManager extends EventEmitter {
         const pendingWebLogin = this.pendingWebLogin;
         const revision = this.beginAuth();
         this.pendingWebLogin = pendingWebLogin;
-        const endpoint = getUrl("userGraphql");
+        const site = currentSite();
         invalidateProblemCache();
         const storedCookie: string | undefined = globalState.getCookie(getLeetCodeEndpoint());
         if (storedCookie) {
@@ -105,30 +105,26 @@ class LeetCodeManager extends EventEmitter {
         }
         try {
             if (storedCookie) {
-                try {
-                    const data = await queryUserData(storedCookie, this.authController.signal);
-                    if (revision !== this.authRevision || endpoint !== getUrl("userGraphql")) {
-                        return;
-                    }
-                    if (data.isSignedIn && data.username) {
-                        await this.commitAuth(revision, async () => {
-                            await globalState.saveProfile(globalState.getActiveProfile() || data.username, data.username, storedCookie, () => revision === this.authRevision);
-                            await this.publishUser(revision, data);
-                        });
-                        return;
-                    }
-                } catch (error) {
-                    if (revision !== this.authRevision || endpoint !== getUrl("userGraphql")) {
-                        return;
-                    }
-                    leetCodeChannel.warn(`Failed to validate the stored cookie: ${error}`);
+                const check = await verifyCredential(storedCookie, this.authController.signal);
+                if (revision !== this.authRevision || site !== currentSite()) {
+                    return;
+                }
+                if (check.state === "signedIn") {
+                    const { user } = check;
+                    await this.commitAuth(revision, async () => {
+                        await globalState.saveProfile(globalState.getActiveProfile() || user.username, user.username, storedCookie, () => revision === this.authRevision);
+                        await this.publishUser(revision, user);
+                    });
+                    return;
+                }
+                if ("error" in check) {
+                    leetCodeChannel.warn(`Failed to validate the stored cookie: ${check.error}`);
+                }
+                if (check.state === "unknown") {
                     // A transport failure is not evidence that the credential expired.
-                    const status = (error as { response?: { status?: number } }).response?.status;
-                    if (status !== 401 && !(error instanceof LeetCodeApiError && error.kind === "authentication" && status === 200)) {
-                        this.currentUser = undefined;
-                        this.userStatus = UserStatus.SignedOut;
-                        return;
-                    }
+                    this.currentUser = undefined;
+                    this.userStatus = UserStatus.SignedOut;
+                    return;
                 }
             }
 
@@ -156,18 +152,18 @@ class LeetCodeManager extends EventEmitter {
             throw new Error(validationError);
         }
         const normalizedCookie: string = normalizeCookie(cookie);
-        const endpoint: string = getUrl("userGraphql");
-        leetCodeChannel.info(`Validating cookie against ${endpoint}`);
+        const site = currentSite();
+        leetCodeChannel.info(`Validating cookie against ${site.graphql}`);
 
         this.authenticating++;
         try {
             const data = await queryUserData(normalizedCookie, this.authController.signal);
             leetCodeChannel.info(`Sign-in result: signedIn=${data.isSignedIn}, username=${data.username ? "present" : "missing"}`);
             if (!data.isSignedIn || !data.username) {
-                throw new Error(vscode.l10n.t("The cookie is not signed in for {0}. Check that leetcode.endpoint matches the cookie's site, then copy a fresh cookie.", endpoint));
+                throw new Error(vscode.l10n.t("The cookie is not signed in for {0}. Check that leetcode.endpoint matches the cookie's site, then copy a fresh cookie.", site.host));
             }
 
-            if (revision !== this.authRevision || endpoint !== getUrl("userGraphql")) {
+            if (revision !== this.authRevision || site !== currentSite()) {
                 return;
             }
             // LeetCode's callback does not return an OAuth state value. Require
@@ -175,11 +171,11 @@ class LeetCodeManager extends EventEmitter {
             if (confirmAccount) {
                 const accept = vscode.l10n.t("Sign In");
                 const choice = await vscode.window.showInformationMessage(
-                    vscode.l10n.t("Sign in as {0} on {1}?", data.username, this.getEndpointLabel()),
+                    vscode.l10n.t("Sign in as {0} on {1}?", data.username, site.host),
                     { modal: true, detail: vscode.l10n.t("Continue only if this is the account you just authorized in your browser.") },
                     accept,
                 );
-                if (choice !== accept || revision !== this.authRevision || endpoint !== getUrl("userGraphql")) {
+                if (choice !== accept || revision !== this.authRevision || site !== currentSite()) {
                     return;
                 }
             }
@@ -245,7 +241,7 @@ class LeetCodeManager extends EventEmitter {
         const endpoint = getLeetCodeEndpoint();
         const revision = this.authRevision;
         const cookie: string | undefined = await vscode.window.showInputBox({
-            prompt: vscode.l10n.t("Paste the Cookie header copied from {0}", this.getEndpointLabel()),
+            prompt: vscode.l10n.t("Paste the Cookie header copied from {0}", currentSite().host),
             placeHolder: "LEETCODE_SESSION=...; csrftoken=...",
             password: true,
             ignoreFocusOut: true,
@@ -273,13 +269,13 @@ class LeetCodeManager extends EventEmitter {
             },
             {
                 label: vscode.l10n.t("Open Login Page"),
-                detail: vscode.l10n.t("Open {0} in the browser", this.getEndpointLabel()),
+                detail: vscode.l10n.t("Open {0} in the browser", currentSite().host),
                 value: "OpenLogin",
             },
         ];
 
         const choice: IQuickItemEx<string> | undefined = await vscode.window.showQuickPick(picks, {
-            title: vscode.l10n.t("Sign in to {0}", this.getEndpointLabel()),
+            title: vscode.l10n.t("Sign in to {0}", currentSite().host),
             ignoreFocusOut: true,
         });
         if (!choice) {
@@ -287,7 +283,7 @@ class LeetCodeManager extends EventEmitter {
         }
 
         if (choice.value === "OpenLogin") {
-            await openUrl(getUrl("login"));
+            await openUrl(currentSite().login);
             vscode.window.showInformationMessage(
                 vscode.l10n.t("Sign in on the website, then copy the Cookie header and use LeetCode Cookie."),
             );
@@ -338,7 +334,7 @@ class LeetCodeManager extends EventEmitter {
      */
     public async handleSessionExpired(request?: IGraphQLRequest): Promise<void> {
         if (request && (request.isCurrent?.() === false || request.sessionSignal?.aborted
-            || request.cookie !== globalState.getCookie() || request.endpoint !== getUrl("graphql"))) { return; }
+            || request.cookie !== globalState.getCookie() || request.endpoint !== currentSite().graphql)) { return; }
         if (this.userStatus !== UserStatus.SignedIn || this.handlingSessionExpired || this.authenticating) {
             return;
         }
@@ -380,28 +376,24 @@ class LeetCodeManager extends EventEmitter {
         }
     }
 
-    /** A failed check proves nothing, except a 401 from the check itself. */
     private async isSignedOut(cookie: string): Promise<boolean> {
-        try {
-            const data = await queryUserData(cookie, this.authController.signal);
-            return !data.isSignedIn || !data.username;
-        } catch (error) {
-            leetCodeChannel.warn(`Failed to verify the LeetCode session: ${error}`);
-            const status = (error as { response?: { status?: number } } | undefined)?.response?.status;
-            return status === 401 || (status === 200 && error instanceof LeetCodeApiError && error.kind === "authentication");
+        const check = await verifyCredential(cookie, this.authController.signal);
+        if ("error" in check) {
+            leetCodeChannel.warn(`Failed to verify the LeetCode session: ${check.error}`);
         }
+        return check.state === "signedOut";
     }
 
     public async switchProfile(name: string): Promise<void> {
         if (globalState.getEndpoint() !== getLeetCodeEndpoint()) { return; }
         const revision = this.beginAuth();
-        const endpoint = getUrl("userGraphql");
+        const site = currentSite();
         const cookie: string = await globalState.getProfileCookie(name);
-        if (revision !== this.authRevision || endpoint !== getUrl("userGraphql")) { return; }
+        if (revision !== this.authRevision || site !== currentSite()) { return; }
         const data = await queryUserData(cookie, this.authController.signal);
-        if (revision !== this.authRevision || endpoint !== getUrl("userGraphql")) { return; }
+        if (revision !== this.authRevision || site !== currentSite()) { return; }
         if (!data.isSignedIn || !data.username) {
-            throw new Error(vscode.l10n.t("The selected session \"{0}\" is no longer signed in for {1}.", name, getUrl("userGraphql")));
+            throw new Error(vscode.l10n.t("The selected session \"{0}\" is no longer signed in for {1}.", name, site.host));
         }
         await this.commitAuth(revision, async () => {
             invalidateProblemCache();
@@ -420,12 +412,12 @@ class LeetCodeManager extends EventEmitter {
             throw new Error(validationError);
         }
         const revision = this.beginAuth();
-        const endpoint = getUrl("userGraphql");
+        const site = currentSite();
         const normalizedCookie: string = normalizeCookie(cookie);
         const data = await queryUserData(normalizedCookie, this.authController.signal);
-        if (revision !== this.authRevision || endpoint !== getUrl("userGraphql")) { return; }
+        if (revision !== this.authRevision || site !== currentSite()) { return; }
         if (!data.isSignedIn || !data.username) {
-            throw new Error(vscode.l10n.t("The cookie is not signed in for {0}. Check that leetcode.endpoint matches the cookie's site, then copy a fresh cookie.", getUrl("userGraphql")));
+            throw new Error(vscode.l10n.t("The cookie is not signed in for {0}. Check that leetcode.endpoint matches the cookie's site, then copy a fresh cookie.", site.host));
         }
         await this.commitAuth(revision, async () => {
             invalidateProblemCache();
@@ -466,10 +458,6 @@ class LeetCodeManager extends EventEmitter {
 
     public getAuthLoginUrl(): string {
         return buildAuthLoginUrl(getLeetCodeEndpoint());
-    }
-
-    private getEndpointLabel(): string {
-        return getLeetCodeEndpoint() === Endpoint.LeetCodeCN ? "leetcode.cn" : "leetcode.com";
     }
 
     /** Both the settings editor and the site picker use this serialized transition. */

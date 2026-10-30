@@ -3,6 +3,7 @@
 
 import * as vscode from "vscode";
 import { Endpoint, setResolvedEndpoint } from "../shared";
+import { getSite } from "../site";
 import { detectEndpointFromTimeZone } from "../utils/endpointDetection";
 
 /**
@@ -13,15 +14,13 @@ import { detectEndpointFromTimeZone } from "../utils/endpointDetection";
 export async function resolveEndpoint(): Promise<Endpoint> {
     const configured: string = vscode.workspace.getConfiguration("leetcode").get<string>("endpoint", Endpoint.Auto);
     if (configured !== Endpoint.Auto) {
-        const endpoint: Endpoint = configured === Endpoint.LeetCodeCN ? Endpoint.LeetCodeCN : Endpoint.LeetCode;
+        const endpoint: Endpoint = getSite(configured).endpoint;
         setResolvedEndpoint(endpoint);
         return endpoint;
     }
 
     const timeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    const endpoint: Endpoint = detectEndpointFromTimeZone(timeZone) === Endpoint.LeetCodeCN
-        ? Endpoint.LeetCodeCN
-        : Endpoint.LeetCode;
+    const endpoint: Endpoint = getSite(detectEndpointFromTimeZone(timeZone)).endpoint;
     setResolvedEndpoint(endpoint);
     return endpoint;
 }

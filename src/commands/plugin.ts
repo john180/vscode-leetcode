@@ -5,6 +5,7 @@ import * as vscode from "vscode";
 import { leetCodeTreeDataProvider } from "../explorer/LeetCodeTreeDataProvider";
 import { IQuickItemEx } from "../shared";
 import { Endpoint, getEffectiveEndpoint, SortingStrategy } from "../shared";
+import { getSite } from "../site";
 import { resolveEndpoint } from "../auth/endpointResolver";
 import { DialogType, promptForOpenOutputChannel, promptForSignIn } from "../utils/uiUtils";
 import { leetCodeManager } from "../leetCodeManager";
@@ -16,7 +17,7 @@ export async function switchEndpoint(): Promise<void> {
         {
             label: `${configured === Endpoint.Auto ? "$(check) " : ""}Auto`,
             description: vscode.l10n.t("Mainland China uses 力扣, other regions use LeetCode"),
-            detail: `${vscode.l10n.t("Current site")}: ${effective === Endpoint.LeetCodeCN ? "leetcode.cn" : "leetcode.com"}`,
+            detail: `${vscode.l10n.t("Current site")}: ${getSite(effective).host}`,
             value: Endpoint.Auto,
         },
         {
@@ -52,10 +53,6 @@ export async function switchEndpoint(): Promise<void> {
     } catch (error) {
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to sign in. Please open the output channel for details."), DialogType.error, error);
     }
-}
-
-export function getLeetCodeEndpoint(): string {
-    return getEffectiveEndpoint();
 }
 
 const SORT_ORDER: SortingStrategy[] = [
