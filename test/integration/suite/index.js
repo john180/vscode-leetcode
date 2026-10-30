@@ -33,6 +33,23 @@ exports.run = async function run() {
     await vscode.commands.executeCommand("leetCodeResult.focus", { preserveFocus: true });
     assert.equal(vscode.window.tabGroups.all.flatMap((group) => group.tabs).length, tabs);
 
+    // Test cases are a document of the extension's own file system, saved outside the workspace.
+    const testCases = vscode.Uri.parse("leetcode-testcase:/1/two-sum.txt");
+    await vscode.workspace.fs.writeFile(testCases, Buffer.from("[2,7,11,15]\n9"));
+    const testCaseEditor = await vscode.window.showTextDocument(testCases);
+    assert.equal(testCaseEditor.document.getText(), "[2,7,11,15]\n9");
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+
+    // Quick Test's default key must not take a key that VS Code already uses.
+    await vscode.commands.executeCommand("workbench.action.openDefaultKeybindingsFile");
+    const bindings = [...vscode.window.activeTextEditor.document.getText().matchAll(/"key":\s*"([^"]+)",\s*"command":\s*"([^"]+)"/g)];
+    assert.ok(bindings.length > 100, "the default keybindings were read");
+    const taken = bindings
+        .filter(([, key, command]) => key.split(" ")[0] === "ctrl+'" && !command.startsWith("leetcode."))
+        .map(([, key, command]) => `${key}: ${command}`);
+    assert.deepEqual(taken, [], "ctrl+' is free in VS Code");
+    await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+
     const notes = await vscode.workspace.openTextDocument(vscode.Uri.joinPath(root, "notes.py"));
     await vscode.window.showTextDocument(notes);
     const unrelated = await vscode.commands.executeCommand("vscode.executeCodeLensProvider", notes.uri);

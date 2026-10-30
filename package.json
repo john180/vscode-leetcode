@@ -20,7 +20,8 @@
         "url": "https://github.com/john180/vscode-leetcode/issues"
     },
     "activationEvents": [
-        "onUri"
+        "onUri",
+        "onFileSystem:leetcode-testcase"
     ],
     "main": "./dist/extension.js",
     "l10n": "./l10n",
@@ -96,6 +97,12 @@
             {
                 "command": "leetcode.testSolution",
                 "title": "%command.testSolution%",
+                "category": "LeetCode",
+                "icon": "$(play)"
+            },
+            {
+                "command": "leetcode.rerunTest",
+                "title": "%command.rerunTest%",
                 "category": "LeetCode",
                 "icon": "$(play)"
             },
@@ -335,6 +342,11 @@
                     "command": "leetcode.previewProblem",
                     "when": "resourceScheme == file && leetcode.isProblem",
                     "group": "navigation@3"
+                },
+                {
+                    "command": "leetcode.rerunTest",
+                    "when": "resourceScheme == leetcode-testcase",
+                    "group": "navigation@1"
                 }
             ],
             "leetcode.editorAction": [
@@ -343,19 +355,31 @@
                     "group": "leetcode@1"
                 },
                 {
-                    "command": "leetcode.submitSolution",
+                    "command": "leetcode.rerunTest",
                     "group": "leetcode@2"
                 },
                 {
-                    "command": "leetcode.showSolution",
+                    "command": "leetcode.submitSolution",
                     "group": "leetcode@3"
                 },
                 {
-                    "command": "leetcode.previewProblem",
+                    "command": "leetcode.showSolution",
                     "group": "leetcode@4"
+                },
+                {
+                    "command": "leetcode.previewProblem",
+                    "group": "leetcode@5"
                 }
             ]
         },
+        "keybindings": [
+            {
+                "command": "leetcode.rerunTest",
+                "key": "ctrl+'",
+                "mac": "cmd+'",
+                "when": "editorTextFocus && (leetcode.isProblem || resourceScheme == leetcode-testcase)"
+            }
+        ],
         "submenus": [
             {
                 "id": "leetcode.editorAction",

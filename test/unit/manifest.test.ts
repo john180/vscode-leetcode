@@ -23,6 +23,15 @@ test("enum settings describe every value or none", () => {
     }
 });
 
+test("only Quick Test has a default key, which works only in problem files and test case editors", () => {
+    const bindings: Array<{ command: string; key: string; when: string }> = manifest.contributes.keybindings;
+    // A submission cannot be taken back, so it has no key to press by accident.
+    assert.deepEqual(bindings.map((binding) => binding.command), ["leetcode.rerunTest"]);
+    assert.equal(bindings[0].key, "ctrl+'", "LeetCode's own Run key");
+    assert.equal(bindings[0].when, "editorTextFocus && (leetcode.isProblem || resourceScheme == leetcode-testcase)");
+    assert.ok(manifest.activationEvents.includes("onFileSystem:leetcode-testcase"), "a restored test case editor activates the extension");
+});
+
 test("commands that need a problem from the list stay out of the command palette", () => {
     const hidden: string[] = manifest.contributes.menus.commandPalette
         .filter((item: { when?: string }) => item.when === "never")

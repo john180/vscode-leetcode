@@ -50,6 +50,8 @@ Accounts and cookies are stored separately for each site. Switching sites, inclu
    Visited problems are cached locally across restarts, separately for each site, login session and language, and stale entries update in the background. Refresh reloads expanded categories; **Delete Cache** also clears the persistent problem cache. Testing, submitting and viewing history do not require the full question bank.
    Clicking a problem shows its description in **Problem Details** below the list; **Code Now** (or the code icon beside the problem) creates and opens the solution file in the editor. Switching to a problem file shows that problem in Problem Details, and the book icon in the editor title bar brings the description back into view.
 2. Edit the generated file and use the CodeLens **Test** or **Submit** action; results appear in the **LeetCode Results** panel below the code.
+   Press `Ctrl+'` (**Quick Test**) in the file to test without choosing test cases: it uses your test cases, or the problem's examples until you write some.
+   Choosing **Edit test cases...** when testing opens the problem's test case editor beside the code: one argument per line, with each line labelled with its case and parameter. It is saved on this machine, not in the workspace; press `Ctrl+'` or the run button in its title bar to test with it. Clearing and saving it makes tests use the examples again. When a submission fails, **Add to test cases** in the results panel appends the failing input to the editor so that you can change it and test again.
 3. For the top solution, switch Problem Details to the **Solution** tab, or click the CodeLens **Solution**.
 
 ## Commands
@@ -61,7 +63,8 @@ Accounts and cookies are stored separately for each site. Switching sites, inclu
 | `LeetCode: Search Problem` / `Clear Search` | Filter and locate problems in the list / restore the full list |
 | `LeetCode: Show Problem` | Open a problem and generate the file |
 | `LeetCode: Show Description` | Show the active problem file's description in the sidebar |
-| `LeetCode: Test in LeetCode` | Run sample or custom tests |
+| `LeetCode: Test in LeetCode` | Choose what to test with: your test cases, the examples, the test case editor, or a file |
+| `LeetCode: Quick Test` | Test with your test cases, or the examples, without asking; `Ctrl+'` by default |
 | `LeetCode: Submit to LeetCode` | Submit the current file |
 | `LeetCode: Show Top Voted Solution` | Show the top solution in the Solution tab of Problem Details |
 | `LeetCode: Manage Sessions` | Manage local sessions |

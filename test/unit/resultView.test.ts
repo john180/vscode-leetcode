@@ -175,7 +175,7 @@ test("an accepted submission opens the solution and submissions of its problem",
 test("a failed submission leads with its failing case, and a compile error offers no solution", () => {
     const { view } = createView();
     leetCodeSubmissionProvider.show(wrongAnswer, { id: "1", name: "Two Sum" }, document);
-    assert.deepEqual(buttons(view.webview.html), ["Test with this input (button)", "View Solution (button secondary)"]);
+    assert.deepEqual(buttons(view.webview.html), ["Test with this input (button)", "Add to test cases (button secondary)", "View Solution (button secondary)"]);
     assert.equal(links(view.webview.html).filter((link) => link.label === "Test with this input").length, 1);
 
     leetCodeSubmissionProvider.show({
@@ -196,9 +196,10 @@ test("many passing cases collapse while failing ones stay open", () => {
     assert.match(view.webview.html, /<details class="case fail" open>/);
 });
 
-test("links copy the raw text and test with the failing input; stale links do nothing", async () => {
+test("links copy the raw text, test with the failing input or keep it; stale links do nothing", async () => {
     const { view } = createView();
-    leetCodeSubmissionProvider.show(wrongAnswer, { id: "1", name: "Two Sum" }, document);
+    const problem = { id: "1", slug: "two-sum", name: "Two Sum" };
+    leetCodeSubmissionProvider.show(wrongAnswer, problem, document);
     const rendered = links(view.webview.html);
     const copyInput = rendered.find((link) => link.label === "Copy")!;
     await leetCodeSubmissionProvider.runAction(...copyInput.args);
@@ -207,6 +208,10 @@ test("links copy the raw text and test with the failing input; stale links do no
     const testWith = rendered.find((link) => link.label === "Test with this input")!;
     await leetCodeSubmissionProvider.runAction(...testWith.args);
     assert.deepEqual(executed.at(-1), ["leetcode.testSolution", document.uri, "[2,7]\n9"]);
+
+    const keep = rendered.find((link) => link.label === "Add to test cases")!;
+    await leetCodeSubmissionProvider.runAction(...keep.args);
+    assert.deepEqual(executed.at(-1), ["leetcode.addTestCase", problem, "[2,7]\n9"]);
 
     leetCodeSubmissionProvider.show({ state: "SUCCESS", statusMessage: "Accepted" });
     executed.length = 0;

@@ -8,21 +8,50 @@ import { isCanceled } from "../api/http";
 import { getLeetCodeRequest } from "../api/request";
 import { testSolution as testWithLeetCode } from "../api/submission";
 import { leetCodeManager } from "../leetCodeManager";
-import { testCaseStore } from "../testCaseStore";
+import { getSavedTestCases, ITestCaseTarget, openTestCases, parseTestCaseUri, rememberJudgeInfo } from "../testCaseDocument";
 import { IProblem, IQuickItemEx, UserStatus } from "../shared";
+import { getProblemFile } from "../utils/problemDocumentContext";
 import { getLanguageFromText, getNodeIdFromText } from "../utils/problemUtils";
+import { normalizeTestInput } from "../utils/testCaseUtils";
 import { DialogType, promptForOpenOutputChannel, promptForSignIn, showFileSelectDialog } from "../utils/uiUtils";
 import { getActiveDocument } from "../utils/workspaceUtils";
 import { leetCodeSubmissionProvider } from "../webview/leetCodeSubmissionProvider";
 import { getProblemById } from "../api/problems";
 import { assertRequestActive } from "../api/cancellation";
 
+/** The input to test `problem` with, or undefined when there is nothing to test yet. */
+type InputChooser = (document: vscode.TextDocument, problem: IProblem, examples: string) => Promise<string | undefined>;
+
 /** Test the solution file, with `input` when given and otherwise with the test case the user picks. */
 export async function testSolution(uri?: vscode.Uri, input?: string): Promise<void> {
+    await runTest(uri, input === undefined ? pickTestInput : async () => input);
+}
+
+/** Test without asking, as LeetCode's Run does: with the user's test cases, or the examples until there are any. */
+export async function rerunTest(uri?: vscode.Uri): Promise<void> {
+    await runTest(uri, useSavedTestCases);
+}
+
+async function useSavedTestCases(_document: vscode.TextDocument, problem: IProblem, examples: string): Promise<string> {
+    return await getSavedTestCases(problem) ?? examples;
+}
+
+async function runTest(uri: vscode.Uri | undefined, chooseInput: InputChooser): Promise<void> {
     try {
         if (leetCodeManager.getStatus() === UserStatus.SignedOut) {
             await promptForSignIn();
             return;
+        }
+
+        // A test case editor tests the solution file of its problem with its own cases.
+        const testCases: ITestCaseTarget | undefined = parseTestCaseUri(uri ?? vscode.window.activeTextEditor?.document.uri);
+        if (testCases) {
+            uri = getProblemFile(testCases.id);
+            if (!uri) {
+                vscode.window.showErrorMessage(vscode.l10n.t("Open the solution file of problem {0} to test these cases.", testCases.id));
+                return;
+            }
+            chooseInput = useSavedTestCases;
         }
 
         const request = getLeetCodeRequest();
@@ -48,17 +77,16 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
         }
 
         const judgeInfo = await fetchJudgeInfo(request, problem.slug);
-        const testInput: string | undefined = input
-            ?? await pickTestInput(document, judgeInfo.exampleTestcases || judgeInfo.sampleTestCase, problem.slug);
-        if (testInput === undefined) {
+        rememberJudgeInfo(problem.slug, judgeInfo);
+        const choice: string | undefined = await chooseInput(document, problem, judgeInfo.exampleTestcases || judgeInfo.sampleTestCase || "");
+        if (choice === undefined) {
             return;
         }
-        if (!testInput.trim()) {
+        const testInput: string = normalizeTestInput(choice);
+        if (!testInput) {
             vscode.window.showErrorMessage(vscode.l10n.t("The test input must not be empty."));
             return;
         }
-        assertRequestActive(request);
-        await testCaseStore.save(problem.slug, testInput);
         assertRequestActive(request);
 
         // A newer run aborts this one: a test's result only matters while the panel shows it.
@@ -80,30 +108,27 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
     }
 }
 
-async function pickTestInput(
-    document: vscode.TextDocument,
-    examples: string | undefined,
-    slug: string,
-): Promise<string | undefined> {
-    const savedInput: string | undefined = testCaseStore.get(slug);
+async function pickTestInput(document: vscode.TextDocument, problem: IProblem, examples: string): Promise<string | undefined> {
+    const savedInput: string | undefined = await getSavedTestCases(problem);
+    // The user's own cases come first, so that Enter tests them again.
     const picks: Array<IQuickItemEx<string>> = [
+        ...(savedInput ? [{
+            label: `$(history) ${vscode.l10n.t("My test cases")}`,
+            description: "",
+            detail: savedInput.replace(/\r?\n/g, " ").slice(0, 80),
+            value: ":saved",
+        }] : []),
         {
             label: `$(three-bars) ${vscode.l10n.t("Default test cases")}`,
             description: "",
             detail: vscode.l10n.t("Test with the problem's examples"),
             value: ":default",
         },
-        ...(savedInput ? [{
-            label: `$(history) ${vscode.l10n.t("Saved test case")}`,
-            description: "",
-            detail: savedInput.replace(/\n/g, " ").slice(0, 80),
-            value: ":saved",
-        }] : []),
         {
-            label: `$(pencil) ${vscode.l10n.t("Write directly...")}`,
+            label: `$(edit) ${vscode.l10n.t("Edit test cases...")}`,
             description: "",
-            detail: vscode.l10n.t("Write test cases in an input box"),
-            value: ":direct",
+            detail: vscode.l10n.t("Write test cases in an editor, one argument per line"),
+            value: ":edit",
         },
         {
             label: `$(file-text) ${vscode.l10n.t("Browse...")}`,
@@ -119,21 +144,17 @@ async function pickTestInput(
     }
 
     if (choice.value === ":default") {
-        return examples || "";
+        return examples;
     }
 
     if (choice.value === ":saved") {
         return savedInput;
     }
 
-    if (choice.value === ":direct") {
-        const value: string | undefined = await vscode.window.showInputBox({
-            prompt: vscode.l10n.t("Enter the test cases."),
-            validateInput: (input: string): string | undefined => input && input.trim() ? undefined : vscode.l10n.t("Test case must not be empty."),
-            placeHolder: "Example: [1,2,3]\\n4",
-            ignoreFocusOut: true,
-        });
-        return value === undefined ? undefined : normalizeTestInput(value);
+    if (choice.value === ":edit") {
+        // The editor tests its cases itself once they are written.
+        await openTestCases(problem);
+        return undefined;
     }
 
     const files: vscode.Uri[] | undefined = await showFileSelectDialog(document.uri.fsPath);
@@ -141,9 +162,5 @@ async function pickTestInput(
         return undefined;
     }
     const bytes: Uint8Array = await vscode.workspace.fs.readFile(files[0]);
-    return Buffer.from(bytes).toString("utf8").trim();
-}
-
-function normalizeTestInput(input: string): string {
-    return input.replace(/\\n/g, "\n");
+    return Buffer.from(bytes).toString("utf8");
 }

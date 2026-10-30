@@ -7,6 +7,13 @@ All notable changes to the "leetcode" extension will be documented in this file.
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
 ## [Unreleased]
+### Added
+- A test case editor replaces the one-line input box: **Edit test cases...** opens the problem's test cases beside the code, one argument per line, with each line labelled with its case and parameter. It starts with the examples and is kept in the extension's storage, not in the workspace.
+- **Quick Test** (`Ctrl+'`, `Cmd+'` on macOS) tests the problem file, or the problem of the test case editor, without asking: with your test cases, or the examples until you write some.
+- A failed submission offers **Add to test cases**, which appends its failing input to the test case editor.
+
+### Changed
+- The test case picker lists your test cases first, so Enter tests them again. Testing with the examples, a file or a failing input no longer replaces them.
 
 ## [0.26.0] - 2026-10-30
 ### Fixed

@@ -12,6 +12,7 @@
     "command.clearSearch": "清除搜索",
     "command.showSolution": "查看高赞题解",
     "command.testSolution": "在 LeetCode 测试",
+    "command.rerunTest": "快速测试",
     "command.submitSolution": "提交到 LeetCode",
     "command.addFavorite": "加入收藏",
     "command.removeFavorite": "取消收藏",

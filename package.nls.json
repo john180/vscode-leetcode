@@ -12,6 +12,7 @@
     "command.clearSearch": "Clear Search",
     "command.showSolution": "Show Top Voted Solution",
     "command.testSolution": "Test in LeetCode",
+    "command.rerunTest": "Quick Test",
     "command.submitSolution": "Submit to LeetCode",
     "command.addFavorite": "Add to Favorite List",
     "command.removeFavorite": "Remove from Favorite List",

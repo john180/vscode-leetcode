@@ -32,6 +32,7 @@ import { markdownEngine } from "./webview/markdownEngine";
 import { globalState } from "./globalState";
 import { problemCache } from "./api/problemCache";
 import { testCaseStore } from "./testCaseStore";
+import { addTestCase, ITestCaseTarget, registerTestCaseDocuments } from "./testCaseDocument";
 import { setClientVersion } from "./api/http";
 import { registerProblemDocumentContext } from "./utils/problemDocumentContext";
 import type { IGraphQLRequest } from "./api/client";
@@ -42,6 +43,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         setClientVersion(context.extension.packageJSON?.version);
         markdownEngine.initialize(context.extensionUri);
         testCaseStore.initialize(context.globalState);
+        registerTestCaseDocuments(context);
         registerProblemDocumentContext(context);
         const expired = (request: IGraphQLRequest): void => {
             void auth.handleSessionExpired(request).catch((error: unknown) => leetCodeChannel.warn(`Session verification failed: ${error}`));
@@ -117,6 +119,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 // Menus pass their context as the second argument; only the result view passes an input.
                 return test.testSolution(uri, typeof input === "string" ? input : undefined);
             }),
+            vscode.commands.registerCommand("leetcode.rerunTest", (uri?: vscode.Uri) => test.rerunTest(uri)),
+            // Only the result view adds test cases, with the input of a failed submission.
+            vscode.commands.registerCommand("leetcode.addTestCase", (problem: ITestCaseTarget, input: string) => addTestCase(problem, input)),
             vscode.commands.registerCommand(RESULT_ACTION_COMMAND, (run: unknown, action: unknown, index?: unknown) => leetCodeSubmissionProvider.runAction(run, action, index)),
             vscode.commands.registerCommand("leetcode.submitSolution", (uri?: vscode.Uri) => {
                 return submit.submitSolution(uri);

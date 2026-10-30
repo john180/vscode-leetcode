@@ -195,6 +195,11 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
                     await commands.executeCommand("leetcode.testSolution", this.document?.uri, text);
                 }
                 break;
+            case "addTestCase":
+                if (text !== undefined && this.problem) {
+                    await commands.executeCommand("leetcode.addTestCase", this.problem, text);
+                }
+                break;
             case "submit":
                 await commands.executeCommand("leetcode.submitSolution", this.document?.uri);
                 break;
@@ -335,13 +340,15 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
         return items.length > 0 ? `<ul class="stats">${items.join("")}</ul>` : "";
     }
 
-    /** The next step: submit a passing test run, test a failed submission's case, or learn from the solution. */
+    /** The next step: submit a passing test run, test or keep a failed submission's case, or learn from the solution. */
     private getActions(result: ISubmissionResult, kind: StatusKind): string {
         const links: string[] = [];
         // Only submissions have a page on LeetCode.
         if (result.submissionUrl) {
             if (kind !== "ok" && result.lastTestcase) {
-                links.push(this.getActionLink(l10n.t("Test with this input"), "test", this.texts.push(result.lastTestcase) - 1, "button"));
+                const index: number = this.texts.push(result.lastTestcase) - 1;
+                links.push(this.getActionLink(l10n.t("Test with this input"), "test", index, "button"));
+                links.push(this.getActionLink(l10n.t("Add to test cases"), "addTestCase", index, "button secondary"));
             }
             if (!result.compileError) {
                 links.push(this.getActionLink(l10n.t("View Solution"), "solution", undefined, "button secondary"));
@@ -402,9 +409,11 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     }
 
     private async showKeybindingsHint(): Promise<void> {
+        // The default key of Quick Test in package.json.
+        const key: string = process.platform === "darwin" ? "Cmd+'" : "Ctrl+'";
         await promptHintMessage(
             "hint.commandShortcut",
-            l10n.t('You can customize shortcut key bindings in File > Preferences > Keyboard Shortcuts with query "leetcode".'),
+            l10n.t('Press {0} in a problem file to test it right away with your test cases, or the examples until you write some. Search "leetcode" in Keyboard Shortcuts to change it.', key),
             l10n.t("Open Keybindings"),
             (): Promise<any> => openKeybindingsEditor("leetcode solution"),
         );

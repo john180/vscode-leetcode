@@ -7,6 +7,11 @@ const resolved: string[] = [];
 const actions: unknown[] = [];
 const judged: unknown[] = [];
 const pickedInputs: string[] = [];
+const offered: string[][] = [];
+const opened: unknown[] = [];
+let pick = ":default";
+let savedCases: string | undefined;
+let solutionFile: unknown = "file:///42.trapping-rain-water.py";
 let failLookup = false;
 let cancelTest = false;
 let status = 1;
@@ -22,7 +27,11 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
         l10n: { t: (text: string) => text },
         window: {
             showErrorMessage: (text: string) => actions.push(text),
-            showQuickPick: async (items: any[]) => { pickedInputs.push("picker"); return items[0]?.value === ":default" ? items[0] : undefined; },
+            showQuickPick: async (items: any[]) => {
+                pickedInputs.push("picker");
+                offered.push(items.map((item) => item.value));
+                return items.find((item) => item.value === pick);
+            },
             showInformationMessage: () => undefined,
         },
     }; }
@@ -52,7 +61,15 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     }; }
     if (request === "../utils/problemUtils") { return { getNodeIdFromText: () => "42", getNodeIdFromFile: async () => "42", getLanguageFromText: () => "python3" }; }
     if (request === "../utils/workspaceUtils") { return {
-        getActiveDocument: async () => ({ getText: () => "code", uri: { fsPath: "42.py" } }), getActiveFilePath: async () => "42.py",
+        getActiveDocument: async (uri?: unknown) => { opened.push(uri); return { getText: () => "code", uri: { fsPath: "42.py" } }; },
+        getActiveFilePath: async () => "42.py",
+    }; }
+    if (request === "../utils/problemDocumentContext") { return { getProblemFile: (id: string) => id === "42" ? solutionFile : undefined }; }
+    if (request === "../testCaseDocument") { return {
+        getSavedTestCases: async () => savedCases,
+        openTestCases: async (target: unknown) => actions.push({ editor: target }),
+        parseTestCaseUri: (uri?: { scheme?: string }) => uri?.scheme === "leetcode-testcase" ? { id: "42", slug: problem.slug } : undefined,
+        rememberJudgeInfo: () => undefined,
     }; }
     if (request === "../utils/uiUtils") { return {
         DialogType: {},
@@ -64,16 +81,16 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     if (request === "../webview/leetCodeSubmissionProvider") { return { leetCodeSubmissionProvider: {
         judge: async (_problem: unknown, _document: unknown, judge: () => Promise<unknown>) => { const result = await judge(); judged.push(result); return result; },
     } }; }
-    if (request === "../testCaseStore") { return { testCaseStore: { get: () => undefined, save: async () => undefined } }; }
     return originalLoad.call(this, request, parent, isMain);
 };
-const { testSolution } = require("../../src/commands/test");
+const { rerunTest, testSolution } = require("../../src/commands/test");
 const { submitSolution } = require("../../src/commands/submit");
 const { showSubmissionHistory } = require("../../src/commands/submissions");
 moduleLoader._load = originalLoad;
 
 beforeEach(() => {
     actions.length = 0; resolved.length = 0; judged.length = 0; pickedInputs.length = 0; failLookup = false; cancelTest = false; status = 1;
+    offered.length = 0; opened.length = 0; pick = ":default"; savedCases = undefined; solutionFile = "file:///42.trapping-rain-water.py";
     session = new AbortController(); origin = "https://leetcode.com";
     metadata = async () => ({ questionId: "123", sampleTestCase: "[1,2]", exampleTestcases: "[1,2]\n[3,4]" });
 });
@@ -95,6 +112,42 @@ test("a test run that a newer run aborted reports nothing", async () => {
 test("testing with a given input skips the test case picker", async () => {
     await testSolution(undefined, "[3,4]");
     assert.deepEqual(pickedInputs, ["[3,4]"]);
+});
+
+test("the picker offers the user's own test cases first, so Enter tests them again", async () => {
+    await testSolution();
+    assert.deepEqual(offered, [[":default", ":edit", ":file"]]);
+    savedCases = "[5,6]\r\n";
+    pick = ":saved";
+    await testSolution();
+    assert.deepEqual(offered[1], [":saved", ":default", ":edit", ":file"]);
+    assert.equal(pickedInputs.at(-1), "[5,6]", "the editor's trailing line break is not sent");
+});
+
+test("editing test cases opens their editor and tests nothing yet", async () => {
+    pick = ":edit";
+    await testSolution();
+    assert.deepEqual(actions, [{ editor: problem }]);
+    assert.deepEqual(judged, []);
+});
+
+test("quick test uses the user's test cases, or the examples, without asking", async () => {
+    await rerunTest();
+    savedCases = "[5,6]";
+    await rerunTest();
+    assert.deepEqual(pickedInputs, ["[1,2]\n[3,4]", "[5,6]"]);
+});
+
+test("testing from a test case editor tests its problem's solution file with its cases", async () => {
+    savedCases = "[7,8]";
+    await testSolution({ scheme: "leetcode-testcase" });
+    assert.deepEqual(opened, [solutionFile]);
+    assert.deepEqual(pickedInputs, ["[7,8]"]);
+
+    solutionFile = undefined;
+    await rerunTest({ scheme: "leetcode-testcase" });
+    assert.equal(actions.at(-1), "Open the solution file of problem {0} to test these cases.");
+    assert.equal(opened.length, 1, "nothing is tested without the solution file");
 });
 
 test("submission resolves one problem and updates local state without force refreshing", async () => {

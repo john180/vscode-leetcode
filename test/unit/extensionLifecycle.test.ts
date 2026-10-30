@@ -60,6 +60,7 @@ moduleLoader._load = function (request: string, parent: { filename?: string }, i
             "./shared": { setExtensionId: noop, UserStatus: { SignedIn: 1, SignedOut: 2, SigningIn: 3 } },
             "./api/problemCache": { problemCache: { initialize: noop } },
             "./testCaseStore": { testCaseStore: { initialize: noop } },
+            "./testCaseDocument": { registerTestCaseDocuments: noop },
             "./api/http": { setClientVersion: noop },
             "./auth/endpointResolver": { resolveEndpoint: async () => "leetcode-cn" },
             "./auth/session": { sessionEvents },
