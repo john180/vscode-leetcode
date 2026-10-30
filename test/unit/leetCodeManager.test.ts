@@ -8,8 +8,6 @@ let queryResult: any = {
     isPremium: false,
     avatar: "",
 };
-let warnings = 0;
-let confirmLogin = false;
 let endpoint = "leetcode";
 let query = async (_cookie?: string, _signal?: AbortSignal): Promise<any> => queryResult;
 
@@ -28,15 +26,8 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
                 }),
                 onDidChangeConfiguration: () => ({ dispose: () => undefined }),
             },
+            // The manager shows nothing; only the output channel is needed.
             window: {
-                showInformationMessage: async (_message: string, options: any, ...items: string[]) =>
-                    options?.modal && confirmLogin ? items[0] : undefined,
-                showQuickPick: async () => ({ value: "WebAuth" }),
-                showWarningMessage: async () => {
-                    warnings += 1;
-                    return undefined;
-                },
-                showErrorMessage: async () => undefined,
                 createOutputChannel: () => ({
                     info: () => undefined,
                     warn: () => undefined,
@@ -44,15 +35,8 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
                     dispose: () => undefined,
                     show: () => undefined,
                 }),
-                withProgress: async (_options: unknown, task: (progress: any) => Promise<unknown>) => task({
-                    report: () => undefined,
-                }),
             },
-            commands: { executeCommand: async () => undefined },
-            Uri: { file: (value: string) => ({ fsPath: value, toString: () => value }) },
             l10n: { t: (value: string) => value },
-            ProgressLocation: { Notification: 15 },
-            ViewColumn: { One: 1, Two: 2 },
         };
     }
     if (request.endsWith("request/query-user-data")) {
@@ -60,14 +44,6 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     }
     if (request.endsWith("api/problems")) {
         return { invalidateProblemCache: () => undefined };
-    }
-    if (request.endsWith("utils/uiUtils")) {
-        return {
-            DialogType: { error: "error", info: "info" },
-            openUrl: async () => undefined,
-            promptForOpenOutputChannel: async () => undefined,
-            promptForSignIn: async () => undefined,
-        };
     }
     return originalLoad.call(this, request, parent, isMain);
 };
@@ -125,15 +101,12 @@ test("leetCodeManager transitions through signing in, signed in, expiry, and sig
     assert.equal(leetCodeManager.getUser(), "alice");
     assert.deepEqual(statuses.slice(0, 2), [UserStatus.SigningIn, UserStatus.SignedIn]);
 
-    warnings = 0;
     queryResult = { isSignedIn: false, username: "", isPremium: false, avatar: "" };
-    await leetCodeManager.handleSessionExpired();
+    assert.equal(await leetCodeManager.handleSessionExpired(), true);
     assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
     assert.equal(leetCodeManager.getUser(), undefined);
     assert.equal(globalState.getCookie(), undefined);
-    assert.equal(warnings, 1);
-    await leetCodeManager.handleSessionExpired();
-    assert.equal(warnings, 1);
+    assert.equal(await leetCodeManager.handleSessionExpired(), false, "a signed-out session is not signed out again");
 
     queryResult = { isSignedIn: false, username: "", isPremium: false, avatar: "" };
     await globalState.removeAll();
@@ -152,13 +125,11 @@ test("a rejected request keeps a session that LeetCode still reports as signed i
     await leetCodeManager.getLoginStatus();
     let checks = 0;
     query = async () => { checks++; return queryResult; };
-    warnings = 0;
     try {
-        await leetCodeManager.handleSessionExpired();
+        assert.equal(await leetCodeManager.handleSessionExpired(), false);
         assert.equal(checks, 1);
         assert.equal(leetCodeManager.getStatus(), UserStatus.SignedIn);
         assert.equal(globalState.getCookie(), cookie);
-        assert.equal(warnings, 0);
 
         await leetCodeManager.handleSessionExpired();
         assert.equal(checks, 1, "a session that was just confirmed is not checked again");
@@ -176,11 +147,9 @@ test("a rejected request keeps the session when the check itself fails", async (
         query = async () => queryResult;
         await leetCodeManager.getLoginStatus();
         query = async () => { throw { response: { status } }; };
-        warnings = 0;
-        await leetCodeManager.handleSessionExpired();
+        assert.equal(await leetCodeManager.handleSessionExpired(), false);
         assert.equal(leetCodeManager.getStatus(), UserStatus.SignedIn);
         assert.equal(globalState.getCookie(), cookie);
-        assert.equal(warnings, 0);
     }
 
     await leetCodeManager.signOut();
@@ -188,10 +157,9 @@ test("a rejected request keeps the session when the check itself fails", async (
     query = async () => queryResult;
     await leetCodeManager.getLoginStatus();
     query = async () => { throw { response: { status: 401 } }; };
-    await leetCodeManager.handleSessionExpired();
+    assert.equal(await leetCodeManager.handleSessionExpired(), true);
     assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
     assert.equal(globalState.getCookie(), undefined);
-    assert.equal(warnings, 1);
     query = async () => queryResult;
 });
 
@@ -204,28 +172,23 @@ test("leetCodeManager starts signed out without a cookie", async () => {
     assert.equal(leetCodeManager.getUser(), undefined);
 });
 
-test("leetCodeManager handles URI sign-in and profile switching", async () => {
+test("leetCodeManager signs in a confirmed account, saves named sessions and switches between them", async () => {
     await globalState.removeAll();
     await globalState.initialize(contextWithCookie());
     queryResult = { isSignedIn: true, username: "uri-user", isPremium: false, avatar: "" };
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { parseAuthCallback } = require("../../src/auth/login");
-    assert.equal((leetCodeManager as any).handlingUriSignIn, false);
-    assert.equal(parseAuthCallback("cookie=LEETCODE_SESSION%3Duri%3B%20csrftoken%3Duri").cookie, "LEETCODE_SESSION=uri; csrftoken=uri");
-    await leetCodeManager.signIn();
-    confirmLogin = true;
-    await leetCodeManager.handleUriSignIn({
-        query: "cookie=LEETCODE_SESSION%3Duri%3B%20csrftoken%3Duri",
-    } as any);
+    const confirmed: string[] = [];
+    const confirm = async (username: string, site: { host: string }) => { confirmed.push(`${username}@${site.host}`); return true; };
+    assert.equal(await leetCodeManager.signInWithCookie("LEETCODE_SESSION=uri; csrftoken=uri", { confirm }), "uri-user");
+    assert.deepEqual(confirmed, ["uri-user@leetcode.com"], "the account is confirmed before the session changes");
     assert.equal(leetCodeManager.getStatus(), UserStatus.SignedIn);
     assert.equal(leetCodeManager.getUser(), "uri-user");
 
     queryResult = { isSignedIn: true, username: "bob", isPremium: false, avatar: "" };
-    await leetCodeManager.createProfile("bob", "LEETCODE_SESSION=bob; csrftoken=bob");
+    assert.equal(await leetCodeManager.signInWithCookie("LEETCODE_SESSION=bob; csrftoken=bob", { name: "bob" }), "bob");
     assert.deepEqual(globalState.getProfiles().map((profile: any) => profile.name), ["uri-user", "bob"]);
 
     queryResult = { isSignedIn: true, username: "uri-user", isPremium: false, avatar: "" };
-    await leetCodeManager.switchProfile("uri-user");
+    assert.equal(await leetCodeManager.switchProfile("uri-user"), true);
     assert.equal(leetCodeManager.getUser(), "uri-user");
 
     await leetCodeManager.deleteProfile("bob");
@@ -239,16 +202,9 @@ test("leetCodeManager handles URI sign-in and profile switching", async () => {
 test("restoring the stored session keeps a web login the user is finishing in the browser", async () => {
     await leetCodeManager.signOut();
     await globalState.initialize(contextWithCookie());
-    queryResult = { isSignedIn: true, username: "uri-user", isPremium: false, avatar: "" };
-    const previous = confirmLogin;
-    try {
-        await leetCodeManager.signIn();
-        await leetCodeManager.getLoginStatus();
-        confirmLogin = true;
-        await leetCodeManager.handleUriSignIn({ query: "cookie=LEETCODE_SESSION%3Duri%3B%20csrftoken%3Duri" } as any);
-        assert.equal(leetCodeManager.getStatus(), UserStatus.SignedIn);
-        assert.equal(leetCodeManager.getUser(), "uri-user");
-    } finally { confirmLogin = previous; }
+    leetCodeManager.beginWebLogin();
+    await leetCodeManager.getLoginStatus();
+    assert.equal(leetCodeManager.takeWebLogin(), true);
 });
 
 test("naming a restored session after its account keeps requests made with the same cookie", async () => {
@@ -263,57 +219,48 @@ test("naming a restored session after its account keeps requests made with the s
     assert.equal(snapshot.isCurrent(), true);
 });
 
-test("leetCodeManager ignores an OAuth error callback", async () => {
-    await globalState.removeAll();
+test("leetCodeManager rejects an invalid profile cookie", async () => {
+    await assert.rejects(leetCodeManager.signInWithCookie("not-a-cookie", { name: "bad" }), /Cookie must/);
+});
+
+test("a web login accepts only its own callback, once, for its site and within five minutes", async () => {
     await leetCodeManager.signOut();
     await globalState.initialize(contextWithCookie());
-    await leetCodeManager.signIn();
-    await leetCodeManager.handleUriSignIn({ query: "error=access_denied&error_description=Cancelled" } as any);
-    assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
-    assert.equal(leetCodeManager.getUser(), undefined);
-});
+    assert.equal(leetCodeManager.takeWebLogin(), false, "an unsolicited callback");
 
-test("leetCodeManager rejects an invalid profile cookie", async () => {
-    await assert.rejects(leetCodeManager.createProfile("bad", "not-a-cookie"), /Cookie must/);
-});
-
-const callback = { query: "cookie=LEETCODE_SESSION%3Duri%3B%20csrftoken%3Duri" };
-
-test("URI login rejects unsolicited, expired, wrong-site and replayed callbacks", async () => {
-    await leetCodeManager.signOut();
-    const context = contextWithCookie();
-    await globalState.initialize(context);
-    let requests = 0;
-    query = async () => { requests++; return { ...queryResult, isSignedIn: true, username: "callback-user" }; };
-    await leetCodeManager.handleUriSignIn(callback);
-    assert.equal(requests, 0);
-
-    await leetCodeManager.signIn();
+    leetCodeManager.beginWebLogin();
     const now = Date.now;
     Date.now = () => now() + 6 * 60 * 1000;
     try {
-        await leetCodeManager.handleUriSignIn(callback);
+        assert.equal(leetCodeManager.takeWebLogin(), false, "an expired login");
     } finally {
         Date.now = now;
     }
-    assert.equal(requests, 0);
 
-    await leetCodeManager.signIn();
+    leetCodeManager.beginWebLogin();
     endpoint = "leetcode-cn";
-    await leetCodeManager.handleUriSignIn(callback);
-    endpoint = "leetcode";
-    assert.equal(requests, 0);
+    try {
+        assert.equal(leetCodeManager.takeWebLogin(), false, "a login started for another site");
+    } finally {
+        endpoint = "leetcode";
+    }
 
-    await leetCodeManager.signIn();
-    confirmLogin = false;
-    await leetCodeManager.handleUriSignIn(callback);
-    assert.equal(requests, 1);
-    assert.equal(globalState.getCookie(), undefined);
-    confirmLogin = true;
-    await leetCodeManager.handleUriSignIn(callback);
-    assert.equal(requests, 1, "a rejected callback must not be reusable");
-    assert.equal(globalState.getCookie(), undefined);
-    query = async () => queryResult;
+    assert.match(leetCodeManager.beginWebLogin(), /^https:\/\/leetcode\.com\/authorize-login\//);
+    assert.equal(leetCodeManager.takeWebLogin(), true);
+    assert.equal(leetCodeManager.takeWebLogin(), false, "a callback must not be reusable");
+});
+
+test("an account the user does not confirm is not signed in", async () => {
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie());
+    let requests = 0;
+    query = async () => { requests++; return { ...queryResult, isSignedIn: true, username: "callback-user" }; };
+    try {
+        assert.equal(await leetCodeManager.signInWithCookie("LEETCODE_SESSION=uri; csrftoken=uri", { confirm: async () => false }), undefined);
+        assert.equal(requests, 1);
+        assert.equal(globalState.getCookie(), undefined);
+        assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
+    } finally { query = async () => queryResult; }
 });
 
 test("temporary login validation failures preserve the credential for retry", async () => {
@@ -380,9 +327,9 @@ test("sign-out waits for in-flight credential writes and remains signed out", as
 test("a rejected profile switch leaves the current credential unchanged", async () => {
     await globalState.initialize(contextWithCookie());
     queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
-    await leetCodeManager.createProfile("alice", "LEETCODE_SESSION=alice; csrftoken=csrf");
+    await leetCodeManager.signInWithCookie("LEETCODE_SESSION=alice; csrftoken=csrf", { name: "alice" });
     queryResult = { isSignedIn: true, username: "bob", isPremium: false, avatar: "" };
-    await leetCodeManager.createProfile("bob", "LEETCODE_SESSION=bob; csrftoken=csrf");
+    await leetCodeManager.signInWithCookie("LEETCODE_SESSION=bob; csrftoken=csrf", { name: "bob" });
     queryResult = { isSignedIn: false, username: "", isPremium: false, avatar: "" };
     await assert.rejects(leetCodeManager.switchProfile("alice"), /no longer signed in/);
     assert.equal(globalState.getActiveProfile(), "bob");
@@ -394,9 +341,9 @@ test("a failed profile switch during restoration does not leave the view signing
     await leetCodeManager.signOut();
     await globalState.initialize(contextWithCookie());
     queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
-    await leetCodeManager.createProfile("alice", "LEETCODE_SESSION=alice; csrftoken=csrf");
+    await leetCodeManager.signInWithCookie("LEETCODE_SESSION=alice; csrftoken=csrf", { name: "alice" });
     queryResult = { isSignedIn: true, username: "bob", isPremium: false, avatar: "" };
-    await leetCodeManager.createProfile("bob", "LEETCODE_SESSION=bob; csrftoken=csrf");
+    await leetCodeManager.signInWithCookie("LEETCODE_SESSION=bob; csrftoken=csrf", { name: "bob" });
 
     let resolveRestore!: (value: any) => void;
     query = () => new Promise((resolve) => { resolveRestore = resolve; });
@@ -430,9 +377,9 @@ test("deleting another session during restoration resumes restoring the current 
     await leetCodeManager.signOut();
     await globalState.initialize(contextWithCookie());
     queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
-    await leetCodeManager.createProfile("alice", "LEETCODE_SESSION=alice; csrftoken=csrf");
+    await leetCodeManager.signInWithCookie("LEETCODE_SESSION=alice; csrftoken=csrf", { name: "alice" });
     queryResult = { isSignedIn: true, username: "bob", isPremium: false, avatar: "" };
-    await leetCodeManager.createProfile("bob", "LEETCODE_SESSION=bob; csrftoken=csrf");
+    await leetCodeManager.signInWithCookie("LEETCODE_SESSION=bob; csrftoken=csrf", { name: "bob" });
 
     let resolveFirst!: (value: any) => void;
     query = () => new Promise((resolve) => { resolveFirst = resolve; });
@@ -468,7 +415,7 @@ test("a rejected later login cannot cancel queued sign-out cleanup", async () =>
     const restoration = leetCodeManager.getLoginStatus();
     await writing;
     const signingOut = leetCodeManager.signOut();
-    await assert.rejects(leetCodeManager.createProfile("invalid", "invalid-cookie"));
+    await assert.rejects(leetCodeManager.signInWithCookie("invalid-cookie", { name: "invalid" }));
     release();
     await Promise.all([restoration, signingOut]);
     assert.equal(globalState.getCookie(), undefined);
@@ -487,7 +434,7 @@ test("site changes revoke snapshots immediately and restore only the selected si
         return { isSignedIn: true, username: cookie === us ? "alice-us" : "alice-cn", isPremium: false, avatar: "" };
     };
     try {
-        await leetCodeManager.createProfile("alice", us);
+        await leetCodeManager.signInWithCookie(us, { name: "alice" });
         const previous = getLeetCodeRequest();
         assert.equal(Object.isFrozen(previous), true);
         endpoint = "leetcode-cn";
@@ -498,7 +445,7 @@ test("site changes revoke snapshots immediately and restore only the selected si
         assert.equal(validated.length, before, "refreshing before the configuration listener must not validate an old-site cookie");
         assert.equal(previous.sessionSignal.aborted, true);
         assert.equal(leetCodeManager.getUser(), undefined);
-        await leetCodeManager.createProfile("alice", cn);
+        await leetCodeManager.signInWithCookie(cn, { name: "alice" });
         endpoint = "leetcode";
         const switching = leetCodeManager.handleEndpointChange(endpoint);
         assert.equal(switching, leetCodeManager.handleEndpointChange(endpoint), "picker and listener share one transition");
@@ -522,7 +469,7 @@ test("a later site selection wins over a blocked keyring read for the previous s
     const context = contextWithCookie();
     await globalState.initialize(context);
     queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
-    await leetCodeManager.createProfile("alice", "LEETCODE_SESSION=us; csrftoken=csrf");
+    await leetCodeManager.signInWithCookie("LEETCODE_SESSION=us; csrftoken=csrf", { name: "alice" });
     const get = context.secrets.get.bind(context.secrets);
     let release!: () => void;
     let entered!: () => void;
@@ -575,10 +522,10 @@ test("an expired request from before sign-out cannot affect a later login with t
     await leetCodeManager.signOut();
     await globalState.initialize(contextWithCookie());
     const cookie = "LEETCODE_SESSION=alice; csrftoken=csrf";
-    await leetCodeManager.createProfile("alice", cookie);
+    await leetCodeManager.signInWithCookie(cookie, { name: "alice" });
     const old = getLeetCodeRequest();
     await leetCodeManager.signOut();
-    await leetCodeManager.createProfile("alice", cookie);
+    await leetCodeManager.signInWithCookie(cookie, { name: "alice" });
     let checks = 0;
     query = async () => { checks++; return { isSignedIn: false }; };
     try {
@@ -611,7 +558,7 @@ test("queued sign-out cleanup does not abort a newer login's credential validati
         assert.equal(snapshot.sessionSignal.aborted, false, "cleanup must not revoke a validation that started after sign-out");
         return { isSignedIn: true, username: "new", isPremium: false, avatar: "" };
     };
-    const signingIn = leetCodeManager.createProfile("new", "LEETCODE_SESSION=new; csrftoken=csrf");
+    const signingIn = leetCodeManager.signInWithCookie("LEETCODE_SESSION=new; csrftoken=csrf", { name: "new" });
     try {
         releaseWrite();
         await Promise.all([restoring, signingOut]);

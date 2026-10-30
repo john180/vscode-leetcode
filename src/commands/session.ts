@@ -46,7 +46,10 @@ export async function manageSessions(): Promise<void> {
     }
 
     try {
-        await leetCodeManager.switchProfile((choice.value as ISession).name);
+        const name: string = (choice.value as ISession).name;
+        if (await leetCodeManager.switchProfile(name)) {
+            vscode.window.showInformationMessage(vscode.l10n.t("Switched to session \"{0}\".", name));
+        }
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
         if (isCanceled(error)) { return; }
@@ -105,7 +108,9 @@ async function createSession(): Promise<void> {
 
     try {
         assertRequestActive(request);
-        await leetCodeManager.createProfile(name.trim(), cookie);
+        if (await leetCodeManager.signInWithCookie(cookie, { name: name.trim() })) {
+            vscode.window.showInformationMessage(vscode.l10n.t("Session \"{0}\" is ready.", name.trim()));
+        }
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
         if (isCanceled(error)) { return; }
@@ -141,6 +146,7 @@ async function deleteSession(): Promise<void> {
     try {
         assertRequestActive(request);
         await leetCodeManager.deleteProfile(selectedSession.name);
+        vscode.window.showInformationMessage(vscode.l10n.t("Session \"{0}\" deleted.", selectedSession.name));
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
         if (isCanceled(error)) { return; }

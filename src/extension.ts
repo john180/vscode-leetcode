@@ -3,6 +3,7 @@
 
 import * as vscode from "vscode";
 import { codeLensController } from "./codelens/CodeLensController";
+import * as auth from "./commands/auth";
 import * as cache from "./commands/cache";
 import { switchDefaultLanguage } from "./commands/language";
 import * as plugin from "./commands/plugin";
@@ -43,7 +44,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         testCaseStore.initialize(context.globalState);
         registerProblemDocumentContext(context);
         const expired = (request: IGraphQLRequest): void => {
-            void leetCodeManager.handleSessionExpired(request).catch((error: unknown) => leetCodeChannel.warn(`Session verification failed: ${error}`));
+            void auth.handleSessionExpired(request).catch((error: unknown) => leetCodeChannel.warn(`Session verification failed: ${error}`));
         };
         sessionEvents.on("expired", expired);
         const statusChanged = (): void => {
@@ -96,8 +97,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.loadMoreProblems", (node: LeetCodeNode) => leetCodeTreeDataProvider.loadMore(node)),
             vscode.commands.registerCommand("leetcode.deleteCache", () => cache.deleteCache()),
             vscode.commands.registerCommand("leetcode.toggleLeetCodeCn", () => plugin.switchEndpoint()),
-            vscode.commands.registerCommand("leetcode.signin", () => leetCodeManager.signIn()),
-            vscode.commands.registerCommand("leetcode.signout", () => leetCodeManager.signOut()),
+            vscode.commands.registerCommand("leetcode.signin", () => auth.signIn()),
+            vscode.commands.registerCommand("leetcode.signout", () => auth.signOut()),
             vscode.commands.registerCommand("leetcode.manageSessions", () => session.manageSessions()),
             vscode.commands.registerCommand("leetcode.previewProblem", (input?: LeetCodeNode | vscode.Uri) => show.previewProblem(input)),
             vscode.commands.registerCommand("leetcode.showProblem", (node: LeetCodeNode) => show.showProblem(node)),
@@ -125,7 +126,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.addToFavoriteList", (node: LeetCodeNode) => star.addToFavoriteList(node)),
             vscode.commands.registerCommand("leetcode.removeFavorite", (node: LeetCodeNode) => star.removeFavorite(node)),
             vscode.commands.registerCommand("leetcode.problems.sort", () => plugin.switchSortingStrategy()),
-            vscode.window.registerUriHandler({ handleUri: leetCodeManager.handleUriSignIn })
+            vscode.window.registerUriHandler({ handleUri: (uri: vscode.Uri) => auth.handleUri(uri) })
         );
     } catch (error) {
         void promptForOpenOutputChannel(vscode.l10n.t("Extension initialization failed. Please open the output channel for details."), DialogType.error, error);

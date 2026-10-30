@@ -20,7 +20,6 @@ const manager = Object.assign(new EventEmitter(), {
     getStatus: () => status,
     getUser: () => undefined,
     getLoginStatus: () => login,
-    handleUriSignIn: noop,
     handleEndpointChange: async (endpoint: unknown) => { siteChanges.push(endpoint); },
 });
 const provider = {
