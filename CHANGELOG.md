@@ -21,6 +21,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 - **Code Now** no longer has to ask every time whether to open a folder of problem files that is not in the workspace: **Just open the problem file, and don't ask again** turns the question off (`leetcode.hint.openWorkspaceFolder`).
 - Opening that folder in the current or a new window creates the problem file first, instead of opening the folder without it.
+- A test run shows one case per example, each with its input, instead of an extra empty case and the whole input below the cases. The judge now ends its lists of answers with an empty entry.
 
 ## [0.26.0] - 2026-10-30
 ### Fixed

@@ -132,6 +132,29 @@ test("testSolution keeps a matching answer accepted and drops blank prints", asy
     }
 });
 
+test("testSolution counts the cases that ran, not an empty answer the judge lists after them", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    const check = {
+        state: "SUCCESS", status_msg: "Accepted", correct_answer: true,
+        code_answer: ["[0,1]", "[1,2]", "[0,1]"], expected_code_answer: ["[0,1]", "[1,2]", "[0,1]", ""], std_output_list: ["", "", "", ""],
+    };
+    const input = "[2,7,11,15]\n9\n[3,2,4]\n6\n[3,3]\n6";
+    try {
+        // As leetcode.cn answered a test of Two Sum on 2026-10-30, and with the empty entry in one list only.
+        for (const shape of [{ code_answer: [...check.code_answer, ""], compare_result: "111", total_testcases: 3, total_correct: 3 }, {}]) {
+            axios.defaults.adapter = async (config: any) => config.method === "post"
+                ? response({ interpret_id: 8 }, config)
+                : response({ ...check, ...shape }, config);
+            const result = await testSolution(request, target, "cpp", "code", input, { pollIntervalMs: 0, pollTimeoutMs: 1000 });
+            assert.deepEqual(result.cases?.map((testCase) => testCase.input), ["[2,7,11,15]\n9", "[3,2,4]\n6", "[3,3]\n6"], JSON.stringify(shape));
+            assert.ok(result.cases?.every((testCase) => testCase.passed === true));
+            assert.equal(result.input, undefined, "the input is split into its cases");
+        }
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
 test("testSolution keeps an input it cannot split into the cases whole", async () => {
     const originalAdapter = axios.defaults.adapter;
     axios.defaults.adapter = async (config: any) => config.method === "post"

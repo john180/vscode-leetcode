@@ -188,11 +188,21 @@ function splitTestInput(input: string, count: number): string[] {
     return Array.from({ length: count }, (_: unknown, index: number) => lines.slice(index * size, (index + 1) * size).join("\n"));
 }
 
+/** Without an empty entry at the end, which the judge may add to its lists of answers and prints. */
+function listedLength(list: string[]): number {
+    let length: number = list.length;
+    while (length > 0 && list[length - 1] === "") {
+        length -= 1;
+    }
+    return length;
+}
+
 function mapTestRun(data: ICheckResponse, input: string): ISubmissionResult {
     const common: ISubmissionResult = mapCommon(data);
     const answers: string[] = data.code_answer ?? [];
     const expected: string[] = data.expected_code_answer ?? [];
-    const count: number = Math.max(answers.length, expected.length);
+    // An answer, even an empty string, is quoted, so a bare empty entry is never a case of its own.
+    const count: number = Math.max(listedLength(answers), listedLength(expected));
     const inputs: string[] = splitTestInput(input, count);
     const cases: ITestCaseResult[] = Array.from({ length: count }, (_: unknown, index: number) => {
         const compared: string | undefined = data.compare_result?.[index];
