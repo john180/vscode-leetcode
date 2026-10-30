@@ -58,5 +58,22 @@ exports.run = async function run() {
     await vscode.window.showTextDocument(notes);
     const unrelated = await vscode.commands.executeCommand("vscode.executeCodeLensProvider", notes.uri);
     assert.equal(unrelated.length, 0, "unrelated files must not receive LeetCode actions");
+
+    // The description can also have an editor tab of its own, one at a time.
+    const descriptionTabs = () => vscode.window.tabGroups.all.flatMap((group) => group.tabs)
+        .filter((tab) => tab.input instanceof vscode.TabInputWebview && tab.input.viewType.endsWith("leetCodeDescription"));
+    // The extension host hears of a new tab a moment after the panel is created.
+    const tabsSettle = async (count) => {
+        for (let attempt = 0; attempt < 50 && descriptionTabs().length !== count; attempt++) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        return descriptionTabs().length;
+    };
+    await vscode.commands.executeCommand("leetcode.previewProblemInEditor");
+    assert.equal(await tabsSettle(1), 1, "the description opens in an editor tab");
+    await vscode.commands.executeCommand("leetcode.previewProblemInEditor");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(descriptionTabs().length, 1, "opening it again reuses the tab");
+    await vscode.window.tabGroups.close(descriptionTabs());
     console.log("LeetCode integration smoke passed");
 };

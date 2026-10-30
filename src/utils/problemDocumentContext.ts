@@ -3,35 +3,50 @@ import * as vscode from "vscode";
 import { languages } from "../shared";
 import { getLanguageFromText, getNodeIdFromText } from "./problemUtils";
 
+interface IProblemFile {
+    uri: vscode.Uri;
+    id: string;
+    language: string;
+}
+
 /** Recognized problem files by URI, the most recently seen last. */
-const problemFiles = new Map<string, { uri: vscode.Uri; id: string }>();
+const problemFiles = new Map<string, IProblemFile>();
 
 /** Emits "changed" when a file is recognized as a problem file or stops being one. */
 export const problemFileEvents: EventEmitter = new EventEmitter();
 
-function getProblemId(document: vscode.TextDocument): string | undefined {
+function readHeader(document: vscode.TextDocument): Omit<IProblemFile, "uri"> | undefined {
     if (document.uri.scheme !== "file") {
         return undefined;
     }
     const header = document.getText(new vscode.Range(0, 0, Math.min(20, document.lineCount), 0));
     const language = getLanguageFromText(header);
     const id = getNodeIdFromText(header);
-    return id && language && languages.includes(language) ? id : undefined;
+    return id && language && languages.includes(language) ? { id, language } : undefined;
 }
 
 export function isProblemDocument(document: vscode.TextDocument): boolean {
-    return getProblemId(document) !== undefined;
+    return readHeader(document) !== undefined;
+}
+
+function findProblemFile(id: string): IProblemFile | undefined {
+    let file: IProblemFile | undefined;
+    for (const entry of problemFiles.values()) {
+        if (entry.id === id) {
+            file = entry;
+        }
+    }
+    return file;
 }
 
 /** The solution file of a problem seen most recently, which may no longer be open in an editor. */
 export function getProblemFile(id: string): vscode.Uri | undefined {
-    let file: vscode.Uri | undefined;
-    for (const entry of problemFiles.values()) {
-        if (entry.id === id) {
-            file = entry.uri;
-        }
-    }
-    return file;
+    return findProblemFile(id)?.uri;
+}
+
+/** The language of the file getProblemFile returns. */
+export function getProblemLanguage(id: string): string | undefined {
+    return findProblemFile(id)?.language;
 }
 
 /** Remember recognized files so Explorer actions also work after their editor closes. */
@@ -42,13 +57,13 @@ export function registerProblemDocumentContext(context: vscode.ExtensionContext)
     const update = (document?: vscode.TextDocument): void => {
         if (document) {
             const uri = document.uri.toString();
-            const previous = problemFiles.get(uri)?.id;
-            const id = getProblemId(document);
+            const previous = problemFiles.get(uri);
+            const header = readHeader(document);
             problemFiles.delete(uri);
-            if (id) {
-                problemFiles.set(uri, { uri: document.uri, id });
+            if (header) {
+                problemFiles.set(uri, { uri: document.uri, ...header });
             }
-            if (id !== previous) {
+            if (header?.id !== previous?.id || header?.language !== previous?.language) {
                 problemFileEvents.emit("changed");
             }
         }

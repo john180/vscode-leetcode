@@ -40,6 +40,19 @@ test("comparing a submission is offered only in its code's editor, which a resto
     assert.ok(manifest.activationEvents.includes("onFileSystem:leetcode-submission"));
 });
 
+test("a restored description tab activates the extension, and Clear Filter shows only while filtering", () => {
+    assert.ok(manifest.activationEvents.includes("onWebviewPanel:leetCodeDescription"));
+    const titles = manifest.contributes.menus["view/title"];
+    assert.equal(titles.find((item: { command: string }) => item.command === "leetcode.clearFilter")?.when, "view == leetCodeExplorer && leetcode.filtered");
+    assert.equal(titles.find((item: { command: string }) => item.command === "leetcode.previewProblemInEditor")?.when, "view == leetCodeDetail");
+    const palette = manifest.contributes.menus.commandPalette.find((item: { command: string }) => item.command === "leetcode.clearFilter");
+    assert.equal(palette?.when, "leetcode.filtered");
+    const declared: string[] = manifest.contributes.commands.map((item: { command: string }) => item.command);
+    for (const command of ["leetcode.filterProblems", "leetcode.clearFilter", "leetcode.goToProblem", "leetcode.previewProblemInEditor", "leetcode.openDailyChallenge"]) {
+        assert.ok(declared.includes(command), `${command} is declared`);
+    }
+});
+
 test("commands that need a problem from the list stay out of the command palette", () => {
     const hidden: string[] = manifest.contributes.menus.commandPalette
         .filter((item: { when?: string }) => item.when === "never")

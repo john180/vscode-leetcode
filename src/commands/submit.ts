@@ -9,6 +9,7 @@ import { submitSolution as submitToLeetCode } from "../api/submission";
 import { leetCodeTreeDataProvider } from "../explorer/LeetCodeTreeDataProvider";
 import { leetCodeManager } from "../leetCodeManager";
 import { IProblem } from "../shared";
+import { leetCodeStatusBarController } from "../statusbar/leetCodeStatusBarController";
 import { getLanguageFromText, getNodeIdFromText } from "../utils/problemUtils";
 import { DialogType, promptForOpenOutputChannel, promptForSignIn } from "../utils/uiUtils";
 import { getActiveDocument } from "../utils/workspaceUtils";
@@ -63,7 +64,11 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
             };
         });
         if (result.state === "SUCCESS" && scope === getProblemCacheScope()) {
-            await recordSubmission(problem, result.statusMessage === "Accepted");
+            const accepted: boolean = result.statusMessage === "Accepted";
+            await recordSubmission(problem, accepted);
+            if (accepted) {
+                leetCodeStatusBarController.recordAccepted(problem.slug);
+            }
         }
     } catch (error) {
         if (isCanceled(error)) { return; }

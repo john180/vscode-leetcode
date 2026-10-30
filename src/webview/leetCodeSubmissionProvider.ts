@@ -58,6 +58,15 @@ const style: string = `
     mark { color: inherit; }
     mark.removed { background: var(--vscode-diffEditor-removedTextBackground); outline: 1px solid var(--vscode-testing-iconFailed); }
     mark.inserted { background: var(--vscode-diffEditor-insertedTextBackground); outline: 1px solid var(--vscode-testing-iconPassed); }
+    /* Where the other side has text and this one has none: a bar between the characters. */
+    mark.gap { display: inline-block; width: 2px; height: 1.2em; margin: 0 1px; vertical-align: text-bottom; outline: none; }
+    mark.gap.removed { background: var(--vscode-testing-iconFailed); }
+    mark.gap.inserted { background: var(--vscode-testing-iconPassed); }
+    /* Whitespace in a changed part is drawn by the style, so selecting the text still copies the whitespace itself. */
+    mark .ws { position: relative; }
+    mark .ws::before { position: absolute; left: 0; width: 100%; text-align: center; color: var(--vscode-editorWhitespace-foreground); content: "·"; }
+    mark .ws.tab::before { text-align: left; content: "→"; }
+    mark .ws.eol::before { position: static; content: "↵"; }
 `;
 
 interface IFieldOptions {
@@ -82,6 +91,12 @@ function getPassedNote(result: ISubmissionResult): string | undefined {
         : result.totalCorrect;
     const total: number | undefined = result.cases ? result.cases.length : result.totalTestcases;
     return passed !== undefined && total ? l10n.t("{0} / {1} test cases passed", passed, total) : undefined;
+}
+
+/** Escaped text with its spaces, tabs and line breaks drawn, so a difference made of them can be seen. */
+function showWhitespace(text: string): string {
+    return escapeHtml(text).replace(/[ \t\n]/g, (char: string) =>
+        char === "\n" ? `<span class="ws eol"></span>\n` : `<span class="ws${char === "\t" ? " tab" : ""}">${char}</span>`);
 }
 
 /** Prefix each input line with its parameter, when there is one per line. */
@@ -390,9 +405,14 @@ class LeetCodeSubmissionProvider implements WebviewViewProvider, Disposable {
     private getField(label: string, text: string, options: IFieldOptions = {}): string {
         const links: string[] = [this.getActionLink(l10n.t("Copy"), "copy", this.texts.push(text) - 1)];
         const [start, end] = options.mark ?? [0, 0];
-        const body: string = options.mark && end > start
-            ? `${escapeHtml(text.slice(0, start))}<mark class="${options.markClass}">${escapeHtml(text.slice(start, end))}</mark>${escapeHtml(text.slice(end))}`
-            : escapeHtml(options.display ?? text);
+        let body: string = escapeHtml(options.display ?? text);
+        if (options.mark && end > start) {
+            body = `${escapeHtml(text.slice(0, start))}<mark class="${options.markClass}">${showWhitespace(text.slice(start, end))}</mark>${escapeHtml(text.slice(end))}`;
+        } else if (options.mark) {
+            // The other side has more at this point, such as a character this side lacks.
+            const hint: string = options.markClass === "removed" ? l10n.t("The expected answer has more here.") : l10n.t("Your output has more here.");
+            body = `${escapeHtml(text.slice(0, start))}<mark class="${options.markClass} gap" title="${escapeHtml(hint)}"></mark>${escapeHtml(text.slice(start))}`;
+        }
         const lines: number = text.split("\n").length;
         const actions: string = `<span class="links">${links.join("")}</span>`;
         if (lines > LONG_TEXT_LINES || text.length > LONG_TEXT_LENGTH) {

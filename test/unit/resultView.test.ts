@@ -96,6 +96,21 @@ test("a result shown before the panel opens is revealed without taking focus", (
     dispose();
 });
 
+test("whitespace in a difference is drawn, and a side with nothing there gets a bar", () => {
+    const { view, dispose } = createView();
+    // The expected "[1,2]" lacks the space of "[1, 2]", so only the output has something to mark.
+    leetCodeSubmissionProvider.show({ ...wrongAnswer, codeOutput: "[1, 2]", expectedOutput: "[1,2]" }, { id: "1", name: "Two Sum" });
+    let html: string = view.webview.html;
+    assert.match(html, /\[1,<mark class="removed"><span class="ws"> <\/span><\/mark>2\]/, "the space itself stays, for copying");
+    assert.match(html, /\[1,<mark class="inserted gap" title="Your output has more here\."><\/mark>2\]/);
+
+    leetCodeSubmissionProvider.show({ ...wrongAnswer, codeOutput: "a", expectedOutput: "a\n\tb" }, { id: "1", name: "Two Sum" });
+    html = view.webview.html;
+    assert.match(html, /a<mark class="removed gap" title="The expected answer has more here\."><\/mark>/);
+    assert.match(html, /a<mark class="inserted"><span class="ws eol"><\/span>\n<span class="ws tab">\t<\/span>b<\/mark>/);
+    dispose();
+});
+
 test("an open panel is brought forward for each new result", () => {
     const { view } = createView();
     leetCodeSubmissionProvider.show({ state: "SUCCESS", statusMessage: "Accepted", runtime: "52 ms", runtimePercentile: 50 }, { id: "2", name: "Add Two Numbers" });

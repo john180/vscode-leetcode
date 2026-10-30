@@ -6,6 +6,7 @@ import { leetCodeManager } from "../leetCodeManager";
 import { ProblemState, UserStatus } from "../shared";
 import { explorerNodeManager } from "./explorerNodeManager";
 import { LeetCodeNode } from "./LeetCodeNode";
+import { describeFilter, IProblemFilter, problemFilterStore } from "./problemFilter";
 import { highlightRanges } from "./problemSearch";
 import { globalState } from "../globalState";
 import { problemCache } from "../api/problemCache";
@@ -54,6 +55,8 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
                 }
             }),
         );
+        // A filter is kept across restarts.
+        this.showSearchResult();
     }
 
     public get selection(): readonly LeetCodeNode[] {
@@ -79,11 +82,23 @@ export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCod
         return true;
     }
 
+    /** Narrows the lists to `filter`, which stays until it is changed. */
+    public async setFilter(filter: IProblemFilter): Promise<void> {
+        await problemFilterStore.save(filter);
+        this.showSearchResult();
+        this.onDidChangeTreeDataEvent.fire(null);
+    }
+
+    /** Shows the filter and the search, or `description` of the search, above the list. */
     public showSearchResult(description?: string, message?: string): void {
         const search = explorerNodeManager.getSearch();
+        const filter: string | undefined = describeFilter(problemFilterStore.get());
         void vscode.commands.executeCommand("setContext", "leetcode.searching", Boolean(search));
+        void vscode.commands.executeCommand("setContext", "leetcode.filtered", Boolean(filter));
         if (this.treeView) {
-            this.treeView.description = search ? description ?? vscode.l10n.t('Search: "{0}"', search.text) : undefined;
+            const searched: string | undefined = search ? description ?? vscode.l10n.t('Search: "{0}"', search.text) : undefined;
+            const parts: string[] = [filter && vscode.l10n.t("Filter: {0}", filter), searched].filter((part): part is string => Boolean(part));
+            this.treeView.description = parts.length > 0 ? parts.join(" · ") : undefined;
             this.treeView.message = search ? message : undefined;
         }
     }

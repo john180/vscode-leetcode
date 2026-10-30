@@ -30,7 +30,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     return originalLoad.call(this, request, parent, isMain);
 };
 
-const { getProblemFile, isProblemDocument, problemFileEvents, registerProblemDocumentContext } = require("../../src/utils/problemDocumentContext");
+const { getProblemFile, getProblemLanguage, isProblemDocument, problemFileEvents, registerProblemDocumentContext } = require("../../src/utils/problemDocumentContext");
 moduleLoader._load = originalLoad;
 
 function document(text: string, scheme: string = "file", name: string = "solution.py"): any {
@@ -81,18 +81,25 @@ test("a problem's latest recognized file is found by its id until the file goes 
     listeners.get("open")!(python);
     listeners.get("open")!(java);
     assert.equal(getProblemFile("1"), java.uri);
+    assert.equal(getProblemLanguage("1"), "java", "the language of that same file");
     assert.equal(getProblemFile("2"), undefined);
+    assert.equal(getProblemLanguage("2"), undefined);
     assert.equal(changes, 2);
 
     listeners.get("change")!({ document: python });
     assert.equal(getProblemFile("1"), python.uri, "the file edited last wins");
+    assert.equal(getProblemLanguage("1"), "python3");
     assert.equal(changes, 2, "edits that keep the header change nothing");
+
+    listeners.get("change")!({ document: document("# @lc app=leetcode.com id=1 lang=python", "file", "1.py") });
+    assert.equal(getProblemLanguage("1"), "python");
+    assert.equal(changes, 3, "a header naming another language is a change");
 
     listeners.get("change")!({ document: document("print('no header')", "file", "1.py") });
     assert.equal(getProblemFile("1"), java.uri);
     listeners.get("delete")!({ files: [java.uri] });
     assert.equal(getProblemFile("1"), undefined);
-    assert.equal(changes, 4);
+    assert.equal(changes, 5);
 
     problemFileEvents.off("changed", changed);
     for (const disposable of context.subscriptions as any[]) disposable.dispose();

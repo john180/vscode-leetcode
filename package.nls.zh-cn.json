@@ -34,7 +34,7 @@
     "config.useEndpointTranslation": "使用站点提供的翻译（如有）。",
     "config.workspaceFolder": "保存题目文件的工作区路径。",
     "config.filePath": "保存题目文件的目录与文件名。",
-    "config.enableStatusBar": "是否显示 LeetCode 状态栏。",
+    "config.enableStatusBar": "是否在状态栏显示 LeetCode 账号和今天的每日一题。",
     "config.shortcuts": "自定义编辑器中的快捷操作。",
     "config.enableSideMode": "在第二编辑列（代码旁）打开高赞题解。",
     "config.enableSideMode.deprecated": "已不再使用：题解改在 LeetCode 侧边栏的题目详情中显示，运行结果显示在「LeetCode 结果」面板。",
@@ -48,6 +48,11 @@
     "command.showSubmissions": "查看提交历史",
     "command.addToFavoriteList": "加入收藏夹",
     "command.compareSubmission": "与当前代码比较",
+    "command.previewProblemInEditor": "在编辑器中打开题目描述",
+    "command.goToProblem": "转到题目...",
+    "command.filterProblems": "筛选题目...",
+    "command.clearFilter": "清除筛选",
+    "command.openDailyChallenge": "打开每日一题",
     "viewsWelcome.welcome": "欢迎使用 LeetCode\n\n正在准备 LeetCode 工作区...",
     "capabilities.virtualWorkspaces": "LeetCode 需要在磁盘上创建题目文件。请打开本地文件夹或远程开发工作区以使用此扩展。"
 }

@@ -46,6 +46,7 @@ const api: typeof import("../../src/api/problems") = require("../../src/api/prob
 const { problemCache }: typeof import("../../src/api/problemCache") = require("../../src/api/problemCache");
 const { sessionController } = require("../../src/auth/sessionController");
 const { explorerNodeManager: explorer } = require("../../src/explorer/explorerNodeManager");
+const { problemFilterStore } = require("../../src/explorer/problemFilter");
 const { SortingStrategy, ProblemState } = require("../../src/shared");
 const sessionSignal = new AbortController().signal;
 // The account in use is `cookie`, on whichever site the settings name.
@@ -70,6 +71,8 @@ const favorites = { favorites: { leetcode_favorites: [{ id_hash: 'hot', name: 'L
 
 beforeEach(async () => {
     endpoint = 'leetcode'; cookie = 'account-a'; translated = true; hideSolved = false;
+    const filters = new Map<string, unknown>();
+    problemFilterStore.initialize({ get: (key: string) => filters.get(key), update: async (key: string, value: unknown) => { filters.set(key, value); } });
     calls = []; fail = false; gate = undefined; explorer.setSearch(''); explorer.dispose(); await problemCache.clear();
     axios.defaults.adapter = async (config: any) => {
         if (config.url.endsWith('/list/api/questions')) {
@@ -122,6 +125,59 @@ test('filters, pagination, sorting, and translations are sent to both endpoints'
             statusFilter:{questionStatuses:['SOLVED'],operator:'IS_NOT'}});
         assert.deepEqual(request.variables.sortBy, {sortField:'AC_RATE',sortOrder:'DESCENDING'});
         assert.equal(request.query.includes('translatedTitle'), site === 'leetcode-cn');
+    }
+});
+
+test('difficulty, status and premium filters are combined, and pages cached without them keep their keys', async () => {
+    assert.equal(api.problemPageKey().endsWith('page:{"skip":0,"limit":50,"search":"","difficulty":"","tag":"","company":"","hideSolved":false,"sort":"None"}'), true);
+    await api.getProblemPage({difficulties:['Medium','Hard'],statuses:['TO_DO','ATTEMPTED'],premium:'free'});
+    assert.deepEqual(calls.at(-1)!.variables.filters, {filterCombineType:'ALL',
+        difficultyFilter:{difficulties:['HARD','MEDIUM'],operator:'IS'},
+        statusFilter:{questionStatuses:['ATTEMPTED','TO_DO'],operator:'IS'},
+        premiumFilter:{premiumStatus:['NOT_PREMIUM'],operator:'IS'}});
+    await api.getProblemPage({difficulties:['Hard','Medium'],statuses:['ATTEMPTED','TO_DO'],premium:'free'});
+    assert.equal(calls.length, 1, 'the same filter in another order is the same page');
+
+    await api.getProblemPage({difficulty:'Easy',difficulties:['Hard'],premium:'premium'});
+    assert.deepEqual(calls.at(-1)!.variables.filters.difficultyFilter, {difficulties:['EASY'],operator:'IS'}, 'a difficulty category wins');
+    assert.deepEqual(calls.at(-1)!.variables.filters.premiumFilter, {premiumStatus:['NOT_PREMIUM'],operator:'IS_NOT'});
+
+    await api.getProblemPage({hideSolved:true,statuses:['SOLVED','TO_DO']});
+    assert.deepEqual(calls.at(-1)!.variables.filters.statusFilter, {questionStatuses:['TO_DO'],operator:'IS'}, 'hidden solved problems are not asked for');
+    const requests = calls.length;
+    assert.deepEqual(await api.getProblemPage({hideSolved:true,statuses:['SOLVED']}), {problems:[],total:0,next:0,hasMore:false});
+    assert.equal(calls.length, requests, 'nothing to ask for when only hidden problems would match');
+});
+
+test('a filter narrows every category, by LeetCode where it pages and locally where it does not', async () => {
+    await problemFilterStore.save({difficulties:['Easy'],statuses:['TO_DO'],premium:'free'});
+    await explorer.getChildren('All');
+    assert.deepEqual(calls.at(-1)!.variables.filters, {filterCombineType:'ALL',
+        difficultyFilter:{difficulties:['EASY'],operator:'IS'},
+        statusFilter:{questionStatuses:['TO_DO'],operator:'IS'},
+        premiumFilter:{premiumStatus:['NOT_PREMIUM'],operator:'IS'}});
+    assert.deepEqual((await explorer.getChildren('Difficulty')).map((node: any) => node.id), ['Difficulty.Easy'], 'only the allowed difficulties');
+    assert.ok((await explorer.getChildren('Hot100')).some((node: any) => node.isProblem), 'the Hot 100 problems are easy and to do, so they stay');
+
+    await problemFilterStore.save({difficulties:['Hard'],statuses:[]});
+    const requests = calls.length;
+    assert.deepEqual((await explorer.getChildren('Hot100')).map((node: any) => node.action?.kind), ['empty'], 'none of them is hard');
+    assert.equal(calls.length, requests, 'a local list is filtered without loading it again');
+    await explorer.getChildren('All');
+    assert.equal(calls.length, requests + 1, 'a server list is asked for again under the new filter');
+    assert.deepEqual(calls.at(-1)!.variables.filters.difficultyFilter, {difficulties:['HARD'],operator:'IS'});
+    assert.equal(calls.at(-1)!.variables.filters.statusFilter, undefined);
+
+    await problemFilterStore.save({difficulties:['Easy','Medium','Hard'],statuses:[]});
+    assert.deepEqual(problemFilterStore.get(), {difficulties:[],statuses:[]}, 'every choice is no filter');
+});
+
+test('Pick One picks among the filtered problems', async () => {
+    await api.getRandomProblem({difficulties:['Medium'],statuses:['TO_DO']});
+    assert.equal(calls.length, 2);
+    for (const call of calls) {
+        assert.deepEqual(call.variables.filters.difficultyFilter, {difficulties:['MEDIUM'],operator:'IS'});
+        assert.equal(call.variables.limit, 1);
     }
 });
 

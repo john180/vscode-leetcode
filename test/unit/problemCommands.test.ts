@@ -113,6 +113,9 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     }; }
     if (request === "../explorer/explorerNodeManager") { return { explorerNodeManager: { getNodeById: () => undefined } }; }
     if (request === "../explorer/LeetCodeTreeDataProvider") { return { leetCodeTreeDataProvider: { refresh: async (force = false) => actions.push({ refresh: force }) } }; }
+    if (request === "../statusbar/leetCodeStatusBarController") { return { leetCodeStatusBarController: {
+        recordAccepted: (slug: string) => actions.push({ accepted: slug }),
+    } }; }
     if (request === "../webview/leetCodeSubmissionProvider") { return { leetCodeSubmissionProvider: {
         judge: async (_problem: unknown, _document: unknown, judge: () => Promise<unknown>) => { const result = await judge(); judged.push(result); return result; },
     } }; }
@@ -190,7 +193,8 @@ test("testing from a test case editor tests its problem's solution file with its
 test("submission resolves one problem and updates local state without force refreshing", async () => {
     await submitSolution();
     assert.deepEqual(resolved, ["42"]);
-    assert.deepEqual(actions, [{ slug: problem.slug, questionId: "123" }, { target: problem, accepted: true }, { refresh: false }]);
+    // An accepted problem may be today's challenge, which the status bar then shows as done.
+    assert.deepEqual(actions, [{ slug: problem.slug, questionId: "123" }, { target: problem, accepted: true }, { accepted: problem.slug }, { refresh: false }]);
     assert.deepEqual(judged, [{ state: "SUCCESS", statusMessage: "Accepted", paramNames: ["nums"] }]);
 });
 

@@ -12,6 +12,7 @@ import { Category, defaultProblem, IProblem, ProblemState, SortingStrategy } fro
 import { shouldHideSolvedProblem } from "../utils/settingUtils";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { LeetCodeNode } from "./LeetCodeNode";
+import { DIFFICULTIES, IProblemFilter, isFiltering, matchesFilter, problemFilterStore } from "./problemFilter";
 import { IProblemSearch, matchesTerms, parseProblemSearch } from "./problemSearch";
 
 interface IView {
@@ -39,7 +40,7 @@ class ExplorerNodeManager implements Disposable {
     private refreshed = new Set<string>();
 
     private ensureScope(): void {
-        const scope = `${getProblemCacheScope()}:${shouldHideSolvedProblem()}:${getSortingStrategy()}`;
+        const scope = `${getProblemCacheScope()}:${shouldHideSolvedProblem()}:${getSortingStrategy()}:${JSON.stringify(problemFilterStore.get())}`;
         if (scope !== this.scope) {
             this.dispose();
             this.scope = scope;
@@ -150,7 +151,9 @@ class ExplorerNodeManager implements Disposable {
         const key = this.key(id);
         try {
             if (id === Category.Difficulty) {
-                return this.remember(key, ["Easy", "Medium", "Hard"].map((difficulty) => this.category(`${id}.${difficulty}`, l10n.t(difficulty), id)));
+                const { difficulties } = problemFilterStore.get();
+                return this.remember(key, DIFFICULTIES.filter((difficulty) => difficulties.length === 0 || difficulties.includes(difficulty))
+                    .map((difficulty) => this.category(`${id}.${difficulty}`, l10n.t(difficulty), id)));
             }
             if (id === Category.Tag || id === Category.Company) {
                 const tags = await getProblemTags(id === Category.Tag ? "tag" : "company", this.needsRefresh(id));
@@ -172,7 +175,7 @@ class ExplorerNodeManager implements Disposable {
                 this.refreshed.add(id);
                 const matched = problem && (!this.search?.keyword || matchesTerms(`${problem.id} ${problem.name} ${problem.slug}`, this.search.terms));
                 const nodes = matched ? this.toNodes(id, [problem]) : [];
-                return this.remember(key, nodes.length || !this.search?.keyword ? nodes : [this.action(id, "empty")]);
+                return this.remember(key, nodes.length || !this.isNarrowed() ? nodes : [this.action(id, "empty")]);
             }
             const view = this.view(key, id);
             if (!view.pages.size || view.force) {
@@ -274,7 +277,11 @@ class ExplorerNodeManager implements Disposable {
             const next = skip + slice.length;
             return { problems, next, total: questions.length, hasMore: next < questions.length };
         }
-        const query: IProblemQuery = { skip, sort: getSortingStrategy(), hideSolved: shouldHideSolvedProblem(), search: search?.keyword };
+        const filter: IProblemFilter = problemFilterStore.get();
+        const query: IProblemQuery = {
+            skip, sort: getSortingStrategy(), hideSolved: shouldHideSolvedProblem(), search: search?.keyword,
+            difficulties: filter.difficulties, statuses: filter.statuses, premium: filter.premium,
+        };
         if (id.startsWith(`${Category.Difficulty}.`)) { query.difficulty = id.slice(Category.Difficulty.length + 1); }
         if (id.startsWith(`${Category.Tag}.`)) { query.tag = id.slice(Category.Tag.length + 1); }
         if (id.startsWith(`${Category.Company}.`)) { query.company = id.slice(Category.Company.length + 1); }
@@ -304,12 +311,19 @@ class ExplorerNodeManager implements Disposable {
         const nodes = this.toNodes(id, [...unique.values()]);
         if (view.failed) { nodes.push(this.action(id, "retry")); }
         else if (view.hasMore) { nodes.push(this.action(id, "more")); }
-        else if (!nodes.length && this.search?.keyword) { nodes.push(this.action(id, "empty")); }
+        else if (!nodes.length && this.isNarrowed()) { nodes.push(this.action(id, "empty")); }
         return nodes;
     }
 
+    /** Whether a search or a filter may be why a list is empty. */
+    private isNarrowed(): boolean {
+        return Boolean(this.search?.keyword) || isFiltering(problemFilterStore.get());
+    }
+
     private toNodes(parentId: string, problems: IProblem[]): LeetCodeNode[] {
-        const nodes = problems.filter((problem) => !shouldHideSolvedProblem() || problem.state !== ProblemState.AC).map((problem) => {
+        const filter: IProblemFilter = problemFilterStore.get();
+        const shown = problems.filter((problem) => (!shouldHideSolvedProblem() || problem.state !== ProblemState.AC) && matchesFilter(problem, filter));
+        const nodes = shown.map((problem) => {
             const node = new LeetCodeNode(problem, true, undefined, parentId);
             this.nodes.set(problem.id, node);
             return node;

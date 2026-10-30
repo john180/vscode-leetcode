@@ -2,7 +2,9 @@
 // Licensed under the MIT license.
 
 import { randomBytes } from "node:crypto";
-import { commands, Disposable, env, l10n, Uri, Webview, WebviewView, WebviewViewProvider, window, workspace } from "vscode";
+import {
+    commands, Disposable, env, l10n, Uri, ViewColumn, Webview, WebviewPanel, WebviewView, WebviewViewProvider, window, workspace,
+} from "vscode";
 import { getProblemBySlug, getProblemCacheScope } from "../api/problems";
 import { fetchQuestionDetail, getAcceptanceRate, getSimilarQuestions } from "../api/question";
 import type { IQuestionDetail, ISimilarQuestion } from "../api/question";
@@ -14,14 +16,24 @@ import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { globalState } from "../globalState";
 import { leetCodeChannel } from "../leetCodeChannel";
-import { currentSite, IProblem, ProblemState } from "../shared";
-import { getProblemFile, problemFileEvents } from "../utils/problemDocumentContext";
+import { currentSite, IProblem, languages, ProblemState } from "../shared";
+import { getProblemFile, getProblemLanguage, problemFileEvents } from "../utils/problemDocumentContext";
 import { shouldUseEndpointTranslation } from "../utils/settingUtils";
 import { openSettingsEditor, openUrl, promptHintMessage } from "../utils/uiUtils";
 import { markdownEngine } from "./markdownEngine";
 import { escapeHtml, sanitizeProblemHtml } from "./sanitize";
 
 export type DetailTab = "description" | "solution";
+
+/** The view type of the editor tab, which VS Code restores after a reload. */
+export const DESCRIPTION_PANEL: string = "leetCodeDescription";
+
+interface ISolutionState {
+    /** Null when the problem has no solution to show. */
+    solution?: ISolution | null;
+    failed?: boolean;
+    pending?: Promise<void>;
+}
 
 /** One shown problem. Loads write into the state they started for, so a newer problem is never overwritten. */
 interface IDetailState {
@@ -30,18 +42,41 @@ interface IDetailState {
     tab: DetailTab;
     detail?: IQuestionDetail;
     failed?: boolean;
-    /** Null when the problem has no solution to show. */
-    solution?: ISolution | null;
-    solutionFailed?: boolean;
-    solutionPending?: Promise<void>;
+    /** The language to show a solution in, or "" for any. */
+    language: string;
+    /** Solutions loaded so far, by language. */
+    solutions: Map<string, ISolutionState>;
 }
 
 export interface IShowOptions {
     /** Skip the fetch when the caller already loaded the description. */
     detail?: IQuestionDetail;
-    /** Expand the view and switch the sidebar to it, keeping keyboard focus where it is. */
+    /** Bring the description into view, in the editor tab if one is open, keeping keyboard focus where it is. */
     reveal?: boolean;
     tab?: DetailTab;
+    /** Open the editor tab, which later reveals use until it is closed. */
+    inEditor?: boolean;
+}
+
+/** A page the problem is shown on: the sidebar view, or the editor tab. */
+interface IHost {
+    webview: Webview;
+    inEditor: boolean;
+    /** The render the page was created with. */
+    pageVersion: number;
+    setTitle(title: string | undefined): void;
+}
+
+/** Language names as LeetCode shows them. */
+const LANGUAGE_NAMES: { [language: string]: string } = {
+    bash: "Bash", c: "C", cpp: "C++", csharp: "C#", golang: "Go", java: "Java", javascript: "JavaScript", kotlin: "Kotlin", mysql: "MySQL",
+    php: "PHP", python: "Python", python3: "Python3", ruby: "Ruby", rust: "Rust", scala: "Scala", swift: "Swift", typescript: "TypeScript",
+};
+
+/** The language of the problem's solution file, or else the default language. */
+function getPreferredLanguage(problem: IProblem): string {
+    const language: string | undefined = getProblemLanguage(problem.id) ?? workspace.getConfiguration("leetcode").get<string>("defaultLanguage");
+    return language && languages.includes(language) ? language : "";
 }
 
 const style: string = `
@@ -69,9 +104,9 @@ const style: string = `
     button.icon, button.icon:hover { font-size: inherit; color: var(--vscode-icon-foreground); background: none; }
     button.icon:hover { background: var(--vscode-toolbar-hoverBackground); }
     button.icon.starred { color: var(--vscode-charts-yellow); }
-    /* Only the tabs stay in view, so the description gets the rest of the sidebar. */
+    /* Only the tabs stay in view, so the description gets the rest of the sidebar. --surface is the color behind the page. */
     .tabs { position: sticky; top: 0; z-index: 1; display: flex; gap: 16px; margin: 0 -12px 8px; padding: 0 12px; }
-    .tabs { background: var(--vscode-sideBar-background); border-bottom: 1px solid var(--vscode-panel-border); }
+    .tabs { background: var(--surface); border-bottom: 1px solid var(--vscode-panel-border); }
     .tabs button, .tabs button:hover { padding: 4px 0; color: var(--vscode-foreground); background: none; border-radius: 0; border-bottom: 2px solid transparent; opacity: 0.7; }
     .tabs button:hover, .tabs button[aria-selected="true"] { opacity: 1; }
     .tabs button[aria-selected="true"] { border-bottom-color: var(--vscode-focusBorder); font-weight: 600; }
@@ -97,6 +132,9 @@ const style: string = `
     .code-group.tabbed > details > summary { display: none; }
     .code-group.tabbed > details:not([open]) { display: none; }
     .code-group > details > pre, .code-group > details > .code-block > pre { margin-top: 0; }
+    .solution-language { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; margin: 4px 0 8px; }
+    .solution-language select { padding: 2px 4px; border: 1px solid var(--vscode-dropdown-border); border-radius: 2px; }
+    .solution-language select { color: var(--vscode-dropdown-foreground); background: var(--vscode-dropdown-background); font: inherit; }
 `;
 
 /**
@@ -237,11 +275,17 @@ const script: string = `
         }
     }
 
-    // Sanitized problem HTML and rendered markdown cannot contain buttons, so these are ours.
+    // Sanitized problem HTML and rendered markdown cannot contain buttons or menus, so these are ours.
     document.addEventListener("click", (event) => {
         const button = event.target.closest("button[data-command]");
         if (button) {
             vscode.postMessage({ command: button.dataset.command, arg: button.dataset.arg });
+        }
+    });
+    document.addEventListener("change", (event) => {
+        const select = event.target.closest("select[data-command]");
+        if (select) {
+            vscode.postMessage({ command: select.dataset.command, arg: select.value });
         }
     });
     for (const type of ["wheel", "keydown", "pointerdown", "touchstart"]) {
@@ -263,6 +307,8 @@ const script: string = `
         }
         // Keep the sections the user opened when the same page updates, as long as its layout is unchanged.
         const opened = message.page === page ? [...root.querySelectorAll("details")].map((details) => details.open) : [];
+        // A control used with the keyboard, such as the language menu, keeps the focus when it is drawn again.
+        const focused = root.contains(document.activeElement) ? document.activeElement.dataset.command : undefined;
         pages[page] = window.scrollY;
         ({ version, page } = message);
         sizes.disconnect();
@@ -273,6 +319,9 @@ const script: string = `
         }
         enhance();
         restore(pages[page] || 0);
+        if (focused) {
+            root.querySelector('[data-command="' + focused + '"]')?.focus({ preventScroll: true });
+        }
     });
     enhance();
     restore(pages[page] || 0);
@@ -288,18 +337,26 @@ function cleanSolutionMarkdown(content: string, url: string): string {
         .replace(/<iframe\b[^>]*>(?:\s*<\/iframe>)?/gi, () => onLeetCode(l10n.t("View the code on LeetCode")));
 }
 
-/** The problem description and top solution, shown in the LeetCode sidebar beside the problem list. */
+/**
+ * The problem description and top solution, shown in the LeetCode sidebar beside the problem list,
+ * and in an editor tab while one is open. Both show the same problem.
+ */
 class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
     private view: WebviewView | undefined;
+    private detachView: (() => void) | undefined;
+    private panel: WebviewPanel | undefined;
+    private hosts: IHost[] = [];
     private state: IDetailState | undefined;
     private hinted: boolean = false;
-    /** Counts renders; the view drops content older than what it shows. */
+    /** Counts renders; a page drops content older than what it shows. */
     private version: number = 0;
-    /** The render the page was created with. */
-    private pageVersion: number = 0;
+
+    public get currentProblem(): IProblem | undefined {
+        return this.state?.scope === getProblemCacheScope() ? this.state.problem : undefined;
+    }
 
     public get currentProblemId(): string | undefined {
-        return this.state?.scope === getProblemCacheScope() ? this.state.problem.id : undefined;
+        return this.currentProblem?.id;
     }
 
     /** Drop session-specific content and invalidate outstanding loads. */
@@ -309,30 +366,86 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
     }
 
     public resolveWebviewView(view: WebviewView): void {
+        // A view resolved again replaces the one before it.
+        this.detachView?.();
         this.view = view;
-        view.webview.options = { enableScripts: true, localResourceRoots: markdownEngine.localResourceRoots };
+        this.detachView = this.attach({ webview: view.webview, inEditor: false, pageVersion: 0, setTitle: (title) => { view.description = title; } },
+            (listener) => view.onDidDispose(listener), () => {
+                if (this.view === view) {
+                    this.view = undefined;
+                    this.detachView = undefined;
+                }
+            });
+    }
+
+    /** Takes over an editor tab VS Code restored after a reload; a second one is closed. */
+    public restoreEditor(panel: WebviewPanel): void {
+        if (this.panel) {
+            panel.dispose();
+            return;
+        }
+        this.attachEditor(panel);
+    }
+
+    /** Opens the editor tab beside the editor in use, or brings it into view. */
+    public openEditor(): void {
+        if (this.panel) {
+            this.revealEditor(this.panel);
+            return;
+        }
+        this.attachEditor(window.createWebviewPanel(DESCRIPTION_PANEL, l10n.t("Problem Description"),
+            { viewColumn: ViewColumn.Beside, preserveFocus: true }, { enableFindWidget: true }));
+    }
+
+    private attachEditor(panel: WebviewPanel): void {
+        this.panel = panel;
+        this.attach({ webview: panel.webview, inEditor: true, pageVersion: 0, setTitle: (title) => { panel.title = title ?? l10n.t("Problem Description"); } },
+            (listener) => panel.onDidDispose(listener), () => {
+                // Closing the tab sends later descriptions back to the sidebar.
+                if (this.panel === panel) {
+                    this.panel = undefined;
+                }
+            });
+    }
+
+    /** A tab already in view stays where it is; one hidden behind other tabs comes up beside the editor in use. */
+    private revealEditor(panel: WebviewPanel): void {
+        if (!panel.visible) {
+            panel.reveal(ViewColumn.Beside, true);
+        }
+    }
+
+    /** Shows the problem on the host's page until it is disposed or the returned function is called. */
+    private attach(host: IHost, onDidDispose: (listener: () => void) => Disposable, disposed: () => void): () => void {
+        host.webview.options = { enableScripts: true, localResourceRoots: markdownEngine.localResourceRoots };
         // Test and Submit appear once the problem has a solution file.
-        const filesChanged = (): void => this.render();
+        const filesChanged = (): void => this.render(host);
         problemFileEvents.on("changed", filesChanged);
         const listeners: Disposable[] = [
             { dispose: () => problemFileEvents.off("changed", filesChanged) },
-            view.webview.onDidReceiveMessage(this.onDidReceiveMessage, this),
+            host.webview.onDidReceiveMessage((message: unknown) => this.onDidReceiveMessage(message, host)),
             workspace.onDidChangeConfiguration((event) => {
                 if (event.affectsConfiguration("markdown")) {
                     // Styles come with the page, so it is created again.
-                    this.createPage();
+                    this.createPage(host);
                 } else if (event.affectsConfiguration("leetcode.useEndpointTranslation")) {
-                    this.render();
+                    this.render(host);
                 }
             }),
         ];
-        view.onDidDispose(() => {
-            listeners.forEach((listener: Disposable) => listener.dispose());
-            if (this.view === view) {
-                this.view = undefined;
+        this.hosts.push(host);
+        let attached: boolean = true;
+        const detach = (): void => {
+            if (attached) {
+                attached = false;
+                listeners.forEach((listener: Disposable) => listener.dispose());
+                this.hosts = this.hosts.filter((item: IHost) => item !== host);
+                disposed();
             }
-        });
-        this.createPage();
+        };
+        onDidDispose(detach);
+        this.createPage(host);
+        return detach;
     }
 
     public async show(problem: IProblem, options: IShowOptions = {}): Promise<void> {
@@ -343,9 +456,13 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
             problem, scope,
             tab: options.tab ?? previous?.tab ?? "description",
             detail: options.detail ?? previous?.detail,
-            solution: previous?.solution,
+            language: previous?.language ?? getPreferredLanguage(problem),
+            solutions: previous?.solutions ?? new Map(),
         };
         this.state = state;
+        if (options.inEditor) {
+            this.openEditor();
+        }
         this.render();
         if (options.reveal) {
             void this.reveal();
@@ -375,26 +492,35 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         }
     }
 
+    /** Loads the solution in the state's language, once per language. */
     private loadSolution(state: IDetailState): Promise<void> {
-        if (state.solution !== undefined) {
+        const language: string = state.language;
+        const entry: ISolutionState = state.solutions.get(language) ?? {};
+        state.solutions.set(language, entry);
+        if (entry.solution !== undefined) {
             return Promise.resolve();
         }
-        state.solutionFailed = false;
-        state.solutionPending ??= fetchTopSolution(getLeetCodeRequest(), state.problem.slug).then((solution: ISolution | undefined) => {
-            state.solution = solution ?? null;
+        entry.failed = false;
+        entry.pending ??= fetchTopSolution(getLeetCodeRequest(), state.problem.slug, language || undefined).then((solution: ISolution | undefined) => {
+            entry.solution = solution ?? null;
         }, (error: unknown) => {
             leetCodeChannel.error(`Failed to fetch the top voted solution: ${error}`);
-            state.solutionFailed = true;
+            entry.failed = true;
         }).finally(() => {
-            state.solutionPending = undefined;
-            if (this.state === state) {
+            entry.pending = undefined;
+            // Showing the same problem again shares what it loads.
+            if (this.state?.solutions.get(language) === entry) {
                 this.render();
             }
         });
-        return state.solutionPending;
+        return entry.pending;
     }
 
     private async reveal(): Promise<void> {
+        if (this.panel) {
+            this.revealEditor(this.panel);
+            return;
+        }
         if (this.view) {
             this.view.show(true);
             return;
@@ -411,32 +537,37 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         return problem.locked && !globalState.getUserStatus()?.isPremium;
     }
 
-    /** Scroll positions are kept per problem and tab. */
+    /** Scroll positions are kept per problem and tab, and per language of a solution. */
     private getPage(): string {
-        return this.state ? `${this.state.problem.slug}#${this.state.tab}` : "";
+        if (!this.state) {
+            return "";
+        }
+        const { problem, tab, language } = this.state;
+        return `${problem.slug}#${tab}${tab === "solution" && language ? `:${language}` : ""}`;
     }
 
-    private createPage(): void {
-        if (!this.view) {
+    private createPage(host: IHost): void {
+        this.updateTitle();
+        host.pageVersion = ++this.version;
+        host.webview.html = this.getWebviewContent(host);
+    }
+
+    /** Send the current content to the page of `host`, or of every host, which swaps it in place. */
+    private render(host?: IHost): void {
+        const hosts: IHost[] = host ? [host] : this.hosts;
+        if (hosts.length === 0) {
             return;
         }
         this.updateTitle();
-        this.pageVersion = ++this.version;
-        this.view.webview.html = this.getWebviewContent(this.view.webview);
-    }
-
-    /** Send the current content to the page, which swaps it in place. */
-    private render(): void {
-        if (!this.view) {
-            return;
+        const version: number = ++this.version;
+        for (const target of hosts) {
+            void target.webview.postMessage({ type: "render", version, page: this.getPage(), html: this.getBody(target) });
         }
-        this.updateTitle();
-        void this.view.webview.postMessage({ type: "render", version: ++this.version, page: this.getPage(), html: this.getBody() });
     }
 
     private updateTitle(): void {
         const problem: IProblem | undefined = this.state?.problem;
-        this.view!.description = problem ? `${problem.id}. ${problem.name}` : undefined;
+        this.hosts.forEach((host: IHost) => host.setTitle(problem ? `${problem.id}. ${problem.name}` : undefined));
         if (this.state?.detail && !this.hinted) {
             this.hinted = true;
             void promptHintMessage(
@@ -448,7 +579,8 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         }
     }
 
-    private getWebviewContent(webview: Webview): string {
+    private getWebviewContent(host: IHost): string {
+        const webview: Webview = host.webview;
         const nonce: string = randomBytes(24).toString("base64");
         const initial: string = JSON.stringify({ version: this.version, page: this.getPage() }).replace(/</g, "\\u003c");
         return `
@@ -465,12 +597,12 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
                     script-src 'nonce-${nonce}';
                 "/>
                 ${markdownEngine.getStyles(webview)}
-                <style>${style}</style>
+                <style>:root { --surface: var(${host.inEditor ? "--vscode-editor-background" : "--vscode-sideBar-background"}); }${style}</style>
             </head>
             <body>
                 <div id="root" data-copy="${escapeHtml(l10n.t("Copy"))}"
                     data-image-background="${escapeHtml(l10n.t("White background"))}"
-                    data-image-background-hint="${escapeHtml(l10n.t("Toggle a white background to make this image easier to read"))}">${this.getBody()}</div>
+                    data-image-background-hint="${escapeHtml(l10n.t("Toggle a white background to make this image easier to read"))}">${this.getBody(host)}</div>
                 <script type="application/json" id="initial">${initial}</script>
                 <script nonce="${nonce}">${script}</script>
             </body>
@@ -478,10 +610,14 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         `;
     }
 
-    private getBody(): string {
-        return this.state
-            ? this.getProblemContent(this.state)
-            : `<p class="status">${escapeHtml(l10n.t("Select a problem in the list above, or open a problem file to see its description."))}</p>`;
+    private getBody(host: IHost): string {
+        if (this.state) {
+            return this.getProblemContent(this.state);
+        }
+        const hint: string = host.inEditor
+            ? l10n.t("Select a problem in the problem list, or open a problem file to see its description.")
+            : l10n.t("Select a problem in the list above, or open a problem file to see its description.");
+        return `<p class="status">${escapeHtml(hint)}</p>`;
     }
 
     private getProblemContent(state: IDetailState): string {
@@ -584,24 +720,36 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         return `${sanitizeProblemHtml(body)}${sections.length > 0 ? `<div class="extra">${sections.join("")}</div>` : ""}`;
     }
 
-    private getSolutionContent({ problem, solution, solutionFailed }: IDetailState): string {
-        if (solutionFailed) {
-            return `<p class="status"><button class="secondary" data-command="solution">${escapeHtml(l10n.t("Loading failed. Click to retry."))}</button></p>`;
+    private getSolutionContent({ problem, language, solutions }: IDetailState): string {
+        const { solution, failed }: ISolutionState = solutions.get(language) ?? {};
+        const options: string[] = ["", ...languages].map((value: string) => [
+            `<option value="${escapeHtml(value)}"${value === language ? " selected" : ""}>`,
+            escapeHtml(value ? LANGUAGE_NAMES[value] ?? value : l10n.t("Any language")),
+            `</option>`,
+        ].join(""));
+        const picker: string = `<label class="solution-language">${escapeHtml(l10n.t("Solution language"))}`
+            + `<select data-command="language">${options.join("")}</select></label>`;
+        if (failed) {
+            return `${picker}<p class="status"><button class="secondary" data-command="solution">${escapeHtml(l10n.t("Loading failed. Click to retry."))}</button></p>`;
         }
         if (solution === undefined) {
-            return `<p class="status">${escapeHtml(l10n.t("Loading the solution..."))}</p>`;
+            return `${picker}<p class="status">${escapeHtml(l10n.t("Loading the solution..."))}</p>`;
         }
         const url: string = this.getSolutionsLink(this.getProblemUrl(problem.slug));
         const more: string = `<p><a href="${escapeHtml(url)}">${escapeHtml(l10n.t("More solutions on LeetCode"))}</a></p>`;
         if (solution === null) {
-            return `<p class="status">${escapeHtml(l10n.t("This problem has no solution to show yet."))}</p>${more}`;
+            return `${picker}<p class="status">${escapeHtml(l10n.t("This problem has no solution to show yet."))}</p>${more}`;
         }
+        const fallback: string = language && solution.language !== language
+            ? `<p class="status">${escapeHtml(l10n.t("No solution is tagged with {0}, so this is the top solution in any language.", LANGUAGE_NAMES[language] ?? language))}</p>`
+            : "";
         const title: string = solution.title ? `<h3>${escapeHtml(solution.title)}</h3>` : "";
-        const body: string = markdownEngine.renderSolution(cleanSolutionMarkdown(solution.content, url), { lang: "", host: currentSite().origin });
-        return `${title}${body}<hr />${more}`;
+        // The language also picks which tab of a solution's code starts open.
+        const body: string = markdownEngine.renderSolution(cleanSolutionMarkdown(solution.content, url), { lang: language, host: currentSite().origin });
+        return `${picker}${fallback}${title}${body}<hr />${more}`;
     }
 
-    private async onDidReceiveMessage(message: unknown): Promise<void> {
+    private async onDidReceiveMessage(message: unknown, host: IHost): Promise<void> {
         if (!message || typeof message !== "object" || !("command" in message)) {
             return;
         }
@@ -609,8 +757,8 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
         switch (message.command) {
             case "ready":
                 // A render posted while the page was still loading may have been missed.
-                if (this.version !== this.pageVersion) {
-                    this.render();
+                if (this.version !== host.pageVersion) {
+                    this.render(host);
                 }
                 return;
             case "copy": {
@@ -638,6 +786,14 @@ class LeetCodePreviewProvider implements WebviewViewProvider, Disposable {
                 await loading;
                 break;
             }
+            case "language":
+                if (typeof arg === "string" && (arg === "" || languages.includes(arg)) && state.tab === "solution" && !this.isLocked(problem)) {
+                    state.language = arg;
+                    const loading: Promise<void> = this.loadSolution(state);
+                    this.render();
+                    await loading;
+                }
+                break;
             case "code":
                 await commands.executeCommand("leetcode.showProblem", node);
                 break;

@@ -6,7 +6,7 @@ import { IProblem, ProblemState, SortingStrategy } from "../shared";
 import { shouldUseEndpointTranslation } from "../utils/settingUtils";
 import { graphql, IGraphQLRequest, isCnSite } from "./client";
 import { fetchCompanyTagNames } from "./companyTags";
-import { fetchDailyChallenge } from "./dailyChallenge";
+import { fetchDailyChallenge, fetchDailyChallengeStatus, IDailyChallenge } from "./dailyChallenge";
 import { fetchFavoriteData, IFavoriteData } from "./favoriteLists";
 import { mapQuestion, IQuestionNode, ICompanyTag } from "./problemMapper";
 import { problemCache } from "./problemCache";
@@ -21,7 +21,15 @@ export interface IProblemQuery {
     company?: string;
     hideSolved?: boolean;
     sort?: SortingStrategy;
+    /** Any of these difficulties, when `difficulty` names none. */
+    difficulties?: string[];
+    /** Any of TO_DO, ATTEMPTED and SOLVED. */
+    statuses?: string[];
+    premium?: "free" | "premium";
 }
+
+type FilterFields = "difficulties" | "statuses" | "premium";
+type NormalizedQuery = Required<Omit<IProblemQuery, FilterFields>> & Pick<IProblemQuery, FilterFields>;
 
 export interface IProblemPage {
     problems: IProblem[];
@@ -58,13 +66,18 @@ export function problemPageKey(query: IProblemQuery = {}): string {
     return `${getProblemCacheScope()}page:${JSON.stringify(normalize(query))}`;
 }
 
-function normalize(query: IProblemQuery): Required<IProblemQuery> {
-    return {
+function normalize(query: IProblemQuery): NormalizedQuery {
+    const options: NormalizedQuery = {
         skip: Math.max(0, query.skip || 0), limit: Math.min(100, Math.max(1, query.limit || 50)),
         search: (query.search || "").trim(), difficulty: query.difficulty || "",
         tag: query.tag || "", company: query.company || "", hideSolved: Boolean(query.hideSolved),
         sort: query.sort || SortingStrategy.None,
     };
+    // Set only to filter, so pages cached before filters existed keep their keys.
+    if (query.difficulties?.length) { options.difficulties = [...query.difficulties].sort(); }
+    if (query.statuses?.length) { options.statuses = [...query.statuses].sort(); }
+    if (query.premium) { options.premium = query.premium; }
+    return options;
 }
 
 /**
@@ -77,10 +90,19 @@ export async function getProblemPage(query: IProblemQuery = {}, force: boolean =
     const key = `${ctx.scope}page:${JSON.stringify(options)}`;
     return problemCache.get(key, async () => {
         const filters: Record<string, unknown> = { filterCombineType: "ALL" };
-        if (options.difficulty) { filters.difficultyFilter = { difficulties: [options.difficulty.toUpperCase()], operator: "IS" }; }
+        const difficulties: string[] | undefined = options.difficulty ? [options.difficulty] : options.difficulties;
+        if (difficulties) { filters.difficultyFilter = { difficulties: difficulties.map((value) => value.toUpperCase()), operator: "IS" }; }
         if (options.tag) { filters.topicFilter = { topicSlugs: [options.tag], operator: "IS" }; }
         if (options.company) { filters.companyFilter = { companySlugs: [options.company], operator: "IS" }; }
-        if (options.hideSolved) { filters.statusFilter = { questionStatuses: ["SOLVED"], operator: "IS_NOT" }; }
+        const statuses: string[] | undefined = options.hideSolved ? options.statuses?.filter((status) => status !== "SOLVED") : options.statuses;
+        if (statuses?.length === 0) {
+            // Only solved problems were asked for, and they are hidden.
+            return { problems: [], total: 0, next: options.skip, hasMore: false };
+        }
+        if (statuses) { filters.statusFilter = { questionStatuses: statuses, operator: "IS" }; }
+        else if (options.hideSolved) { filters.statusFilter = { questionStatuses: ["SOLVED"], operator: "IS_NOT" }; }
+        // Premium problems are those that are not NOT_PREMIUM, so one value, checked on leetcode.cn, serves both.
+        if (options.premium) { filters.premiumFilter = { premiumStatus: ["NOT_PREMIUM"], operator: options.premium === "free" ? "IS" : "IS_NOT" }; }
         const sortBy = options.sort === SortingStrategy.AcceptanceRateAsc || options.sort === SortingStrategy.AcceptanceRateDesc
             ? { sortField: "AC_RATE", sortOrder: options.sort === SortingStrategy.AcceptanceRateAsc ? "ASCENDING" : "DESCENDING" }
             : { sortField: "CUSTOM", sortOrder: "ASCENDING" };
@@ -193,10 +215,11 @@ export async function getProblemById(id: string): Promise<IProblem | undefined> 
     return scope === getProblemCacheScope() ? page.problems.find((problem) => problem.id === id) : undefined;
 }
 
-export async function getRandomProblem(): Promise<IProblem | undefined> {
-    const first = await getProblemPage({ limit: 1 }, false, false);
+/** A random problem among those the filters in `query` allow. */
+export async function getRandomProblem(query: IProblemQuery = {}): Promise<IProblem | undefined> {
+    const first = await getProblemPage({ ...query, limit: 1 }, false, false);
     if (!first.total) { return undefined; }
-    const page = await getProblemPage({ limit: 1, skip: Math.floor(Math.random() * first.total) }, false, false);
+    const page = await getProblemPage({ ...query, limit: 1, skip: Math.floor(Math.random() * first.total) }, false, false);
     return page.problems[0];
 }
 
@@ -211,6 +234,15 @@ export async function getDailyProblem(force: boolean = false): Promise<IProblem 
     const ctx = context();
     const daily = await problemCache.get<IProblem | null>(`${ctx.scope}daily`, async () => await fetchDailyChallenge(ctx.request) || null, force);
     return daily || undefined;
+}
+
+/** Today's problem and whether the account solved it today, asked of LeetCode each time; the cached daily problem follows it. */
+export async function getDailyChallenge(): Promise<IDailyChallenge | undefined> {
+    const ctx = context();
+    const challenge = await fetchDailyChallengeStatus(ctx.request);
+    if (ctx.scope !== getProblemCacheScope()) { return undefined; }
+    await problemCache.get<IProblem | null>(`${ctx.scope}daily`, async () => challenge?.problem ?? null, true);
+    return challenge;
 }
 
 export function invalidateProblemCache(): void { problemCache.reset(); }

@@ -13,10 +13,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - A failed submission offers **Add to test cases**, which appends its failing input to the test case editor.
 - Submission history shows a submission's code in a read-only editor in the submission's language. A row's buttons compare it with your solution file or open it on LeetCode, and **Compare with Your Solution** in the code's title bar does the same.
 - The first choice of where to save problem files also lists the open workspace folders, and says which setting keeps the choice.
+- **Filter Problems...** narrows every category of the problem list to any mix of difficulties, statuses (To Do, Attempted, Solved) and free or premium problems. The filter is shown beside the view title, kept across restarts, and used by **Pick One**; **Clear Filter** removes it.
+- **Go to Problem...** lists the problems that match what you type, like Go to File. Enter shows the description and a row's button starts coding, without changing the problem list.
+- **Open Description in Editor** shows the description in an editor tab beside the code, with Find. Later descriptions show there until the tab is closed, and the tab is restored after a restart.
+- The Solution tab has a language menu. It starts with the language of the problem file, or `leetcode.defaultLanguage`, and shows the top solution tagged with that language when there is one; its code tab in that language starts open.
+- The status bar shows today's daily challenge, with a check once you solve it today. Clicking it, or **Open Daily Challenge**, shows the problem. It updates when you sign in, when you solve it, and when the next challenge starts.
+- The README describes how to put Problem Details in the Secondary Side Bar.
 
 ### Changed
 - The test case picker lists your test cases first, so Enter tests them again. Testing with the examples, a file or a failing input no longer replaces them.
 - Choosing a submission in its history shows its code instead of opening LeetCode in the browser.
+- In a wrong answer, spaces, tabs and line breaks inside the highlighted difference are drawn as `·`, `→` and `↵`, and a bar marks where one side lacks what the other has, so a difference of whitespace alone or of a missing character can be seen.
 
 ### Fixed
 - **Code Now** no longer has to ask every time whether to open a folder of problem files that is not in the workspace: **Just open the problem file, and don't ask again** turns the question off (`leetcode.hint.openWorkspaceFolder`).

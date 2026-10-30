@@ -14,6 +14,7 @@ import type { IQuestionDetail } from "../api/question";
 import { getLeetCodeRequest } from "../api/request";
 import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
+import { IProblemFilter, isFiltering, problemFilterStore } from "../explorer/problemFilter";
 import { leetCodeChannel } from "../leetCodeChannel";
 import { leetCodeManager } from "../leetCodeManager";
 import { currentSite, IProblem, languages } from "../shared";
@@ -31,7 +32,7 @@ import {
 } from "../utils/uiUtils";
 import { IWorkspaceFolderChoice, selectWorkspaceFolder } from "../utils/workspaceUtils";
 import { leetCodePreviewProvider } from "../webview/leetCodePreviewProvider";
-import { getProblemById, getProblemBySlug, getProblemCacheScope, getRandomProblem } from "../api/problems";
+import { getDailyProblem, getProblemById, getProblemBySlug, getProblemCacheScope, getRandomProblem } from "../api/problems";
 
 async function findProblemById(id: string): Promise<IProblem | undefined> {
     const cached: IProblem | undefined = explorerNodeManager.getNodeById(id);
@@ -41,13 +42,31 @@ async function findProblemById(id: string): Promise<IProblem | undefined> {
     return getProblemById(id);
 }
 
-/** Show the description in the sidebar, for a list item or a problem file (the active editor by default). */
+/** Show the description in the sidebar, or in its editor tab while one is open, for a list item or a problem file (the active editor by default). */
 export async function previewProblem(input?: IProblem | vscode.Uri): Promise<void> {
-    let node: IProblem;
+    const node: IProblem | undefined = await resolveProblem(input ?? vscode.window.activeTextEditor?.document.uri);
+    if (node) {
+        await leetCodePreviewProvider.show(node, { reveal: true, tab: "description" });
+    }
+}
 
-    input ??= vscode.window.activeTextEditor?.document.uri;
+/** Open the description in an editor tab beside the code, where later descriptions show until the tab is closed. */
+export async function previewProblemInEditor(input?: IProblem | vscode.Uri): Promise<void> {
+    const active: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document;
+    // Without a problem given, as from the title of Problem Details, the tab takes over the problem shown there.
+    const node: IProblem | undefined = input ? await resolveProblem(input)
+        : leetCodePreviewProvider.currentProblem ?? (active && isProblemDocument(active) ? await resolveProblem(active.uri) : undefined);
+    if (node) {
+        await leetCodePreviewProvider.show(node, { reveal: true, tab: "description", inEditor: true });
+    } else if (!input) {
+        leetCodePreviewProvider.openEditor();
+    }
+}
+
+async function resolveProblem(input: IProblem | vscode.Uri | undefined): Promise<IProblem | undefined> {
+    let node: IProblem;
     if (!input) {
-        return;
+        return undefined;
     }
 
     if (input instanceof vscode.Uri) {
@@ -56,19 +75,18 @@ export async function previewProblem(input?: IProblem | vscode.Uri): Promise<voi
         const id = getNodeIdFromText(document.getText()) || path.basename(input.path).split(".")[0];
         if (!id) {
             vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem id from file: {0}.", activeFilePath));
-            return;
+            return undefined;
         }
         const cachedNode: IProblem | undefined = await findProblemById(id);
         if (!cachedNode) {
             vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem with id: {0}.", id));
-            return;
+            return undefined;
         }
         node = cachedNode;
     } else {
         node = input;
     }
-
-    await leetCodePreviewProvider.show(node, { reveal: true, tab: "description" });
+    return node;
 }
 
 /** Keep the sidebar description on the problem file being edited, without revealing the sidebar. */
@@ -96,11 +114,33 @@ export async function followActiveEditor(editor: vscode.TextEditor | undefined):
     }
 }
 
+/** Show today's problem, as the daily challenge in the status bar does when clicked. */
+export async function openDailyChallenge(): Promise<void> {
+    if (!leetCodeManager.getUser()) { await promptForSignIn(); return; }
+    try {
+        const daily: IProblem | undefined = await getDailyProblem();
+        if (!daily) {
+            vscode.window.showInformationMessage(vscode.l10n.t("LeetCode has no daily challenge today."));
+            return;
+        }
+        // The daily question leaves out some details, such as companies and favorites.
+        await previewProblem(await getProblemBySlug(daily.slug) ?? daily);
+    } catch (error) {
+        await promptForOpenOutputChannel(vscode.l10n.t("Failed to load the daily challenge. Please open the output channel for details."), DialogType.error, error);
+    }
+}
+
+/** A random problem among those the problem list's filter allows. */
 export async function pickOne(): Promise<void> {
     if (!leetCodeManager.getUser()) { await promptForSignIn(); return; }
     try {
-        const randomProblem = await getRandomProblem();
-        if (randomProblem) { await showProblemInternal(randomProblem); }
+        const filter: IProblemFilter = problemFilterStore.get();
+        const randomProblem = await getRandomProblem(filter);
+        if (randomProblem) {
+            await showProblemInternal(randomProblem);
+        } else if (isFiltering(filter)) {
+            vscode.window.showInformationMessage(vscode.l10n.t("No problems match the filter of the problem list."));
+        }
     } catch (error) {
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to list problems. Please open the output channel for details."), DialogType.error, error);
     }

@@ -21,6 +21,7 @@ const dependencies: Record<string, unknown> = {
     "../shared": { ProblemState: { AC: 1, NotAC: 2, Unknown: 3 }, UserStatus: {} },
     "./explorerNodeManager": { explorerNodeManager: { getSearch: () => undefined } },
     "./LeetCodeNode": { LeetCodeNode: class { } },
+    "./problemFilter": { describeFilter: () => undefined, problemFilterStore: { get: () => ({ difficulties: [], statuses: [] }) } },
     "./problemSearch": { highlightRanges: () => [] },
 };
 const moduleLoader: any = Module;

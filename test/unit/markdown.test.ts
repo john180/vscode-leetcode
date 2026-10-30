@@ -141,3 +141,14 @@ test("LeetCode code groups become tabs that open on the default language", () =>
     assert.match(markdownEngine.renderSolution(source), /<details open><summary>Python3<\/summary>/);
     assert.doesNotMatch(markdownEngine.renderSolution("```Python [sol1-Python3]\nx = 1\n```"), /code-group/, "a single fence is not a group");
 });
+
+test("the language a solution is shown in picks its open code tab over the default language", () => {
+    const source: string = "```Python [sol1-Python3]\nx = 1\n```\n```C++ [sol1-C++]\nint x = 1;\n```";
+    defaultLanguage = "python3";
+    try {
+        assert.match(markdownEngine.renderSolution(source, { lang: "cpp" }), /<details open><summary>C\+\+<\/summary>/);
+        assert.match(markdownEngine.renderSolution(source, { lang: "" }), /<details open><summary>Python3<\/summary>/, "any language keeps the default");
+    } finally {
+        defaultLanguage = undefined;
+    }
+});

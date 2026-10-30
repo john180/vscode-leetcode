@@ -18,18 +18,29 @@ interface IDailyQuestion {
     topicTags?: Array<{ name?: string; slug?: string }>;
 }
 
+interface IDailyRecord {
+    /** Whether the account solved the problem today: NotStart or Finish on leetcode.com, NOT_START or FINISH on leetcode.cn. */
+    userStatus?: string | null;
+    question?: IDailyQuestion;
+}
+
 interface IGlobalDailyData {
-    activeDailyCodingChallengeQuestion?: {
-        question?: IDailyQuestion;
-    };
+    activeDailyCodingChallengeQuestion?: IDailyRecord;
 }
 
 interface ICnDailyData {
-    todayRecord?: Array<{ question?: IDailyQuestion }>;
+    todayRecord?: IDailyRecord[];
+}
+
+export interface IDailyChallenge {
+    problem: IProblem;
+    /** Solved today. The problem's state only says whether it was ever solved, which an old problem often was. */
+    completed: boolean;
 }
 
 const GLOBAL_DAILY_QUERY: string = `query questionOfToday {
     activeDailyCodingChallengeQuestion {
+        userStatus
         question {
             questionId
             questionFrontendId
@@ -46,6 +57,7 @@ const GLOBAL_DAILY_QUERY: string = `query questionOfToday {
 
 const CN_DAILY_QUERY: string = `query questionOfToday {
     todayRecord {
+        userStatus
         question {
             questionId
             questionFrontendId
@@ -99,9 +111,26 @@ function mapDailyQuestion(question: IDailyQuestion | undefined): IProblem | unde
     } as IProblem;
 }
 
+function isFinished(record: IDailyRecord | undefined): boolean {
+    return typeof record?.userStatus === "string" && record.userStatus.replace(/_/g, "").toUpperCase() === "FINISH";
+}
+
+/** Reads the `data` of either site's daily question query, with whether it was solved today. */
+export function parseDailyChallenge(data: unknown, cn: boolean): IDailyChallenge | undefined {
+    const record: IDailyRecord | undefined = cn
+        ? (data as ICnDailyData | undefined)?.todayRecord?.[0]
+        : (data as IGlobalDailyData | undefined)?.activeDailyCodingChallengeQuestion;
+    const problem: IProblem | undefined = cn ? parseCnDailyChallenge(data) : parseGlobalDailyChallenge(data);
+    return problem && { problem, completed: isFinished(record) };
+}
+
+/** Uncached, as whether it was solved today changes. */
+export async function fetchDailyChallengeStatus(request: IGraphQLRequest): Promise<IDailyChallenge | undefined> {
+    const cn: boolean = isCnSite(request);
+    return parseDailyChallenge(await graphql<ICnDailyData | IGlobalDailyData>(request, cn ? CN_DAILY_QUERY : GLOBAL_DAILY_QUERY), cn);
+}
+
 /** Uncached; the problem cache keeps the result. */
 export async function fetchDailyChallenge(request: IGraphQLRequest): Promise<IProblem | undefined> {
-    return isCnSite(request)
-        ? parseCnDailyChallenge(await graphql<ICnDailyData>(request, CN_DAILY_QUERY))
-        : parseGlobalDailyChallenge(await graphql<IGlobalDailyData>(request, GLOBAL_DAILY_QUERY));
+    return (await fetchDailyChallengeStatus(request))?.problem;
 }

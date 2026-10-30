@@ -4,7 +4,7 @@ import { beforeEach, test } from "node:test";
 import Module = require("node:module");
 import { getSite } from "../../src/site";
 
-interface IFetch { slug: string; resolve: (detail: unknown) => void; reject: (error: Error) => void; }
+interface IFetch { slug: string; language?: string; resolve: (detail: unknown) => void; reject: (error: Error) => void; }
 
 const disposable = { dispose: () => undefined };
 const executed: unknown[][] = [];
@@ -19,6 +19,8 @@ let user: string | undefined = "user";
 let currentProblemId: string | undefined;
 let scope = "scope";
 let useRealProvider = false;
+let defaultLanguage: string | undefined;
+const panels: any[] = [];
 const vscodeWindow: { activeTextEditor: unknown } = { activeTextEditor: undefined };
 
 class FakeNode {
@@ -33,8 +35,19 @@ const providerDependencies: Record<string, unknown> = {
         commands: { executeCommand: async (...args: unknown[]) => { executed.push(args); } },
         env: { clipboard: { writeText: async (text: string) => { executed.push(["copy", text]); } } },
         l10n: { t: (text: string, ...args: unknown[]) => text.replace(/\{(\d+)\}/g, (_: string, index: string) => String(args[+index])) },
-        window: { setStatusBarMessage: () => disposable },
-        workspace: { onDidChangeConfiguration: () => disposable },
+        window: {
+            setStatusBarMessage: () => disposable,
+            createWebviewPanel: (viewType: string, title: string, showOptions: unknown, options: unknown) => {
+                const panel = createPanel(viewType, title, showOptions, options);
+                panels.push(panel);
+                return panel;
+            },
+        },
+        workspace: {
+            onDidChangeConfiguration: () => disposable,
+            getConfiguration: () => ({ get: (key: string) => key === "defaultLanguage" ? defaultLanguage : undefined }),
+        },
+        ViewColumn: { Beside: -2 },
     },
     "../api/problems": {
         getProblemCacheScope: () => scope,
@@ -47,7 +60,7 @@ const providerDependencies: Record<string, unknown> = {
     },
     "../commands/search": { searchFor: async (text: string) => { executed.push(["search", text]); } },
     "../api/solution": {
-        fetchTopSolution: (_request: unknown, slug: string) => new Promise((resolve, reject) => solutionFetches.push({ slug, resolve, reject })),
+        fetchTopSolution: (_request: unknown, slug: string, language?: string) => new Promise((resolve, reject) => solutionFetches.push({ slug, language, resolve, reject })),
     },
     "../api/request": { getLeetCodeRequest: () => ({}) },
     "../explorer/explorerNodeManager": { explorerNodeManager: { getNodeById: () => undefined } },
@@ -56,9 +69,14 @@ const providerDependencies: Record<string, unknown> = {
     "../leetCodeChannel": { leetCodeChannel: { info: () => undefined, warn: () => undefined, error: () => undefined } },
     "../shared": {
         currentSite: () => getSite("leetcode-cn"),
+        languages: ["cpp", "java", "python3"],
         ProblemState: { AC: 1, NotAC: 2 },
     },
-    "../utils/problemDocumentContext": { getProblemFile: (id: string) => problemFiles.get(id), problemFileEvents },
+    "../utils/problemDocumentContext": {
+        getProblemFile: (id: string) => problemFiles.get(id),
+        getProblemLanguage: (id: string) => problemFiles.has(id) ? "python3" : undefined,
+        problemFileEvents,
+    },
     "../utils/settingUtils": { shouldUseEndpointTranslation: () => true },
     "../utils/uiUtils": {
         openSettingsEditor: async () => undefined,
@@ -82,6 +100,8 @@ const showDependencies: Record<string, unknown> = {
     },
     "../webview/leetCodePreviewProvider": { leetCodePreviewProvider: {
         get currentProblemId(): string | undefined { return useRealProvider ? leetCodePreviewProvider.currentProblemId : currentProblemId; },
+        get currentProblem(): unknown { return useRealProvider ? leetCodePreviewProvider.currentProblem : undefined; },
+        openEditor: () => { shown.push(["editor", {}]); },
         show: async (problem: { id: string }, options?: unknown) => {
             shown.push([problem.id, options ?? {}]);
             if (useRealProvider) { await leetCodePreviewProvider.show(problem, options); }
@@ -100,7 +120,7 @@ moduleLoader._load = function (request: string, parent: { filename?: string }, i
     return originalLoad.call(this, request, parent, isMain);
 };
 const { leetCodePreviewProvider } = require("../../src/webview/leetCodePreviewProvider");
-const { followActiveEditor, previewProblem, showSolution } = require("../../src/commands/show");
+const { followActiveEditor, previewProblem, previewProblemInEditor, showSolution } = require("../../src/commands/show");
 moduleLoader._load = originalLoad;
 
 function problem(id: string, slug: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
@@ -137,6 +157,27 @@ function createView(): { view: any; post: (message: unknown) => Promise<void>; d
     return { view, post: (message: unknown) => receive(message), dispose: () => dispose() };
 }
 
+/** An editor tab as createWebviewPanel returns it; `post` sends a message from its page. */
+function createPanel(viewType: string, title: string, showOptions: unknown, options: unknown): any {
+    let receive: (message: unknown) => Promise<void> = async () => undefined;
+    let dispose: () => void = () => undefined;
+    const panel: any = {
+        viewType, title, showOptions, options, visible: true, disposed: false,
+        revealed: [] as unknown[],
+        posted: [] as Array<{ type: string; version: number; page: string; html: string }>,
+        webview: {
+            cspSource: "vscode-resource:", options: {}, html: "",
+            onDidReceiveMessage: (listener: (message: unknown) => Promise<void>) => { receive = listener; return disposable; },
+            postMessage: async (message: any) => { panel.posted.push(message); return true; },
+        },
+        onDidDispose: (listener: () => void) => { dispose = listener; return disposable; },
+        reveal: (column: unknown, preserveFocus: boolean) => { panel.visible = true; panel.revealed.push([column, preserveFocus]); },
+        dispose: () => { panel.disposed = true; dispose(); },
+        post: (message: unknown) => receive(message),
+    };
+    return panel;
+}
+
 function editor(text: string, isProblem: boolean = true): { document: { problem: boolean; getText: () => string } } {
     return { document: { problem: isProblem, getText: () => text } };
 }
@@ -145,7 +186,9 @@ beforeEach(() => {
     executed.length = 0; fetches.length = 0; solutionFetches.length = 0; shown.length = 0; lookups.length = 0;
     problemFiles.clear();
     premium = false; user = "user"; currentProblemId = undefined; vscodeWindow.activeTextEditor = undefined;
-    scope = "scope"; useRealProvider = false;
+    scope = "scope"; useRealProvider = false; defaultLanguage = undefined;
+    // An editor tab left open would take the reveals of later tests.
+    panels.splice(0).forEach((panel) => panel.dispose());
 });
 
 test("a problem shown before the view opens is revealed and rendered once the view resolves", async () => {
@@ -473,4 +516,122 @@ test("editor follow drops a lookup that finishes after the session changes", asy
     lookups[0].resolve(problem("42", "trapping-rain-water"));
     await follow;
     assert.deepEqual(shown, []);
+});
+
+test("a solution starts in the language of the problem file, and the menu loads each other language once", async () => {
+    const { view, post } = createView();
+    problemFiles.set("51", "file:///51.fifty-one.py");
+    const opening = leetCodePreviewProvider.show(problem("51", "fifty-one"), { detail: detail("fifty-one", "<p>51</p>"), tab: "solution" });
+    assert.equal(solutionFetches[0].language, "python3");
+    assert.match(content(view), /<select data-command="language">.*<option value="python3" selected>Python3<\/option>/s);
+    solutionFetches[0].resolve({ title: "", content: "In Python.", language: "python3" });
+    await opening;
+    assert.match(content(view), /In Python\./);
+    assert.doesNotMatch(content(view), /No solution is tagged/);
+
+    const java = post({ command: "language", arg: "java" });
+    assert.equal(solutionFetches[1].language, "java");
+    assert.match(content(view), /<option value="java" selected>Java<\/option>.*Loading the solution\.\.\./s);
+    solutionFetches[1].resolve({ title: "", content: "In any language." });
+    await java;
+    assert.match(content(view), /No solution is tagged with Java, so this is the top solution in any language\./);
+    assert.match(view.posted.at(-1).page, /^fifty-one#solution:java$/, "each language keeps its own scroll position");
+
+    await post({ command: "language", arg: "python3" });
+    assert.match(content(view), /In Python\./);
+    await post({ command: "language", arg: "cobol" });
+    assert.equal(solutionFetches.length, 2, "a loaded language is not fetched again, and an unknown one is ignored");
+
+    const any = post({ command: "language", arg: "" });
+    assert.equal(solutionFetches[2].language, undefined, "any language asks without a tag");
+    assert.match(content(view), /<option value="" selected>Any language<\/option>/);
+    solutionFetches[2].resolve({ title: "", content: "Top." });
+    await any;
+    assert.doesNotMatch(content(view), /No solution is tagged/);
+});
+
+test("without a problem file, a solution starts in the default language, if it is one LeetCode has", async () => {
+    createView();
+    defaultLanguage = "cpp";
+    void leetCodePreviewProvider.show(problem("52", "fifty-two"), { detail: detail("fifty-two", "<p>52</p>"), tab: "solution" });
+    assert.equal(solutionFetches[0].language, "cpp");
+    defaultLanguage = "klingon";
+    void leetCodePreviewProvider.show(problem("53", "fifty-three"), { detail: detail("fifty-three", "<p>53</p>"), tab: "solution" });
+    assert.equal(solutionFetches[1].language, undefined);
+});
+
+test("showing the same problem again while its solution loads still shows the solution", async () => {
+    const { view } = createView();
+    void leetCodePreviewProvider.show(problem("54", "fifty-four"), { detail: detail("fifty-four", "<p>54</p>"), tab: "solution" });
+    const again = leetCodePreviewProvider.show(problem("54", "fifty-four"));
+    assert.equal(solutionFetches.length, 1);
+    solutionFetches[0].resolve({ title: "", content: "Shared." });
+    await again;
+    assert.match(content(view), /Shared\./);
+});
+
+test("an editor tab shows the same problem as the sidebar and takes its reveals until it is closed", async () => {
+    const { view } = createView();
+    await leetCodePreviewProvider.show(problem("61", "sixty-one"), { detail: detail("sixty-one", "<p>61</p>"), reveal: true, inEditor: true });
+    assert.equal(panels.length, 1);
+    const [panel] = panels;
+    assert.equal(panel.viewType, "leetCodeDescription");
+    assert.deepEqual(panel.showOptions, { viewColumn: -2, preserveFocus: true });
+    assert.deepEqual(panel.options, { enableFindWidget: true });
+    assert.equal(panel.webview.options.enableScripts, true);
+    assert.equal(panel.title, "61. sixty-one");
+    assert.match(content(panel), /<p>61<\/p>/);
+    assert.match(content(view), /<p>61<\/p>/);
+    assert.match(panel.webview.html, /--surface: var\(--vscode-editor-background\)/, "the sticky tabs match the editor");
+    assert.match(view.webview.html, /--surface: var\(--vscode-sideBar-background\)/);
+    assert.deepEqual(executed, [], "the sidebar is not revealed");
+
+    panel.visible = false;
+    await leetCodePreviewProvider.show(problem("62", "sixty-two"), { detail: detail("sixty-two", "<p>62</p>"), reveal: true, inEditor: true });
+    assert.equal(panels.length, 1, "one tab at a time");
+    assert.deepEqual(panel.revealed, [[-2, true]], "a hidden tab comes up beside the editor in use");
+    assert.match(content(panel), /<p>62<\/p>/);
+
+    await panel.post({ command: "submissions" });
+    assert.equal(executed.length, 1, "the tab's page runs commands like the sidebar's");
+
+    panel.dispose();
+    const posts: number = panel.posted.length;
+    await leetCodePreviewProvider.show(problem("63", "sixty-three"), { detail: detail("sixty-three", "<p>63</p>"), reveal: true });
+    assert.equal(panel.posted.length, posts, "a closed tab gets nothing more");
+    assert.equal(panels.length, 1, "a reveal opens no tab once it is closed");
+    assert.match(content(view), /<p>63<\/p>/);
+});
+
+test("a tab VS Code restores shows the current problem, and a second one is closed", async () => {
+    const restored = createPanel("leetCodeDescription", "Old title", undefined, undefined);
+    leetCodePreviewProvider.clear();
+    leetCodePreviewProvider.restoreEditor(restored);
+    assert.equal(restored.title, "Problem Description");
+    assert.match(restored.webview.html, /Select a problem in the problem list, or open a problem file to see its description\./);
+    await leetCodePreviewProvider.show(problem("64", "sixty-four"), { detail: detail("sixty-four", "<p>64</p>") });
+    assert.match(content(restored), /<p>64<\/p>/);
+
+    const second = createPanel("leetCodeDescription", "Another", undefined, undefined);
+    leetCodePreviewProvider.restoreEditor(second);
+    assert.equal(second.disposed, true);
+    restored.dispose();
+});
+
+test("Open Description in Editor shows the given problem, else the one in the sidebar, else an empty tab", async () => {
+    await previewProblemInEditor(new FakeNode({ id: "65", slug: "sixty-five" }));
+    assert.deepEqual(shown, [["65", { reveal: true, tab: "description", inEditor: true }]]);
+
+    shown.length = 0;
+    useRealProvider = true;
+    createView();
+    await leetCodePreviewProvider.show(problem("66", "sixty-six"), { detail: detail("sixty-six", "<p>66</p>") });
+    await previewProblemInEditor();
+    assert.deepEqual(shown, [["66", { reveal: true, tab: "description", inEditor: true }]]);
+    assert.equal(panels.length, 1);
+
+    shown.length = 0;
+    leetCodePreviewProvider.clear();
+    await previewProblemInEditor();
+    assert.deepEqual(shown, [["editor", {}]]);
 });

@@ -30,7 +30,8 @@ Extension ID: `john180.vscode-leetcode`. Disable the previous community and offi
 - Read the description and top solution in Problem Details in the sidebar, with test and submission results in the bottom panel, so the editor holds only code.
 - Run sample or custom tests and submit code.
 - Keep multiple accounts as local sessions and switch between them.
-- Search, sort, hide solved problems, and favorite/unfavorite problems.
+- Search, go to a problem, filter by any mix of difficulty, status and free or premium, sort, hide solved problems, and favorite/unfavorite problems.
+- See today's daily challenge in the status bar, and whether you solved it today.
 
 ## Sign in
 
@@ -47,13 +48,22 @@ Accounts and cookies are stored separately for each site. Switching sites, inclu
 1. After signing in, pick a problem in the LeetCode view, or run **Search Problem** / **Pick One**.
    Categories load when expanded, with 50 problems per page and a **Load more** action; favorites and Hot 100 load 20 at a time.
    Click the search icon in the view title and type an ID, title or slug: the list keeps only matching problems, highlights the keyword and selects the best match without opening it. Enter moves to the next match, Escape closes the box but keeps the results, and ✕ restores the full list. `tag:array` or `company:google` search within that category only.
+   To open a problem directly, use **Go to Problem** (in the view title's `...` menu or the Command Palette): like `Ctrl+P`, it lists the matching problems as you type, with an exact ID first. Enter shows the description, the code icon of a row starts coding, and the problem list stays as it is.
+   The filter icon in the view title narrows every category to any mix of difficulties, statuses (To Do, Attempted, Solved) and free or premium problems. The filter is shown beside the view title and kept across restarts, and **Pick One** picks among the filtered problems too; the clear icon removes it.
    Visited problems are cached locally across restarts, separately for each site, login session and language, and stale entries update in the background. Refresh reloads expanded categories; **Delete Cache** also clears the persistent problem cache. Testing, submitting and viewing history do not require the full question bank.
    Clicking a problem shows its description in **Problem Details** below the list; **Code Now** (or the code icon beside the problem) creates and opens the solution file in the editor. Switching to a problem file shows that problem in Problem Details, and the book icon in the editor title bar brings the description back into view.
+   **Open Description in Editor** in the Problem Details title bar opens the description in an editor tab beside the code, where `Ctrl+F` finds text. Later descriptions show in that tab until you close it, and then in the sidebar again. The tab comes back when VS Code restarts.
    The first time you code, choose where problem files are saved: the default location, an open workspace folder, or a folder you pick. The choice is kept in `leetcode.workspaceFolder`. When that folder is not in the workspace, you are asked whether to open it, and **Just open the problem file, and don't ask again** stops asking; when you open the folder, the problem file is created first.
 2. Edit the generated file and use the CodeLens **Test** or **Submit** action; results appear in the **LeetCode Results** panel below the code.
    Press `Ctrl+'` (**Quick Test**) in the file to test without choosing test cases: it uses your test cases, or the problem's examples until you write some.
+   When the output differs from the expected answer, the parts that differ are highlighted. Spaces, tabs and line breaks in them show as `·`, `→` and `↵` (copying still gives the original text), and a bar marks the spot where one side has nothing the other has.
    Choosing **Edit test cases...** when testing opens the problem's test case editor beside the code: one argument per line, with each line labelled with its case and parameter. It is saved on this machine, not in the workspace; press `Ctrl+'` or the run button in its title bar to test with it. Clearing and saving it makes tests use the examples again. When a submission fails, **Add to test cases** in the results panel appends the failing input to the editor so that you can change it and test again.
 3. For the top solution, switch Problem Details to the **Solution** tab, or click the CodeLens **Solution**.
+   It shows a solution in the language of your problem file (or `leetcode.defaultLanguage` before you have one), and the menu at the top of the tab picks another language or any language. Without a solution in that language, the top solution in any language is shown, with a note saying so.
+
+## Recommended Layout
+
+Problem Details sits below the problem list in the left sidebar. On a wide screen, drag the title of the **Problem Details** view to the Secondary Side Bar on the right (**View: Toggle Secondary Side Bar Visibility**, `Ctrl+Alt+B` on Windows and Linux) to see the problem list, the code and the description at once; VS Code remembers where you put it. **Open Description in Editor** puts the description in an editor tab beside the code instead.
 
 ## Commands
 
@@ -62,8 +72,12 @@ Accounts and cookies are stored separately for each site. Switching sites, inclu
 | `LeetCode: Sign In` / `Sign Out` | Sign in or out |
 | `LeetCode: Switch Endpoint` | Switch between LeetCode and LeetCode China |
 | `LeetCode: Search Problem` / `Clear Search` | Filter and locate problems in the list / restore the full list |
+| `LeetCode: Go to Problem...` | Type an ID, title or slug to list the matching problems; Enter shows the description, and a row's button starts coding |
+| `LeetCode: Filter Problems...` / `Clear Filter` | Narrow the problem list by difficulty, status and free or premium / remove the filter |
 | `LeetCode: Show Problem` | Open a problem and generate the file |
 | `LeetCode: Show Description` | Show the active problem file's description in the sidebar |
+| `LeetCode: Open Description in Editor` | Show the description in an editor tab beside the code |
+| `LeetCode: Open Daily Challenge` | Show today's daily challenge, as clicking it in the status bar does |
 | `LeetCode: Test in LeetCode` | Choose what to test with: your test cases, the examples, the test case editor, or a file |
 | `LeetCode: Quick Test` | Test with your test cases, or the examples, without asking; `Ctrl+'` by default |
 | `LeetCode: Submit to LeetCode` | Submit the current file |
@@ -84,7 +98,7 @@ Accounts and cookies are stored separately for each site. Switching sites, inclu
 | `leetcode.followActiveEditor` | Show the active problem file in Problem Details | `true` |
 | `leetcode.hideSolved` | Hide solved problems | `false` |
 | `leetcode.useEndpointTranslation` | Use the endpoint's translated content | `true` |
-| `leetcode.enableStatusBar` | Show the LeetCode status bar item | `true` |
+| `leetcode.enableStatusBar` | Show the account and the daily challenge in the status bar; the status bar's context menu also hides the daily challenge alone | `true` |
 | `leetcode.editor.shortcuts` | CodeLens actions: `submit`, `test`, `star`, `solution`, `description` | `["submit", "test"]` |
 | `leetcode.colorizeProblems` | Colorize problems by difficulty | `true` |
 | `leetcode.problems.sortStrategy` | `None`, `Acceptance Rate (Ascending)`, `Acceptance Rate (Descending)` | `None` |

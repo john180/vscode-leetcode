@@ -5,6 +5,8 @@ import * as vscode from "vscode";
 import { codeLensController } from "./codelens/CodeLensController";
 import * as auth from "./commands/auth";
 import * as cache from "./commands/cache";
+import * as filter from "./commands/filter";
+import { goToProblem } from "./commands/goToProblem";
 import { switchDefaultLanguage } from "./commands/language";
 import * as plugin from "./commands/plugin";
 import * as search from "./commands/search";
@@ -18,6 +20,7 @@ import { explorerNodeManager } from "./explorer/explorerNodeManager";
 import { LeetCodeNode } from "./explorer/LeetCodeNode";
 import { leetCodeTreeDataProvider } from "./explorer/LeetCodeTreeDataProvider";
 import { leetCodeTreeItemDecorationProvider } from "./explorer/LeetCodeTreeItemDecorationProvider";
+import { problemFilterStore } from "./explorer/problemFilter";
 import { leetCodeChannel } from "./leetCodeChannel";
 import { leetCodeManager } from "./leetCodeManager";
 import { leetCodeStatusBarController } from "./statusbar/leetCodeStatusBarController";
@@ -25,7 +28,7 @@ import { setExtensionId, UserStatus } from "./shared";
 import { resolveEndpoint } from "./auth/endpointResolver";
 import { sessionEvents } from "./auth/session";
 import { DialogType, promptForOpenOutputChannel } from "./utils/uiUtils";
-import { leetCodePreviewProvider } from "./webview/leetCodePreviewProvider";
+import { DESCRIPTION_PANEL, leetCodePreviewProvider } from "./webview/leetCodePreviewProvider";
 import { leetCodeSubmissionProvider, RESULT_ACTION_COMMAND } from "./webview/leetCodeSubmissionProvider";
 import { compileDiagnostics } from "./utils/compileDiagnostics";
 import { markdownEngine } from "./webview/markdownEngine";
@@ -44,6 +47,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         setClientVersion(context.extension.packageJSON?.version);
         markdownEngine.initialize(context.extensionUri);
         testCaseStore.initialize(context.globalState);
+        problemFilterStore.initialize(context.globalState);
         registerTestCaseDocuments(context);
         registerSubmissionDocuments(context);
         registerProblemDocumentContext(context);
@@ -97,6 +101,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             // Not retained while hidden: the page asks for the latest content when it loads again.
             vscode.window.registerWebviewViewProvider("leetCodeDetail", leetCodePreviewProvider),
             vscode.window.registerWebviewViewProvider("leetCodeResult", leetCodeSubmissionProvider),
+            // VS Code restores the description's editor tab after a reload; it fills in with the next problem shown.
+            vscode.window.registerWebviewPanelSerializer(DESCRIPTION_PANEL, {
+                deserializeWebviewPanel: async (panel: vscode.WebviewPanel) => leetCodePreviewProvider.restoreEditor(panel),
+            }),
             vscode.window.onDidChangeActiveTextEditor((editor) => show.followActiveEditor(editor)),
             vscode.commands.registerCommand("leetcode.loadMoreProblems", (node: LeetCodeNode) => leetCodeTreeDataProvider.loadMore(node)),
             vscode.commands.registerCommand("leetcode.deleteCache", () => cache.deleteCache()),
@@ -105,10 +113,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.signout", () => auth.signOut()),
             vscode.commands.registerCommand("leetcode.manageSessions", () => session.manageSessions()),
             vscode.commands.registerCommand("leetcode.previewProblem", (input?: LeetCodeNode | vscode.Uri) => show.previewProblem(input)),
+            vscode.commands.registerCommand("leetcode.previewProblemInEditor", (input?: LeetCodeNode | vscode.Uri) => show.previewProblemInEditor(input)),
             vscode.commands.registerCommand("leetcode.showProblem", (node: LeetCodeNode) => show.showProblem(node)),
             vscode.commands.registerCommand("leetcode.pickOne", () => show.pickOne()),
+            vscode.commands.registerCommand("leetcode.openDailyChallenge", () => show.openDailyChallenge()),
             vscode.commands.registerCommand("leetcode.searchProblem", () => search.searchProblem()),
             vscode.commands.registerCommand("leetcode.clearSearch", () => search.clearSearch()),
+            vscode.commands.registerCommand("leetcode.goToProblem", () => goToProblem()),
+            vscode.commands.registerCommand("leetcode.filterProblems", () => filter.filterProblems()),
+            vscode.commands.registerCommand("leetcode.clearFilter", () => filter.clearFilter()),
             vscode.commands.registerCommand("leetcode.showSolution", (input: LeetCodeNode | vscode.Uri) => show.showSolution(input)),
             vscode.commands.registerCommand("leetcode.showSubmissions", (node: LeetCodeNode) => submissions.showSubmissionHistory(node)),
             vscode.commands.registerCommand("leetcode.compareSubmission", (uri?: vscode.Uri) => submissions.compareWithSolution(uri)),

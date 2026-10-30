@@ -30,7 +30,8 @@ code --install-extension ".\vscode-leetcode-$version.vsix" --force
 - 侧边栏题目详情中查看题目描述与高赞题解，测试和提交结果显示在底部面板，编辑区只放代码。
 - 运行样例或自定义测试并提交代码。
 - 本地多账号会话，可创建、切换、删除。
-- 搜索、排序、隐藏已做题目、收藏/取消收藏。
+- 搜索、转到题目、按难度/状态/免费或会员组合筛选、排序、隐藏已做题目、收藏/取消收藏。
+- 状态栏显示今天的每日一题，以及今天是否已完成。
 
 ## 登录
 
@@ -47,13 +48,22 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 1. 登录后，在 LeetCode 视图中选择题目，或执行 **Search Problem** / **Pick One**。
    题库按展开的分类加载，每页 50 道，点击“加载更多”继续；收藏和热题每页加载 20 道。
    点击标题栏的搜索图标输入题号、标题或 slug，题目列表会只保留匹配的题目并高亮关键字，自动定位到最匹配的一题（只选中，不打开）；按 Enter 跳到下一个，Esc 关闭输入框但保留结果，点击 ✕ 恢复完整列表。`tag:array` 或 `company:google` 只在对应分类中搜索。
+   想直接打开某道题时用 **Go to Problem**（标题栏 `...` 菜单或命令面板）：像 `Ctrl+P` 一样边输入边列出匹配的题目，题号完全一致的排在最前；Enter 查看描述，行内的代码图标开始写代码，题目列表不受影响。
+   点击标题栏的筛选图标，可按难度、状态（未开始、尝试过、已解答）和免费/会员组合筛选，所有分类都只显示符合条件的题目。筛选条件显示在列表标题旁，重启后保留，**Pick One** 也只在筛选结果中随机；点击清除图标恢复。
    浏览过的题目会保存在本地缓存中，重启后可复用；缓存按站点、登录会话和语言隔离，过期后后台更新。刷新按钮重新加载当前展开的分类，**Delete Cache** 会清除持久化题库缓存。测试、提交和查看历史无需加载完整题库。
    单击题目后，描述显示在侧边栏下方的 **题目详情** 中；点击 **开始写代码**（或题目右侧的代码图标）在编辑区生成并打开代码文件。切换到题目代码文件时，题目详情会自动显示该题；也可点击编辑器标题栏的书本图标回到描述。
+   点击题目详情标题栏的 **Open Description in Editor**，描述会在代码旁的编辑器标签页中打开，可用 `Ctrl+F` 查找；之后查看的题目都显示在这个标签页中，关闭后回到侧边栏。重启 VS Code 后该标签页会恢复。
    第一次写代码时选择题目文件的保存位置（默认位置、当前打开的工作区文件夹或自选目录），之后记在 `leetcode.workspaceFolder` 中。该目录不在当前工作区时会询问是否打开它，可选择 **仅打开题目文件，不再询问**；选择打开文件夹时，题目文件会先生成好。
 2. 编辑生成的代码文件，用 CodeLens 的 **Test** 运行样例，或 **Submit** 提交；结果显示在代码下方的 **LeetCode 结果** 面板。
    在代码文件中按 `Ctrl+'`（**Quick Test**）直接测试，不再选择用例：使用你编写的测试用例，尚未编写时使用题目示例。
+   输出与预期不同时，两边不同的部分会高亮；其中的空格、制表符和换行显示为 `·`、`→`、`↵`（复制时仍是原文），一侧没有对应内容时用一条竖线标出位置。
    测试时选择 **编辑测试用例...**，会在代码旁打开该题的测试用例编辑器：每行一个参数，行首标出所属用例和参数名，保存后留在本机（不写入工作区）；在其中按 `Ctrl+'` 或点击标题栏的运行按钮即可测试。清空并保存后改回用题目示例测试。提交未通过时，结果面板的 **加入测试用例** 会把失败的输入追加到编辑器中，方便修改后再测。
 3. 需要题解时切换到题目详情的 **题解** 标签，或点击 CodeLens 的 **Solution**。
+   默认显示与题目代码文件相同语言的题解（还没有代码文件时用 `leetcode.defaultLanguage`），可在标签页顶部改成其他语言或不限语言；该语言没有题解时，显示不限语言的最热题解并加以说明。
+
+## 推荐布局
+
+题目详情默认在左侧边栏的题目列表下方。屏幕够宽时，可以把 **题目详情** 视图的标题拖到右侧的辅助侧边栏（**视图: 切换辅助侧边栏可见性**，Windows/Linux 为 `Ctrl+Alt+B`），这样题目列表、代码和描述同时可见，VS Code 会记住这个位置。也可以用 **Open Description in Editor** 把描述放到代码旁的编辑器标签页中。
 
 ## 常用命令
 
@@ -62,8 +72,12 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 | `LeetCode: Sign In` / `Sign Out` | 登录 / 退出 |
 | `LeetCode: Switch Endpoint` | 在 leetcode.cn 与 leetcode.com 之间切换 |
 | `LeetCode: Search Problem` / `Clear Search` | 在题目列表中筛选并定位题目 / 恢复完整列表 |
+| `LeetCode: Go to Problem...` | 输入题号、标题或 slug 直接列出匹配的题目，Enter 查看描述，行内按钮开始写代码 |
+| `LeetCode: Filter Problems...` / `Clear Filter` | 按难度、状态和免费/会员组合筛选题目列表 / 清除筛选 |
 | `LeetCode: Show Problem` | 打开题目并生成代码文件 |
 | `LeetCode: Show Description` | 在侧边栏题目详情中查看当前题目文件的描述 |
+| `LeetCode: Open Description in Editor` | 在代码旁的编辑器标签页中查看题目描述 |
+| `LeetCode: Open Daily Challenge` | 查看今天的每日一题，与点击状态栏中的每日一题相同 |
 | `LeetCode: Test in LeetCode` | 选择用例后测试：我的测试用例、题目示例、测试用例编辑器或文件 |
 | `LeetCode: Quick Test` | 不再询问，直接用我的测试用例（或题目示例）测试；默认快捷键 `Ctrl+'` |
 | `LeetCode: Submit to LeetCode` | 提交代码 |
@@ -84,7 +98,7 @@ Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国�
 | `leetcode.followActiveEditor` | 切换到题目代码文件时，题目详情自动显示该题 | `true` |
 | `leetcode.hideSolved` | 隐藏已通过题目 | `false` |
 | `leetcode.useEndpointTranslation` | 使用站点提供的翻译内容 | `true` |
-| `leetcode.enableStatusBar` | 显示 LeetCode 状态栏 | `true` |
+| `leetcode.enableStatusBar` | 在状态栏显示账号和每日一题；也可以在状态栏的右键菜单中单独隐藏每日一题 | `true` |
 | `leetcode.editor.shortcuts` | CodeLens 操作：`submit`、`test`、`star`、`solution`、`description` | `["submit", "test"]` |
 | `leetcode.colorizeProblems` | 按难度着色 | `true` |
 | `leetcode.problems.sortStrategy` | `None`、`Acceptance Rate (Ascending)`、`Acceptance Rate (Descending)` | `None` |

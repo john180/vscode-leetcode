@@ -83,6 +83,19 @@ query questionSolutionArticles($questionSlug: String!, $first: Int) {
   }
 }`;
 
+export const QUESTION_LANGUAGE_SOLUTION_QUERY: string = `
+query questionSolutionArticles($questionSlug: String!, $first: Int, $tagSlugs: [String!]) {
+  questionSolutionArticles(questionSlug: $questionSlug, first: $first, tagSlugs: $tagSlugs) {
+    edges {
+      node {
+        title
+        slug
+        content
+      }
+    }
+  }
+}`;
+
 export const QUESTION_OFFICIAL_SOLUTION_QUERY: string = `
 query questionSolution($titleSlug: String!) {
   question(titleSlug: $titleSlug) {

@@ -1,7 +1,7 @@
 // Licensed under the MIT license.
 
 import { isCnSite, IGraphQLRequest } from "./client";
-import { QUESTION_SOLUTION_QUERY } from "./queries";
+import { QUESTION_LANGUAGE_SOLUTION_QUERY, QUESTION_SOLUTION_QUERY } from "./queries";
 
 interface IArticle {
     title?: string;
@@ -16,6 +16,12 @@ export interface ISolutionArticles {
 
 const GLOBAL_SOLUTIONS = `query topSolution($questionSlug: String!, $first: Int) {
     ugcArticleSolutionArticles(questionSlug: $questionSlug, orderBy: MOST_VOTES, first: $first, skip: 0) {
+        edges { node { title topic { post { content } } } }
+    }
+}`;
+
+const GLOBAL_LANGUAGE_SOLUTIONS = `query topLanguageSolution($questionSlug: String!, $first: Int, $tagSlugs: [String!]) {
+    ugcArticleSolutionArticles(questionSlug: $questionSlug, orderBy: MOST_VOTES, first: $first, skip: 0, tagSlugs: $tagSlugs) {
         edges { node { title topic { post { content } } } }
     }
 }`;
@@ -47,14 +53,17 @@ export function submissionAdapter(request: IGraphQLRequest): {
     };
 }
 
-/** Site differences stay at the API boundary, rather than in command handlers. */
-export function solutionAdapter(request: IGraphQLRequest): {
+/**
+ * Site differences stay at the API boundary, rather than in command handlers.
+ * A `tagged` query also takes `tagSlugs`, such as ["python3"], to find solutions in a language.
+ */
+export function solutionAdapter(request: IGraphQLRequest, tagged: boolean = false): {
     query: string;
     article: (data: ISolutionArticles) => { title: string; content: string } | undefined;
 } {
     const cn = isCnSite(request);
     return {
-        query: cn ? QUESTION_SOLUTION_QUERY : GLOBAL_SOLUTIONS,
+        query: cn ? (tagged ? QUESTION_LANGUAGE_SOLUTION_QUERY : QUESTION_SOLUTION_QUERY) : (tagged ? GLOBAL_LANGUAGE_SOLUTIONS : GLOBAL_SOLUTIONS),
         article: (data) => {
             const node = (cn ? data.questionSolutionArticles : data.ugcArticleSolutionArticles)?.edges?.[0]?.node;
             const content = cn ? node?.content : node?.topic?.post?.content;

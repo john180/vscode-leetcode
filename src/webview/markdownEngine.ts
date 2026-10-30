@@ -125,9 +125,12 @@ function mathBlock(state: MarkdownIt.StateBlock, startLine: number, endLine: num
     return true;
 }
 
-/** Marks runs of tabbed fences so the fence renderer wraps them; the tab in the user's default language starts open. */
+/** Marks runs of tabbed fences so the fence renderer wraps them; the tab in the language of `env.lang`, or else the default language, starts open. */
 function groupCodeTabs(state: MarkdownIt.StateCore): void {
-    const preferred: string = normalizeLanguage(vscode.workspace.getConfiguration("leetcode").get<string>("defaultLanguage") ?? "");
+    const lang: unknown = (state.env as ISolutionEnv | undefined)?.lang;
+    const preferred: string = normalizeLanguage(typeof lang === "string" && lang
+        ? lang
+        : vscode.workspace.getConfiguration("leetcode").get<string>("defaultLanguage") ?? "");
     const { tokens } = state;
     for (let start: number = 0; start < tokens.length; start += 1) {
         let end: number = start;

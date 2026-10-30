@@ -3,14 +3,17 @@
 
 import { ConfigurationChangeEvent, Disposable, workspace, WorkspaceConfiguration } from "vscode";
 import { UserStatus } from "../shared";
+import { DailyChallengeStatusBarItem } from "./DailyChallengeStatusBarItem";
 import { LeetCodeStatusBarItem } from "./LeetCodeStatusBarItem";
 
 class LeetCodeStatusBarController implements Disposable {
     private statusBar: LeetCodeStatusBarItem;
+    private dailyChallenge: DailyChallengeStatusBarItem;
     private configurationChangeListener: Disposable;
 
     constructor() {
         this.statusBar = new LeetCodeStatusBarItem();
+        this.dailyChallenge = new DailyChallengeStatusBarItem();
         this.setStatusBarVisibility();
 
         this.configurationChangeListener = workspace.onDidChangeConfiguration((event: ConfigurationChangeEvent) => {
@@ -22,10 +25,20 @@ class LeetCodeStatusBarController implements Disposable {
 
     public updateStatusBar(status: UserStatus, user?: string): void {
         this.statusBar.updateStatusBar(status, user);
+        // Signing in, again or as another account, is when the daily challenge may change besides midnight.
+        if (status !== UserStatus.SigningIn) {
+            this.dailyChallenge.setSignedIn(status === UserStatus.SignedIn);
+        }
+    }
+
+    /** After an accepted submission, which completes today's challenge when it is today's problem. */
+    public recordAccepted(slug: string): void {
+        this.dailyChallenge.recordAccepted(slug);
     }
 
     public dispose(): void {
         this.statusBar.dispose();
+        this.dailyChallenge.dispose();
         this.configurationChangeListener.dispose();
     }
 
@@ -35,6 +48,7 @@ class LeetCodeStatusBarController implements Disposable {
         } else {
             this.statusBar.hide();
         }
+        this.dailyChallenge.setVisible(this.isStatusBarEnabled());
     }
 
     private isStatusBarEnabled(): boolean {

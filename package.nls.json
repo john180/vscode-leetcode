@@ -34,7 +34,7 @@
     "config.useEndpointTranslation": "Use endpoint's translation (if available)",
     "config.workspaceFolder": "The path of the workspace folder to store the problem files.",
     "config.filePath": "The output folder and filename to save the problem files.",
-    "config.enableStatusBar": "Show the LeetCode status bar or not.",
+    "config.enableStatusBar": "Show the LeetCode account and today's daily challenge in the status bar.",
     "config.shortcuts": "Customize the shortcuts in editors.",
     "config.enableSideMode": "Open the top voted solution in the second editor column, beside the code.",
     "config.enableSideMode.deprecated": "No longer used: solutions open in Problem Details in the LeetCode sidebar, and results in the LeetCode Results panel.",
@@ -48,6 +48,11 @@
     "command.showSubmissions": "Show Submission History",
     "command.addToFavoriteList": "Add to Favorite List",
     "command.compareSubmission": "Compare with Your Solution",
+    "command.previewProblemInEditor": "Open Description in Editor",
+    "command.goToProblem": "Go to Problem...",
+    "command.filterProblems": "Filter Problems...",
+    "command.clearFilter": "Clear Filter",
+    "command.openDailyChallenge": "Open Daily Challenge",
     "viewsWelcome.welcome": "Welcome to LeetCode\n\nPreparing your LeetCode workspace...",
     "capabilities.virtualWorkspaces": "LeetCode creates solution files on disk. Open a local folder or a Remote Development workspace to use this extension."
 }

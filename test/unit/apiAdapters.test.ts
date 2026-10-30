@@ -198,6 +198,52 @@ test("global solutions use the global article schema and prefer the most voted p
     } finally { axios.defaults.adapter = originalAdapter; }
 });
 
+test("a solution in a language is asked for by its tag first, on both sites", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    const asked: Array<{ query: string; tags?: string[] }> = [];
+    let tagged: unknown[] = [{ node: { title: "Tagged", slug: "t", content: "tagged body", topic: { post: { content: "tagged body" } } } }];
+    axios.defaults.adapter = async (config: any) => {
+        const payload = JSON.parse(config.data);
+        asked.push({ query: payload.query, tags: payload.variables.tagSlugs });
+        const edges = payload.variables.tagSlugs ? tagged : [{ node: { title: "Any", slug: "a", content: "any body", topic: { post: { content: "any body" } } } }];
+        return response({ data: { questionSolutionArticles: { edges }, ugcArticleSolutionArticles: { edges } } }, config);
+    };
+    try {
+        for (const site of [request, { ...request, endpoint: "https://leetcode.cn/graphql/", origin: "https://leetcode.cn" }]) {
+            asked.length = 0;
+            tagged = [{ node: { title: "Tagged", slug: "t", content: "tagged body", topic: { post: { content: "tagged body" } } } }];
+            assert.deepEqual(await fetchTopSolution(site, "two-sum", "python3"), { title: "Tagged", content: "tagged body", language: "python3" });
+            assert.deepEqual(asked.map((call) => call.tags), [["python3"]]);
+            assert.match(asked[0].query, /tagSlugs: \$tagSlugs/);
+
+            asked.length = 0;
+            tagged = [];
+            assert.deepEqual(await fetchTopSolution(site, "two-sum", "python3"), { title: "Any", content: "any body" }, "no language when none is tagged with it");
+            assert.deepEqual(asked.map((call) => call.tags), [["python3"], undefined]);
+            assert.doesNotMatch(asked[1].query, /tagSlugs/, "the query without a language is the one used before languages");
+        }
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
+test("a site that rejects the language query still shows the top solution, while authentication failures remain visible", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let message = 'Variable "$tagSlugs" of type "[String!]" used in position expecting type "[String]!".';
+    axios.defaults.adapter = async (config: any) => {
+        const payload = JSON.parse(config.data);
+        if (payload.variables.tagSlugs) {
+            return response({ errors: [{ message }] }, config);
+        }
+        return response({ data: { ugcArticleSolutionArticles: { edges: [{ node: { title: "Any", topic: { post: { content: "any body" } } } }] } } }, config);
+    };
+    try {
+        assert.deepEqual(await fetchTopSolution(request, "two-sum", "java"), { title: "Any", content: "any body" });
+        message = "Please Register or Sign in";
+        await assert.rejects(fetchTopSolution(request, "two-sum", "java"), /Please Register/);
+    } finally { axios.defaults.adapter = originalAdapter; }
+});
+
 test("unsupported article schemas fall back, while authentication failures remain visible", async () => {
     const originalAdapter = axios.defaults.adapter;
     let calls = 0;
