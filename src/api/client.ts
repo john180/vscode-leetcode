@@ -3,19 +3,27 @@
 
 import type { AxiosResponse } from "axios";
 import { send } from "./http";
+import { graphQLErrors, isAuthenticationError, LeetCodeApiError } from "./errors";
+import { reportAuthenticationFailure } from "../auth/session";
 
 export interface IGraphQLRequest {
-    endpoint: string;
-    origin: string;
-    cookie?: string;
+    readonly endpoint: string;
+    readonly origin: string;
+    readonly cookie?: string;
     /** Aborts the request, including any retries still to come. */
-    signal?: AbortSignal;
+    readonly signal?: AbortSignal;
+    readonly sessionSignal?: AbortSignal;
+    readonly revision?: number;
+    readonly isCurrent?: () => boolean;
+    readonly authenticationCheck?: boolean;
+    /** Absolute deadline shared by requests, retries, and polling. */
+    readonly deadline?: number;
 }
 
 /** Whether a request goes to leetcode.cn, whose API differs from leetcode.com's in places. */
 export function isCnSite(request: Pick<IGraphQLRequest, "origin">): boolean {
     try {
-        return new URL(request.origin).hostname.endsWith("leetcode.cn");
+        return new URL(request.origin).hostname === "leetcode.cn";
     } catch {
         return false;
     }
@@ -35,6 +43,7 @@ export async function graphql<T>(
     request: IGraphQLRequest,
     query: string,
     variables: { [key: string]: unknown } = {},
+    options: { retry?: boolean } = {},
 ): Promise<T> {
     if (!request.endpoint) {
         throw new Error("LeetCode endpoint is not configured.");
@@ -42,21 +51,22 @@ export async function graphql<T>(
 
     let response: AxiosResponse<IGraphQLResponse<T>>;
     try {
-        // Queries are safe to retry, and so are LeetCode's favorite mutations.
-        response = await send<IGraphQLResponse<T>>(request, { method: "POST", url: request.endpoint, data: { query, variables } }, { retry: true });
+        // Mutations opt in individually only when their operation is idempotent.
+        const readOnly = /^\s*(?:#[^\n]*\n\s*)*(?:query\b|\{)/.test(query);
+        response = await send<IGraphQLResponse<T>>(request, { method: "POST", url: request.endpoint, data: { query, variables } }, { retry: options.retry ?? readOnly });
     } catch (error) {
-        throw describeFailure(error);
+        const response = (error as LeetCodeApiError)?.response;
+        if (graphQLErrors(response?.data).length) {
+            throw describeGraphQLFailure(request, response!.data, response);
+        }
+        throw error;
     }
     const body = response.data;
-    if (isPage(body)) {
-        throw new Error(pageMessage(response.status));
-    }
-    const messages: string | undefined = errorMessages(body);
-    if (messages) {
-        throw new Error(messages);
+    if (graphQLErrors(body).length) {
+        throw describeGraphQLFailure(request, body, { status: response.status, data: body });
     }
     if (!body?.data) {
-        throw new Error("LeetCode returned an empty GraphQL response.");
+        throw new LeetCodeApiError("response", "LeetCode returned an empty GraphQL response.");
     }
     return body.data;
 }
@@ -65,27 +75,13 @@ export async function graphql<T>(
  * LeetCode answers a query that does not match its schema with a 400 whose body
  * says what is wrong; keep that, and the response for callers that check the status.
  */
-function describeFailure(error: unknown): unknown {
-    const response = (error as { response?: { status?: number; data?: unknown } } | undefined)?.response;
-    const messages: string | undefined = errorMessages(response?.data);
-    const message: string | undefined = messages
-        ? `LeetCode rejected the GraphQL request (HTTP ${response?.status}): ${messages}`
-        : isPage(response?.data) ? pageMessage(response?.status) : undefined;
-    return message ? Object.assign(new Error(message), { response }) : error;
-}
-
-function errorMessages(body: unknown): string | undefined {
-    const errors: unknown = (body as IGraphQLResponse<unknown> | undefined)?.errors;
-    return Array.isArray(errors) && errors.length > 0
-        ? errors.map((error: { message?: string }) => error?.message || "Unknown error").join("; ")
-        : undefined;
-}
-
-/** A body that is not JSON, such as a CAPTCHA or proxy page. */
-function isPage(body: unknown): boolean {
-    return typeof body === "string" && body.trim().length > 0;
-}
-
-function pageMessage(status: number | undefined): string {
-    return `LeetCode answered HTTP ${status} with a web page instead of JSON; a CAPTCHA, proxy or firewall may be blocking the request.`;
+function describeGraphQLFailure(request: IGraphQLRequest, body: unknown, response: LeetCodeApiError["response"]): LeetCodeApiError {
+    const errors = graphQLErrors(body);
+    const authentication = isAuthenticationError(errors);
+    if (authentication && response?.status !== 401 && response?.status !== 403) {
+        reportAuthenticationFailure(request);
+    }
+    const messages = errors.map((error) => error?.message || "Unknown error").join("; ");
+    return new LeetCodeApiError(authentication ? "authentication" : "graphql",
+        `LeetCode rejected the GraphQL request (HTTP ${response?.status}): ${messages}`, response);
 }

@@ -4,6 +4,9 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import type { IGraphQLRequest } from "./client";
 import { isRetryableError, MAX_RETRIES, retryDelayMs, sleep } from "./retry";
+import { assertJsonObject, LeetCodeApiError } from "./errors";
+import { assertRequestActive, requestLifetime } from "./cancellation";
+import { isSessionExpiredError, reportAuthenticationFailure } from "../auth/session";
 
 const PLATFORMS: { [platform: string]: string } = {
     win32: "Windows NT 10.0; Win64; x64",
@@ -54,14 +57,46 @@ export interface ISendOptions {
 export async function send<T>(request: IGraphQLRequest, config: AxiosRequestConfig, options: ISendOptions = {}): Promise<AxiosResponse<T>> {
     const retry: boolean = options.retry ?? (config.method || "GET").toUpperCase() === "GET";
     const headers: { [key: string]: string } = getLeetCodeHeaders(request, options.referer);
-    for (let attempt: number = 0; ; attempt += 1) {
-        try {
-            return await axios.request<T>({ timeout: 20000, signal: request.signal, ...config, headers });
-        } catch (error) {
-            if (!retry || attempt >= MAX_RETRIES || !isRetryableError(error)) {
-                throw error;
+    const lifetime = requestLifetime(request, 65000);
+    try {
+        for (let attempt: number = 0; ; attempt += 1) {
+            assertRequestActive(lifetime.request);
+            let response: AxiosResponse<T>;
+            try {
+                response = await axios.request<T>({ timeout: 20000, ...config, signal: lifetime.request.signal, headers });
+            } catch (error) {
+                assertRequestActive(lifetime.request);
+                if (isSessionExpiredError(error)) { reportAuthenticationFailure(request); }
+                const wait = retryDelayMs(attempt, error);
+                if (!retry || attempt >= MAX_RETRIES || !isRetryableError(error) || wait >= lifetime.request.deadline! - Date.now()) {
+                    throw describeFailure(error);
+                }
+                await sleep(wait, lifetime.request.signal);
+                continue;
             }
-            await sleep(retryDelayMs(attempt, error));
+            assertRequestActive(lifetime.request);
+            assertJsonObject(response.data, response.status);
+            return response;
+        }
+    } finally {
+        lifetime.dispose();
+    }
+}
+
+function describeFailure(error: unknown): unknown {
+    if (isCanceled(error) || error instanceof LeetCodeApiError) { return error; }
+    const failure = error as { message?: string; code?: string; response?: AxiosResponse } | undefined;
+    const response = failure?.response;
+    const retryAfter = response?.headers?.["retry-after"];
+    const details = response ? { status: response.status, data: response.data,
+        headers: retryAfter === undefined ? undefined : { "retry-after": String(retryAfter) } } : undefined;
+    // An empty body (typical of gateway errors) says nothing; keep the status-based kind.
+    if (typeof response?.data === "string" && response.data.trim()) {
+        try { assertJsonObject(response.data, response.status); } catch (pageError) {
+            return new LeetCodeApiError("response", (pageError as Error).message, details);
         }
     }
+    const kind = isSessionExpiredError(error) ? "authentication" : response?.status === 429 ? "rate-limit"
+        : response ? "http" : /^(ECONNABORTED|ETIMEDOUT)$/.test(failure?.code || "") ? "timeout" : "network";
+    return new LeetCodeApiError(kind, failure?.message || String(error), details);
 }

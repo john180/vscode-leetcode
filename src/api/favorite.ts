@@ -32,7 +32,7 @@ mutation ${operation}($favoriteIdHash: String!, $questionId: String!) {
     const data = await graphql<{ [key: string]: IFavoriteMutationResult }>(request, mutation, {
         favoriteIdHash,
         questionId: target.questionId,
-    });
+    }, { retry: true });
     const result: IFavoriteMutationResult | undefined = data[operation];
     if (!result || !result.ok) {
         throw new Error(result?.error || "LeetCode rejected the favorite update.");

@@ -3,6 +3,7 @@
 
 import { IGraphQLRequest } from "./client";
 import { send } from "./http";
+import { invalidResponse } from "./errors";
 
 export interface ISubmissionHistoryItem {
     id: string;
@@ -78,6 +79,9 @@ export async function fetchSubmissionHistory(
         { url: `${request.origin}/api/submissions/${encodeURIComponent(slug)}/`, params: { offset, limit } },
         { referer: `/problems/${encodeURIComponent(slug)}/` },
     );
+    if (!Array.isArray(response.data.submissions_dump) || typeof response.data.has_next !== "boolean") {
+        throw invalidResponse("LeetCode returned an invalid submission history response.");
+    }
     return {
         items: mapSubmissionDump(response.data),
         hasNext: Boolean(response.data?.has_next),

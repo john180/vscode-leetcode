@@ -7,6 +7,9 @@ import { leetCodeManager } from "../leetCodeManager";
 import { IQuickItemEx } from "../shared";
 import { DialogOptions, DialogType, promptForOpenOutputChannel } from "../utils/uiUtils";
 import { validateCookie } from "../auth/cookie";
+import { getLeetCodeRequest } from "../api/request";
+import { isCanceled } from "../api/http";
+import { assertRequestActive } from "../api/cancellation";
 
 export interface ISession {
     active: boolean;
@@ -26,10 +29,11 @@ export function getSessionList(): ISession[] {
 }
 
 export async function manageSessions(): Promise<void> {
+    const request = getLeetCodeRequest();
     const choice: IQuickItemEx<ISession | string> | undefined = await vscode.window.showQuickPick(
         parseSessionsToPicks(true),
     );
-    if (!choice || (typeof choice.value !== "string" && choice.value.active)) {
+    if (!choice || request.isCurrent?.() === false || (typeof choice.value !== "string" && choice.value.active)) {
         return;
     }
     if (choice.value === ":createSession") {
@@ -45,6 +49,7 @@ export async function manageSessions(): Promise<void> {
         await leetCodeManager.switchProfile((choice.value as ISession).name);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
+        if (isCanceled(error)) { return; }
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to switch session. Please open the output channel for details."), DialogType.error, error);
     }
 }
@@ -78,11 +83,12 @@ function parseSessionManagementOperations(): Array<IQuickItemEx<string>> {
 }
 
 async function createSession(): Promise<void> {
+    const request = getLeetCodeRequest();
     const name: string | undefined = await vscode.window.showInputBox({
         prompt: vscode.l10n.t("Enter the new session name."),
         validateInput: (value: string): string | undefined => value && value.trim() ? undefined : vscode.l10n.t("Session name must not be empty"),
     });
-    if (!name) {
+    if (!name || request.isCurrent?.() === false) {
         return;
     }
 
@@ -98,19 +104,22 @@ async function createSession(): Promise<void> {
     }
 
     try {
+        assertRequestActive(request);
         await leetCodeManager.createProfile(name.trim(), cookie);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
+        if (isCanceled(error)) { return; }
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to create the session. Please open the output channel for details."), DialogType.error, error);
     }
 }
 
 async function deleteSession(): Promise<void> {
+    const request = getLeetCodeRequest();
     const choice: IQuickItemEx<ISession | string> | undefined = await vscode.window.showQuickPick(
         parseSessionsToPicks(false),
         { placeHolder: vscode.l10n.t("Please select the session you want to delete") },
     );
-    if (!choice) {
+    if (!choice || request.isCurrent?.() === false) {
         return;
     }
 
@@ -130,9 +139,11 @@ async function deleteSession(): Promise<void> {
     }
 
     try {
+        assertRequestActive(request);
         await leetCodeManager.deleteProfile(selectedSession.name);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
     } catch (error) {
+        if (isCanceled(error)) { return; }
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to delete the session. Please open the output channel for details."), DialogType.error, error);
     }
 }

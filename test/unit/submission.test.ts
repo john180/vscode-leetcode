@@ -207,6 +207,25 @@ test("submitSolution polls pending results until a terminal state", async () => 
     }
 });
 
+test("submitSolution keeps polling while a check has no state yet", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let checks: number = 0;
+    axios.defaults.adapter = async (config: any) => {
+        if (config.method === "post") {
+            return response({ submission_id: 9 }, config);
+        }
+        checks += 1;
+        return response(checks === 1 ? {} : { state: "SUCCESS", status_msg: "Accepted" }, config);
+    };
+    try {
+        const result = await submitSolution(request, target, "cpp", "code", { pollIntervalMs: 0, pollTimeoutMs: 1000 });
+        assert.equal(checks, 2);
+        assert.equal(result.state, "SUCCESS");
+    } finally {
+        axios.defaults.adapter = originalAdapter;
+    }
+});
+
 function checkFailure(status: number | undefined, config: any): any {
     const error: any = new Error(status ? `Request failed with status code ${status}` : "socket hang up");
     error.config = config;

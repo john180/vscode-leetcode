@@ -88,7 +88,9 @@ test("send stops at an aborted signal instead of retrying", async () => {
     try {
         const controller = new AbortController();
         await send({ ...request, signal: controller.signal }, { url: `${request.origin}/check/` });
-        assert.equal(seenSignal, controller.signal);
+        assert.ok(seenSignal instanceof AbortSignal);
+        controller.abort();
+        assert.equal((seenSignal as AbortSignal).aborted, true, "cancellation propagates into the combined lifetime");
 
         calls = 0;
         controller.abort();

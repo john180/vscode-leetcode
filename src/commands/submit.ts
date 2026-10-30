@@ -14,6 +14,8 @@ import { DialogType, promptForOpenOutputChannel, promptForSignIn } from "../util
 import { getActiveDocument } from "../utils/workspaceUtils";
 import { leetCodeSubmissionProvider } from "../webview/leetCodeSubmissionProvider";
 import { getProblemById, getProblemCacheScope, recordSubmission } from "../api/problems";
+import { assertRequestActive } from "../api/cancellation";
+import { isCanceled } from "../api/http";
 
 export async function submitSolution(uri?: vscode.Uri): Promise<void> {
     if (!leetCodeManager.getUser()) {
@@ -21,6 +23,7 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
         return;
     }
 
+    const request = getLeetCodeRequest();
     const document: vscode.TextDocument | undefined = await getActiveDocument(uri);
     if (!document) {
         return;
@@ -36,17 +39,19 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
 
     try {
         const scope = getProblemCacheScope();
+        assertRequestActive(request);
         const problem: IProblem | undefined = await getProblemById(id);
+        assertRequestActive(request);
         if (!problem) {
             vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem with id: {0}.", id));
             return;
         }
         if (scope !== getProblemCacheScope()) { return; }
 
-        const request = getLeetCodeRequest();
         // Not aborted by a newer run: the verdict still updates the problem's state.
         const result = await leetCodeSubmissionProvider.judge(problem, document, async () => {
             const judgeInfo = await fetchJudgeInfo(request, problem.slug);
+            assertRequestActive(request);
             return {
                 ...await submitToLeetCode(
                     request,
@@ -61,6 +66,7 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
             await recordSubmission(problem, result.statusMessage === "Accepted");
         }
     } catch (error) {
+        if (isCanceled(error)) { return; }
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to submit the solution. Please open the output channel for details."), DialogType.error, error);
         return;
     }

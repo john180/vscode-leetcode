@@ -1,6 +1,9 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
+import { throwIfAborted } from "./cancellation";
+import { LeetCodeApiError } from "./errors";
+
 export const MAX_RETRIES: number = 2;
 
 interface IRetryError {
@@ -12,6 +15,9 @@ interface IRetryError {
 }
 
 export function isRetryableError(error: unknown): boolean {
+    if (error instanceof LeetCodeApiError) {
+        return error.kind === "network" || error.kind === "timeout" || error.kind === "rate-limit";
+    }
     if ((error as IRetryError | undefined)?.code === "ERR_CANCELED") {
         // Aborted on purpose, not by the network.
         return false;
@@ -30,18 +36,25 @@ export function retryDelayMs(attempt: number, error?: unknown): number {
     if (retryAfter) {
         const seconds: number = Number(retryAfter);
         if (Number.isFinite(seconds) && seconds >= 0) {
-            return Math.min(seconds * 1000, 10000);
+            return seconds * 1000;
         }
         const date: number = Date.parse(retryAfter);
         if (Number.isFinite(date)) {
-            return Math.min(Math.max(0, date - Date.now()), 10000);
+            return Math.max(0, date - Date.now());
         }
     }
     return Math.min(500 * Math.pow(2, attempt), 5000);
 }
 
-export function sleep(ms: number): Promise<void> {
-    return new Promise<void>((resolve: () => void): void => {
-        setTimeout(resolve, ms);
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise<void>((resolve, reject): void => {
+        throwIfAborted(signal);
+        const cleanup = (): void => { clearTimeout(timer); signal?.removeEventListener("abort", abort); };
+        const abort = (): void => {
+            cleanup();
+            try { throwIfAborted(signal); } catch (error) { reject(error); }
+        };
+        const timer = setTimeout(() => { cleanup(); resolve(); }, ms);
+        signal?.addEventListener("abort", abort, { once: true });
     });
 }

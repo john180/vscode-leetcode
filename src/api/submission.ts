@@ -3,6 +3,9 @@
 
 import { IGraphQLRequest } from "./client";
 import { getCsrfToken, send } from "./http";
+import { assertRequestActive, requestLifetime } from "./cancellation";
+import { invalidResponse } from "./errors";
+import { sleep } from "./retry";
 
 const DEFAULT_POLL_INTERVAL_MS = 1000;
 const DEFAULT_POLL_TIMEOUT_MS = 90000;
@@ -213,12 +216,6 @@ function mapTestRun(data: ICheckResponse, input: string): ISubmissionResult {
     };
 }
 
-function delay(ms: number): Promise<void> {
-    return new Promise<void>((resolve: () => void): void => {
-        setTimeout(resolve, ms);
-    });
-}
-
 async function pollResult(
     request: IGraphQLRequest,
     checkId: string,
@@ -227,21 +224,29 @@ async function pollResult(
 ): Promise<ICheckResponse> {
     const intervalMs: number = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
     const timeoutMs: number = options.pollTimeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
-    const startedAt: number = Date.now();
-    while (Date.now() - startedAt < timeoutMs) {
-        // A check is a GET, which send retries, so one failed check does not lose the judged result.
-        const response = await send<ICheckResponse>(
-            request,
-            { url: `${request.origin}/submissions/detail/${checkId}/check/`, timeout: 15000 },
-            { referer: problemPage(slug) },
-        );
-        const state: string = response.data.state || "";
-        if (state && state !== "PENDING" && state !== "STARTED") {
-            return response.data;
+    const lifetime = requestLifetime(request, timeoutMs);
+    try {
+        while (true) {
+            assertRequestActive(lifetime.request);
+            // A check is a GET, which send retries, so one failed check does not lose the judged result.
+            const response = await send<ICheckResponse>(
+                lifetime.request,
+                { url: `${request.origin}/submissions/detail/${checkId}/check/`, timeout: 15000 },
+                { referer: problemPage(slug) },
+            );
+            if (response.data.state !== undefined && response.data.state !== null && typeof response.data.state !== "string") {
+                throw invalidResponse("LeetCode returned an invalid judge response.");
+            }
+            // A check without a state yet is still queued.
+            const state: string = response.data.state || "";
+            if (state && state !== "PENDING" && state !== "STARTED") {
+                return response.data;
+            }
+            await sleep(intervalMs, lifetime.request.signal);
         }
-        await delay(intervalMs);
+    } finally {
+        lifetime.dispose();
     }
-    throw new Error("Timed out while waiting for the judge result.");
 }
 
 async function postJson(
@@ -253,35 +258,41 @@ async function postJson(
 ): Promise<{ [key: string]: unknown }> {
     assertCanJudge(request);
     const rateLimitDelayMs: number = options.rateLimitDelayMs ?? DEFAULT_RATE_LIMIT_DELAY_MS;
-    for (let attempt: number = 0; attempt < 3; attempt += 1) {
-        try {
-            // send does not retry a POST: a request that failed may still have reached the judge.
-            const response = await send<{ [key: string]: unknown }>(
-                request,
-                { method: "POST", url: `${request.origin}${path}`, data: body },
-                { referer: problemPage(slug) },
-            );
-            const data: { [key: string]: unknown } = response.data;
-            const bodyError: string = typeof data.error === "string" ? data.error : "";
-            if (bodyError) {
-                if (bodyError.includes("too soon")) {
-                    await delay(rateLimitDelayMs * (attempt + 1));
+    const lifetime = requestLifetime(request, 65000);
+    try {
+        for (let attempt: number = 0; attempt < 3; attempt += 1) {
+            assertRequestActive(lifetime.request);
+            try {
+                // send does not retry a POST: a request that failed may still have reached the judge.
+                const response = await send<{ [key: string]: unknown }>(
+                    lifetime.request,
+                    { method: "POST", url: `${request.origin}${path}`, data: body },
+                    { referer: problemPage(slug) },
+                );
+                const data: { [key: string]: unknown } = response.data;
+                const bodyError: string = typeof data.error === "string" ? data.error : "";
+                if (bodyError) {
+                    if (bodyError.includes("too soon")) {
+                        if (attempt < 2) { await sleep(rateLimitDelayMs * (attempt + 1), lifetime.request.signal); }
+                        continue;
+                    }
+                    throw new Error(bodyError);
+                }
+                return data;
+            } catch (error) {
+                const data: { error?: string } | undefined = (error as { response?: { data?: { error?: string } } } | undefined)?.response?.data;
+                const message: string = data?.error || "";
+                if (message.includes("too soon")) {
+                    if (attempt < 2) { await sleep(rateLimitDelayMs * (attempt + 1), lifetime.request.signal); }
                     continue;
                 }
-                throw new Error(bodyError);
+                throw error;
             }
-            return data;
-        } catch (error) {
-            const data: { error?: string } | undefined = (error as { response?: { data?: { error?: string } } } | undefined)?.response?.data;
-            const message: string = data?.error || "";
-            if (message.includes("too soon")) {
-                await delay(rateLimitDelayMs * (attempt + 1));
-                continue;
-            }
-            throw error;
         }
+        throw new Error("LeetCode is rate limiting test runs. Please try again shortly.");
+    } finally {
+        lifetime.dispose();
     }
-    throw new Error("LeetCode is rate limiting test runs. Please try again shortly.");
 }
 
 export async function submitSolution(

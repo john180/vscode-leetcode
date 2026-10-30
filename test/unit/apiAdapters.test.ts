@@ -159,9 +159,10 @@ test("fetchTopSolution prefers an article and falls back to the official solutio
         }, config);
     };
     try {
-        assert.deepEqual(await fetchTopSolution(request, "two-sum"), { title: "Article", content: "article body" });
+        const cnRequest = { ...request, endpoint: "https://leetcode.cn/graphql/", origin: "https://leetcode.cn" };
+        assert.deepEqual(await fetchTopSolution(cnRequest, "two-sum"), { title: "Article", content: "article body" });
         articleAvailable = false;
-        assert.deepEqual(await fetchTopSolution(request, "two-sum"), { title: "", content: "official body" });
+        assert.deepEqual(await fetchTopSolution(cnRequest, "two-sum"), { title: "", content: "official body" });
         assert.equal(queries.length, 3);
     } finally {
         axios.defaults.adapter = originalAdapter;
@@ -177,10 +178,44 @@ test("fetchTopSolution returns nothing when neither source has a solution", asyn
             : response({ data: { question: { solution: null } } }, config);
     };
     try {
-        assert.equal(await fetchTopSolution(request, "two-sum"), undefined);
+        assert.equal(await fetchTopSolution({ ...request, origin: "https://leetcode.cn", endpoint: "https://leetcode.cn/graphql/" }, "two-sum"), undefined);
     } finally {
         axios.defaults.adapter = originalAdapter;
     }
+});
+
+test("global solutions use the global article schema and prefer the most voted post", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    axios.defaults.adapter = async (config: any) => {
+        const payload = JSON.parse(config.data);
+        assert.match(payload.query, /ugcArticleSolutionArticles/);
+        assert.match(payload.query, /MOST_VOTES/);
+        assert.doesNotMatch(payload.query, /\bquestionSolutionArticles\b/);
+        return response({ data: { ugcArticleSolutionArticles: { edges: [{ node: { title: "Global", topic: { post: { content: "global body" } } } }] } } }, config);
+    };
+    try {
+        assert.deepEqual(await fetchTopSolution(request, "two-sum"), { title: "Global", content: "global body" });
+    } finally { axios.defaults.adapter = originalAdapter; }
+});
+
+test("unsupported article schemas fall back, while authentication failures remain visible", async () => {
+    const originalAdapter = axios.defaults.adapter;
+    let calls = 0;
+    let message = 'Cannot query field "ugcArticleSolutionArticles"';
+    axios.defaults.adapter = async (config: any) => {
+        calls++;
+        const payload = JSON.parse(config.data);
+        return response(payload.query.includes("ugcArticleSolutionArticles")
+            ? { errors: [{ message }] } : { data: { question: { solution: { content: "official" } } } }, config);
+    };
+    try {
+        assert.deepEqual(await fetchTopSolution(request, "two-sum"), { title: "", content: "official" });
+        assert.equal(calls, 2);
+        calls = 0;
+        message = "Please Register or Sign in";
+        await assert.rejects(fetchTopSolution(request, "two-sum"), /Please Register/);
+        assert.equal(calls, 1);
+    } finally { axios.defaults.adapter = originalAdapter; }
 });
 
 test("fetchCompanyTagNames pages until hasMore is false", async () => {

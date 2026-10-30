@@ -7,7 +7,7 @@ import { IQuickItemEx } from "../shared";
 import { Endpoint, getEffectiveEndpoint, SortingStrategy } from "../shared";
 import { resolveEndpoint } from "../auth/endpointResolver";
 import { DialogType, promptForOpenOutputChannel, promptForSignIn } from "../utils/uiUtils";
-import { invalidateProblemCache } from "../api/problems";
+import { leetCodeManager } from "../leetCodeManager";
 
 export async function switchEndpoint(): Promise<void> {
     const configured: string = vscode.workspace.getConfiguration("leetcode").get<string>("endpoint", Endpoint.Auto);
@@ -40,16 +40,15 @@ export async function switchEndpoint(): Promise<void> {
     try {
         const endpoint: string = choice.value;
         await leetCodeConfig.update("endpoint", endpoint, true /* UserSetting */);
-        await resolveEndpoint();
+        await leetCodeManager.handleEndpointChange(await resolveEndpoint());
         vscode.window.showInformationMessage(vscode.l10n.t("Switched the endpoint to {0}.", endpoint));
     } catch (error) {
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to switch endpoint. Please open the output channel for details."), DialogType.error, error);
+        return;
     }
 
     try {
-        await vscode.commands.executeCommand("leetcode.signout");
-        invalidateProblemCache();
-        await promptForSignIn();
+        if (!leetCodeManager.getUser()) { await promptForSignIn(); }
     } catch (error) {
         await promptForOpenOutputChannel(vscode.l10n.t("Failed to sign in. Please open the output channel for details."), DialogType.error, error);
     }

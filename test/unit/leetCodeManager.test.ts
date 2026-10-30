@@ -11,7 +11,7 @@ let queryResult: any = {
 let warnings = 0;
 let confirmLogin = false;
 let endpoint = "leetcode";
-let query = async (): Promise<any> => queryResult;
+let query = async (_cookie?: string, _signal?: AbortSignal): Promise<any> => queryResult;
 
 const moduleLoader: any = Module;
 const originalLoad = moduleLoader._load;
@@ -22,7 +22,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
             workspace: {
                 getConfiguration: () => ({
                     get: (key: string, defaultValue: unknown) => {
-                        if (key === "endpoint") return "leetcode";
+                        if (key === "endpoint") return endpoint;
                         if (key === "userGraphql") return "https://leetcode.com/graphql";
                         return defaultValue;
                     },
@@ -57,7 +57,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
         };
     }
     if (request.endsWith("request/query-user-data")) {
-        return { queryUserData: () => query() };
+        return { queryUserData: (cookie?: string, signal?: AbortSignal) => query(cookie, signal) };
     }
     if (request.endsWith("commands/plugin")) {
         return { getLeetCodeEndpoint: () => endpoint };
@@ -82,6 +82,7 @@ const { globalState } = require("../../src/globalState");
 const { leetCodeManager } = require("../../src/leetCodeManager");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { UserStatus } = require("../../src/shared");
+const { getLeetCodeRequest } = require("../../src/api/request");
 
 class FakeMemento {
     public readonly values = new Map<string, unknown>();
@@ -238,6 +239,33 @@ test("leetCodeManager handles URI sign-in and profile switching", async () => {
     );
 });
 
+test("restoring the stored session keeps a web login the user is finishing in the browser", async () => {
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie());
+    queryResult = { isSignedIn: true, username: "uri-user", isPremium: false, avatar: "" };
+    const previous = confirmLogin;
+    try {
+        await leetCodeManager.signIn();
+        await leetCodeManager.getLoginStatus();
+        confirmLogin = true;
+        await leetCodeManager.handleUriSignIn({ query: "cookie=LEETCODE_SESSION%3Duri%3B%20csrftoken%3Duri" } as any);
+        assert.equal(leetCodeManager.getStatus(), UserStatus.SignedIn);
+        assert.equal(leetCodeManager.getUser(), "uri-user");
+    } finally { confirmLogin = previous; }
+});
+
+test("naming a restored session after its account keeps requests made with the same cookie", async () => {
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie("LEETCODE_SESSION=same; csrftoken=csrf"));
+    queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
+    assert.equal(globalState.getActiveProfile(), undefined, "upgraded credentials have no profile name yet");
+    const snapshot = getLeetCodeRequest();
+    await leetCodeManager.getLoginStatus();
+    assert.equal(globalState.getActiveProfile(), "alice");
+    assert.equal(snapshot.sessionSignal.aborted, false);
+    assert.equal(snapshot.isCurrent(), true);
+});
+
 test("leetCodeManager ignores an OAuth error callback", async () => {
     await globalState.removeAll();
     await leetCodeManager.signOut();
@@ -298,7 +326,7 @@ test("temporary login validation failures preserve the credential for retry", as
         await globalState.initialize(context);
         query = async () => { throw { response: { status } }; };
         await leetCodeManager.getLoginStatus();
-        assert.equal(context.secrets.values.get("leetcode-cookie"), "LEETCODE_SESSION=kept; csrftoken=csrf");
+        assert.equal(context.secrets.values.get("leetcode-cookie.v2:leetcode"), "LEETCODE_SESSION=kept; csrftoken=csrf");
         assert.equal(globalState.getCookie(), "LEETCODE_SESSION=kept; csrftoken=csrf");
         assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
     }
@@ -348,8 +376,8 @@ test("sign-out waits for in-flight credential writes and remains signed out", as
     assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
     assert.equal(leetCodeManager.getUser(), undefined);
     assert.equal(globalState.getCookie(), undefined);
-    assert.equal(context.secrets.values.has("leetcode-cookie"), false);
-    assert.equal(context.globalState.values.has("leetcode-active-profile"), false);
+    assert.equal(context.secrets.values.has("leetcode-cookie.v2:leetcode"), false);
+    assert.equal(context.globalState.values.has("leetcode-active-profile:leetcode"), false);
 });
 
 test("a rejected profile switch leaves the current credential unchanged", async () => {
@@ -447,6 +475,152 @@ test("a rejected later login cannot cancel queued sign-out cleanup", async () =>
     release();
     await Promise.all([restoration, signingOut]);
     assert.equal(globalState.getCookie(), undefined);
-    assert.equal(context.secrets.values.has("leetcode-cookie"), false);
+    assert.equal(context.secrets.values.has("leetcode-cookie.v2:leetcode"), false);
     assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
+});
+
+test("site changes revoke snapshots immediately and restore only the selected site's account", async () => {
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie());
+    const us = "LEETCODE_SESSION=us; csrftoken=csrf";
+    const cn = "LEETCODE_SESSION=cn; csrftoken=csrf";
+    const validated: string[] = [];
+    query = async (cookie) => {
+        validated.push(cookie!);
+        return { isSignedIn: true, username: cookie === us ? "alice-us" : "alice-cn", isPremium: false, avatar: "" };
+    };
+    try {
+        await leetCodeManager.createProfile("alice", us);
+        const previous = getLeetCodeRequest();
+        assert.equal(Object.isFrozen(previous), true);
+        endpoint = "leetcode-cn";
+        assert.equal(previous.isCurrent(), false, "the settings change is visible before its event is handled");
+        assert.equal(getLeetCodeRequest().cookie, "", "old-site credentials must never be sent to the new site");
+        const before = validated.length;
+        await leetCodeManager.getLoginStatus();
+        assert.equal(validated.length, before, "refreshing before the configuration listener must not validate an old-site cookie");
+        assert.equal(previous.sessionSignal.aborted, true);
+        assert.equal(leetCodeManager.getUser(), undefined);
+        await leetCodeManager.createProfile("alice", cn);
+        endpoint = "leetcode";
+        const switching = leetCodeManager.handleEndpointChange(endpoint);
+        assert.equal(switching, leetCodeManager.handleEndpointChange(endpoint), "picker and listener share one transition");
+        await switching;
+        assert.equal(leetCodeManager.getUser(), "alice-us");
+        assert.equal(globalState.getCookie(), us);
+        assert.equal(globalState.getProfiles()[0].username, "alice-us");
+        endpoint = "leetcode-cn";
+        await leetCodeManager.handleEndpointChange(endpoint);
+        assert.equal(leetCodeManager.getUser(), "alice-cn");
+        assert.equal(globalState.getCookie(), cn);
+    } finally {
+        endpoint = "leetcode";
+        await leetCodeManager.handleEndpointChange(endpoint);
+        query = async () => queryResult;
+    }
+});
+
+test("a later site selection wins over a blocked keyring read for the previous selection", async () => {
+    await leetCodeManager.signOut();
+    const context = contextWithCookie();
+    await globalState.initialize(context);
+    queryResult = { isSignedIn: true, username: "alice", isPremium: false, avatar: "" };
+    await leetCodeManager.createProfile("alice", "LEETCODE_SESSION=us; csrftoken=csrf");
+    const get = context.secrets.get.bind(context.secrets);
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const reading = new Promise<void>((resolve) => { entered = resolve; });
+    context.secrets.get = async (key: string) => {
+        if (key.includes("leetcode-cn")) { entered(); await gate; }
+        return get(key);
+    };
+    endpoint = "leetcode-cn";
+    const first = leetCodeManager.handleEndpointChange(endpoint);
+    await reading;
+    assert.equal(leetCodeManager.getLoginStatus(), first, "refresh joins the pending site transition instead of canceling it");
+    endpoint = "leetcode";
+    const latest = leetCodeManager.handleEndpointChange(endpoint);
+    release();
+    await Promise.all([first, latest]);
+    assert.equal(globalState.getEndpoint(), "leetcode");
+    assert.equal(globalState.getCookie(), "LEETCODE_SESSION=us; csrftoken=csrf");
+    assert.equal(leetCodeManager.getUser(), "alice");
+});
+
+test("sign-out revokes requests before delayed status persistence finishes", async () => {
+    await leetCodeManager.signOut();
+    const context = contextWithCookie("LEETCODE_SESSION=old; csrftoken=csrf");
+    await globalState.initialize(context);
+    const update = context.globalState.update.bind(context.globalState);
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const writing = new Promise<void>((resolve) => { entered = resolve; });
+    context.globalState.update = async (key: string, value: unknown) => {
+        if (key.startsWith("leetcode-user-status:") && value) { entered(); await gate; }
+        await update(key, value);
+    };
+    const restoration = leetCodeManager.getLoginStatus();
+    await writing;
+    const snapshot = getLeetCodeRequest();
+    const signingOut = leetCodeManager.signOut();
+    assert.equal(snapshot.sessionSignal.aborted, true);
+    assert.equal(globalState.getCookie(), undefined);
+    release();
+    await Promise.all([restoration, signingOut]);
+    assert.equal(leetCodeManager.getUser(), undefined);
+    assert.equal(leetCodeManager.getStatus(), UserStatus.SignedOut);
+    assert.equal(globalState.getUserStatus(), undefined);
+});
+
+test("an expired request from before sign-out cannot affect a later login with the same cookie", async () => {
+    await leetCodeManager.signOut();
+    await globalState.initialize(contextWithCookie());
+    const cookie = "LEETCODE_SESSION=alice; csrftoken=csrf";
+    await leetCodeManager.createProfile("alice", cookie);
+    const old = getLeetCodeRequest();
+    await leetCodeManager.signOut();
+    await leetCodeManager.createProfile("alice", cookie);
+    let checks = 0;
+    query = async () => { checks++; return { isSignedIn: false }; };
+    try {
+        await leetCodeManager.handleSessionExpired(old);
+        assert.equal(checks, 0);
+        assert.equal(leetCodeManager.getUser(), "alice");
+        assert.equal(getLeetCodeRequest().sessionSignal.aborted, false);
+    } finally { query = async () => queryResult; }
+});
+
+test("queued sign-out cleanup does not abort a newer login's credential validation", async () => {
+    await leetCodeManager.signOut();
+    const context = contextWithCookie("LEETCODE_SESSION=old; csrftoken=csrf");
+    await globalState.initialize(context);
+    let releaseWrite!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    const writing = new Promise<void>((resolve) => { entered = resolve; });
+    const store = context.secrets.store.bind(context.secrets);
+    context.secrets.store = async (key: string, value: string) => { entered(); await gate; await store(key, value); };
+    const restoring = leetCodeManager.getLoginStatus();
+    await writing;
+    const signingOut = leetCodeManager.signOut();
+    let releaseQuery!: () => void;
+    const validationGate = new Promise<void>((resolve) => { releaseQuery = resolve; });
+    let snapshot: ReturnType<typeof getLeetCodeRequest>;
+    query = async (cookie) => {
+        snapshot = getLeetCodeRequest(cookie);
+        await validationGate;
+        assert.equal(snapshot.sessionSignal.aborted, false, "cleanup must not revoke a validation that started after sign-out");
+        return { isSignedIn: true, username: "new", isPremium: false, avatar: "" };
+    };
+    const signingIn = leetCodeManager.createProfile("new", "LEETCODE_SESSION=new; csrftoken=csrf");
+    try {
+        releaseWrite();
+        await Promise.all([restoring, signingOut]);
+        releaseQuery();
+        await signingIn;
+        assert.equal(leetCodeManager.getUser(), "new");
+        assert.equal(globalState.getCookie(), "LEETCODE_SESSION=new; csrftoken=csrf");
+    } finally { releaseQuery(); query = async () => queryResult; }
 });

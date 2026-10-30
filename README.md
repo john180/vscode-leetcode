@@ -40,6 +40,8 @@ code --install-extension ".\vscode-leetcode-$version.vsix" --force
 
 Cookie 安全保存在 VS Code 中。默认按系统时区选择站点：中国大陆使用力扣，其他地区使用 LeetCode。可通过 **LeetCode: Switch Endpoint** 手动切换，Cookie 必须来自所选站点。
 
+两站的账户和 Cookie 分开保存，切换站点时会校验并恢复该站上次使用的账户；直接修改 `leetcode.endpoint` 也会生效。退出登录或切换会话会取消尚在等待的请求。旧版凭据没有站点信息，升级时归入首次启动所选的站点；其他站点的账户需重新添加。
+
 ## 快速开始
 
 1. 登录后，在 LeetCode 视图中选择题目，或执行 **Search Problem** / **Pick One**。

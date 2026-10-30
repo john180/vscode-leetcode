@@ -2,19 +2,9 @@
 // Licensed under the MIT license.
 
 import { graphql, IGraphQLRequest } from "./client";
-import { QUESTION_OFFICIAL_SOLUTION_QUERY, QUESTION_SOLUTION_QUERY } from "./queries";
-
-interface IArticleNode {
-    title: string;
-    slug: string;
-    content: string;
-}
-
-interface ISolutionListResponse {
-    questionSolutionArticles: {
-        edges: Array<{ node: IArticleNode }>;
-    };
-}
+import { QUESTION_OFFICIAL_SOLUTION_QUERY } from "./queries";
+import { LeetCodeApiError } from "./errors";
+import { ISolutionArticles, solutionAdapter } from "./siteAdapter";
 
 interface IOfficialSolutionResponse {
     question: {
@@ -37,13 +27,15 @@ export async function fetchTopSolution(
     request: IGraphQLRequest,
     titleSlug: string,
 ): Promise<ISolution | undefined> {
-    const data = await graphql<ISolutionListResponse>(request, QUESTION_SOLUTION_QUERY, {
-        questionSlug: titleSlug,
-        first: 1,
-    });
-    const article: IArticleNode | undefined = data.questionSolutionArticles?.edges?.[0]?.node;
-    if (article?.content) {
-        return { title: article.title || "", content: article.content };
+    const adapter = solutionAdapter(request);
+    try {
+        const data = await graphql<ISolutionArticles>(request, adapter.query, { questionSlug: titleSlug, first: 1 });
+        const article = adapter.article(data);
+        if (article) { return article; }
+    } catch (error) {
+        // A schema mismatch may still leave the official solution available.
+        if (!(error instanceof LeetCodeApiError) || error.kind !== "graphql"
+            || !/Cannot query field|Unknown argument|Unknown type/.test(error.message)) { throw error; }
     }
 
     const fallback = await graphql<IOfficialSolutionResponse>(request, QUESTION_OFFICIAL_SOLUTION_QUERY, {

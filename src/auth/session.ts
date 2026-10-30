@@ -1,8 +1,8 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import axios from "axios";
 import { EventEmitter } from "events";
+import type { IGraphQLRequest } from "../api/client";
 
 export const sessionEvents: EventEmitter = new EventEmitter();
 
@@ -17,25 +17,13 @@ export function isSessionExpiredError(error: unknown): boolean {
     return status === 401 || status === 403;
 }
 
-let interceptorInstalled: boolean = false;
-
 /**
- * Turns a 401/403 into one session event. The manager verifies the session
- * before signing out, since LeetCode also answers 403 to CSRF failures and bot
- * challenges, and owns the state transition and the user prompt, so every HTTP
- * path shares the same behaviour.
+ * Report failures with their originating session. Credential validation must
+ * never invalidate the active account, and old requests cannot affect a new one.
  */
-export function installSessionInterceptor(): void {
-    if (interceptorInstalled) {
+export function reportAuthenticationFailure(request: IGraphQLRequest): void {
+    if (request.authenticationCheck || !request.cookie || request.sessionSignal?.aborted || request.isCurrent?.() === false) {
         return;
     }
-    interceptorInstalled = true;
-    axios.interceptors.response.use(undefined, (error: unknown) => {
-        if (isSessionExpiredError(error)) {
-            sessionEvents.emit("expired");
-        }
-        return Promise.reject(error);
-    });
+    sessionEvents.emit("expired", request);
 }
-
-installSessionInterceptor();

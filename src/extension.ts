@@ -32,6 +32,7 @@ import { globalState } from "./globalState";
 import { problemCache } from "./api/problemCache";
 import { setClientVersion } from "./api/http";
 import { registerProblemDocumentContext } from "./utils/problemDocumentContext";
+import type { IGraphQLRequest } from "./api/client";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     try {
@@ -39,10 +40,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         setClientVersion(context.extension.packageJSON?.version);
         markdownEngine.initialize(context.extensionUri);
         registerProblemDocumentContext(context);
-        sessionEvents.on("expired", () => {
-            void leetCodeManager.handleSessionExpired();
-        });
-        leetCodeManager.on("statusChanged", () => {
+        const expired = (request: IGraphQLRequest): void => {
+            void leetCodeManager.handleSessionExpired(request).catch((error: unknown) => leetCodeChannel.warn(`Session verification failed: ${error}`));
+        };
+        sessionEvents.on("expired", expired);
+        const statusChanged = (): void => {
             const status: UserStatus = leetCodeManager.getStatus();
             const signedIn: boolean = status === UserStatus.SignedIn;
             const signingIn: boolean = status === UserStatus.SigningIn;
@@ -59,7 +61,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             if (signedIn) {
                 void show.followActiveEditor(vscode.window.activeTextEditor);
             }
-        });
+        };
+        leetCodeManager.on("statusChanged", statusChanged);
+        context.subscriptions.push({ dispose: () => {
+            sessionEvents.off("expired", expired);
+            leetCodeManager.off("statusChanged", statusChanged);
+        } });
 
         // Register views and commands before restoring state, so a failure there never leaves the commands missing.
         leetCodeTreeDataProvider.initialize(context);
@@ -124,9 +131,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 
     try {
-        await globalState.initialize(context);
+        const endpoint = await resolveEndpoint();
+        await globalState.initialize(context, endpoint);
         problemCache.initialize(context.globalState);
-        await resolveEndpoint();
+        context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((event) => {
+            if (event.affectsConfiguration("leetcode.endpoint")) {
+                void resolveEndpoint().then((site) => leetCodeManager.handleEndpointChange(site)).catch((error: unknown) => {
+                    leetCodeChannel.warn(`Endpoint transition failed: ${error}`);
+                });
+            }
+        }));
         const hasStoredCookie: boolean = Boolean(globalState.getCookie());
         await vscode.commands.executeCommand("setContext", "leetcode.signedIn", false);
         await vscode.commands.executeCommand("setContext", "leetcode.showSignIn", false);
@@ -144,6 +158,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export function deactivate(): Promise<void> {
+    leetCodeManager.dispose();
     // Problem pages are written to disk lazily; keep the latest ones.
     return problemCache.flush();
 }

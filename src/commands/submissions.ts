@@ -10,6 +10,8 @@ import {
     ISubmissionHistoryPage,
 } from "../api/submissionHistory";
 import { getLeetCodeRequest } from "../api/request";
+import { assertRequestActive } from "../api/cancellation";
+import { isCanceled } from "../api/http";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { leetCodeManager } from "../leetCodeManager";
@@ -59,19 +61,21 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
     }
 
     try {
+        const request = getLeetCodeRequest();
         const target: LeetCodeNode | undefined = await resolveNode(node);
+        assertRequestActive(request);
         if (!target) {
             await promptForOpenOutputChannel(l10n.t("Failed to resolve the problem for submissions."), DialogType.error);
             return;
         }
 
-        const request = getLeetCodeRequest();
         const items: ISubmissionHistoryItem[] = [];
         let hasNext: boolean = true;
         let loaded: boolean = false;
         let filterStatus: string | undefined;
 
         while (true) {
+            assertRequestActive(request);
             if (!loaded) {
                 const page: ISubmissionHistoryPage = await fetchSubmissionHistory(request, target.slug, 0, 10);
                 items.push(...page.items);
@@ -114,6 +118,7 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
             if (!choice) {
                 return;
             }
+            assertRequestActive(request);
 
             if (choice.value === "load-more") {
                 const page: ISubmissionHistoryPage = await fetchSubmissionHistory(request, target.slug, items.length, 10);
@@ -140,6 +145,7 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
             return;
         }
     } catch (error) {
+        if (isCanceled(error)) { return; }
         await promptForOpenOutputChannel(
             l10n.t("Failed to load submissions. Please open the output channel for details."),
             DialogType.error,

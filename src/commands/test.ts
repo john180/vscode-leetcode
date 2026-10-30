@@ -15,6 +15,7 @@ import { DialogType, promptForOpenOutputChannel, promptForSignIn, showFileSelect
 import { getActiveDocument } from "../utils/workspaceUtils";
 import { leetCodeSubmissionProvider } from "../webview/leetCodeSubmissionProvider";
 import { getProblemById } from "../api/problems";
+import { assertRequestActive } from "../api/cancellation";
 
 /** Test the solution file, with `input` when given and otherwise with the test case the user picks. */
 export async function testSolution(uri?: vscode.Uri, input?: string): Promise<void> {
@@ -24,7 +25,9 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
             return;
         }
 
+        const request = getLeetCodeRequest();
         const document: vscode.TextDocument | undefined = await getActiveDocument(uri);
+        assertRequestActive(request);
         if (!document) {
             return;
         }
@@ -38,12 +41,13 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
         }
 
         const problem: IProblem | undefined = await getProblemById(id);
+        assertRequestActive(request);
         if (!problem) {
             vscode.window.showErrorMessage(vscode.l10n.t("Failed to resolve the problem with id: {0}.", id));
             return;
         }
 
-        const judgeInfo = await fetchJudgeInfo(getLeetCodeRequest(), problem.slug);
+        const judgeInfo = await fetchJudgeInfo(request, problem.slug);
         const testInput: string | undefined = input
             ?? await pickTestInput(document, judgeInfo.exampleTestcases || judgeInfo.sampleTestCase, problem.slug);
         if (testInput === undefined) {
@@ -53,12 +57,14 @@ export async function testSolution(uri?: vscode.Uri, input?: string): Promise<vo
             vscode.window.showErrorMessage(vscode.l10n.t("The test input must not be empty."));
             return;
         }
+        assertRequestActive(request);
         await globalState.saveTestCase(problem.slug, testInput);
+        assertRequestActive(request);
 
         // A newer run aborts this one: a test's result only matters while the panel shows it.
         await leetCodeSubmissionProvider.judge(problem, document, async (signal: AbortSignal) => ({
             ...await testWithLeetCode(
-                { ...getLeetCodeRequest(), signal },
+                { ...request, signal },
                 { slug: problem.slug, questionId: judgeInfo.questionId },
                 language,
                 code,

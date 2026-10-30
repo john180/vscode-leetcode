@@ -11,12 +11,17 @@ let login: Promise<void> = Promise.resolve();
 let initialize = async (): Promise<void> => undefined;
 let refreshes = 0;
 let status = 2;
+let configurationChanged: ((event: any) => void) | undefined;
+const siteChanges: unknown[] = [];
+const subscriptions: any[] = [];
+const sessionEvents = new EventEmitter();
 const detailEvents: string[] = [];
 const manager = Object.assign(new EventEmitter(), {
     getStatus: () => status,
     getUser: () => undefined,
     getLoginStatus: () => login,
     handleUriSignIn: noop,
+    handleEndpointChange: async (endpoint: unknown) => { siteChanges.push(endpoint); },
 });
 const provider = {
     initialize: noop, setTreeView: noop, setMessage: noop,
@@ -28,6 +33,10 @@ moduleLoader._load = function (request: string, parent: { filename?: string }, i
     if (parent?.filename?.endsWith("extension.js")) {
         if (request === "vscode") {
             return {
+                workspace: { onDidChangeConfiguration: (listener: (event: any) => void) => {
+                    configurationChanged = listener;
+                    return { dispose: () => { configurationChanged = undefined; } };
+                } },
                 commands: {
                     executeCommand: async () => undefined,
                     registerCommand: (name: string, command: (...args: any[]) => unknown) => {
@@ -52,8 +61,8 @@ moduleLoader._load = function (request: string, parent: { filename?: string }, i
             "./shared": { setExtensionId: noop, UserStatus: { SignedIn: 1, SignedOut: 2, SigningIn: 3 } },
             "./api/problemCache": { problemCache: { initialize: noop } },
             "./api/http": { setClientVersion: noop },
-            "./auth/endpointResolver": { resolveEndpoint: async () => undefined },
-            "./auth/session": { sessionEvents: new EventEmitter() },
+            "./auth/endpointResolver": { resolveEndpoint: async () => "leetcode-cn" },
+            "./auth/session": { sessionEvents },
             "./utils/problemDocumentContext": { registerProblemDocumentContext: noop },
             "./utils/uiUtils": { DialogType: { error: "error" }, promptForOpenOutputChannel: (text: string) => errors.push(text) },
             "./webview/markdownEngine": { markdownEngine: { initialize: noop } },
@@ -73,7 +82,7 @@ test("activation registers commands without waiting for session restoration", as
     let release!: () => void;
     login = new Promise<void>((resolve) => { release = resolve; });
     let activated = false;
-    const activation = activate({ extension: { id: "test" }, subscriptions: [], globalState: {} } as any)
+    const activation = activate({ extension: { id: "test" }, subscriptions, globalState: {} } as any)
         .then(() => { activated = true; });
     try {
         await new Promise((resolve) => setImmediate(resolve));
@@ -110,6 +119,19 @@ test("session changes clear the old detail before following the active editor", 
     status = 2;
     manager.emit("statusChanged");
     assert.deepEqual(detailEvents, ["clear"]);
+});
+
+test("direct endpoint settings changes use the same transition and listeners are disposable", async () => {
+    configurationChanged!({ affectsConfiguration: () => false });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(siteChanges, []);
+    configurationChanged!({ affectsConfiguration: (key: string) => key === "leetcode.endpoint" });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(siteChanges, ["leetcode-cn"]);
+    for (const subscription of subscriptions) { subscription?.dispose?.(); }
+    assert.equal(configurationChanged, undefined);
+    assert.equal(sessionEvents.listenerCount("expired"), 0);
+    assert.equal(manager.listenerCount("statusChanged"), 0);
 });
 
 // Activates again, so it runs last.

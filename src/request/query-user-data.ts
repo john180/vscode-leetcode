@@ -14,8 +14,8 @@ const graphqlStr = `
     }
 `;
 
-export const queryUserData = async (cookie?: string): Promise<UserDataType> => {
-    const request: IGraphQLRequest = getLeetCodeRequest(cookie);
+export const queryUserData = async (cookie?: string, signal?: AbortSignal): Promise<UserDataType> => {
+    const request: IGraphQLRequest = { ...getLeetCodeRequest(cookie), authenticationCheck: true, signal };
     if (!request.cookie) {
         throw new Error("Failed to obtain the cookie. Please log in again.");
     }

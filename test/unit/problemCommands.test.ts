@@ -10,6 +10,9 @@ const pickedInputs: string[] = [];
 let failLookup = false;
 let cancelTest = false;
 let status = 1;
+let session = new AbortController();
+let origin = "https://leetcode.com";
+let metadata = async (): Promise<any> => ({ questionId: "123", sampleTestCase: "[1,2]", exampleTestcases: "[1,2]\n[3,4]" });
 const problem ={ id: "42", slug: "trapping-rain-water", name: "Trapping Rain Water" };
 const moduleLoader: any = Module;
 const originalLoad = moduleLoader._load;
@@ -30,9 +33,9 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
         getProblemById: async (id: string) => { resolved.push(id); if (failLookup) { throw new Error("offline"); } return problem; },
         recordSubmission: async (target: unknown, accepted: boolean) => actions.push({ target, accepted }),
     }; }
-    if (request === "../api/request") { return { getLeetCodeRequest: () => ({ origin: "https://leetcode.com" }) }; }
+    if (request === "../api/request") { return { getLeetCodeRequest: () => ({ origin, sessionSignal: session.signal }) }; }
     if (request === "../api/question") { return {
-        fetchJudgeInfo: async () => ({ questionId: "123", sampleTestCase: "[1,2]", exampleTestcases: "[1,2]\n[3,4]" }),
+        fetchJudgeInfo: () => metadata(),
         getParamNames: () => ["nums"],
     }; }
     if (request === "../api/submission") { return {
@@ -69,7 +72,11 @@ const { submitSolution } = require("../../src/commands/submit");
 const { showSubmissionHistory } = require("../../src/commands/submissions");
 moduleLoader._load = originalLoad;
 
-beforeEach(() => { actions.length = 0; resolved.length = 0; judged.length = 0; pickedInputs.length = 0; failLookup = false; cancelTest = false; status = 1; });
+beforeEach(() => {
+    actions.length = 0; resolved.length = 0; judged.length = 0; pickedInputs.length = 0; failLookup = false; cancelTest = false; status = 1;
+    session = new AbortController(); origin = "https://leetcode.com";
+    metadata = async () => ({ questionId: "123", sampleTestCase: "[1,2]", exampleTestcases: "[1,2]\n[3,4]" });
+});
 
 test("testing resolves only the current problem and submits its internal question id", async () => {
     await testSolution();
@@ -115,3 +122,21 @@ test("testing and submitting while signed out ask the user to sign in", async ()
     assert.deepEqual(actions, ["sign in", "sign in"]);
     assert.deepEqual(resolved, []);
 });
+
+for (const operation of ["test", "submit"]) {
+    test(`${operation} cannot send code after its session changes during metadata loading`, async () => {
+        let entered!: () => void;
+        let release!: (value: any) => void;
+        const ready = new Promise<void>((resolve) => { entered = resolve; });
+        metadata = () => { entered(); return new Promise((resolve) => { release = resolve; }); };
+        const running = operation === "test" ? testSolution(undefined, "[1,2]") : submitSolution();
+        await ready;
+        session.abort();
+        session = new AbortController();
+        origin = "https://leetcode.cn";
+        status = operation === "submit" ? 2 : 1;
+        release({ questionId: "old-site-id" });
+        await running;
+        assert.deepEqual(actions, [], "no write request or error prompt is produced for a revoked session");
+    });
+}

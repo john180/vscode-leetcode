@@ -40,6 +40,8 @@ Extension ID: `john180.vscode-leetcode`. Disable the previous community and offi
 
 The cookie is stored securely in VS Code. The site is selected from the system time zone: LeetCode China in mainland China, LeetCode elsewhere. Use **LeetCode: Switch Endpoint** to switch manually, and copy the cookie from the selected site.
 
+Accounts and cookies are stored separately for each site. Switching sites, including through `leetcode.endpoint`, validates and restores that site's last active account. Signing out or switching sessions cancels pending requests. Older credentials have no site information and are assigned to the site selected on the first launch after upgrading; add accounts for other sites again.
+
 ## Quick Start
 
 1. After signing in, pick a problem in the LeetCode view, or run **Search Problem** / **Pick One**.

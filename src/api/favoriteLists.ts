@@ -3,6 +3,7 @@
 
 import { IGraphQLRequest } from "./client";
 import { send } from "./http";
+import { invalidResponse } from "./errors";
 
 export interface IFavoriteQuestion {
     id: string;
@@ -84,6 +85,11 @@ export async function fetchFavoriteData(request: IGraphQLRequest): Promise<IFavo
         return { lists: [] };
     }
     const response = await send<IFavoriteListResponse>(request, { url: `${request.origin}/list/api/questions` });
+    const favorites = response.data.favorites;
+    if (!favorites || typeof favorites !== "object" || Array.isArray(favorites)
+        || [favorites.private_favorites, favorites.public_favorites, favorites.leetcode_favorites].some((lists) => lists !== undefined && lists !== null && !Array.isArray(lists))) {
+        throw invalidResponse("LeetCode returned an invalid favorite list response.");
+    }
     return {
         lists: mapFavoriteLists(response.data),
         hot100: mapHot100List(response.data),
