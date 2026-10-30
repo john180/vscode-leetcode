@@ -29,6 +29,7 @@
     "config.configWebviewMarkdown": "提示通过 Markdown 配置调整 Webview 外观。",
     "config.commentDescription": "提示在代码文件中启用注释描述。",
     "config.commandShortcut": "提示配置命令快捷键。",
+    "config.openWorkspaceFolder": "题目文件所在文件夹不在当前工作区时，询问是否打开它。",
     "config.endpoint": "账号使用的站点。",
     "config.useEndpointTranslation": "使用站点提供的翻译（如有）。",
     "config.workspaceFolder": "保存题目文件的工作区路径。",
@@ -46,6 +47,7 @@
     "config.showDescription.enumDescriptions.3": "不显示题目描述",
     "command.showSubmissions": "查看提交历史",
     "command.addToFavoriteList": "加入收藏夹",
+    "command.compareSubmission": "与当前代码比较",
     "viewsWelcome.welcome": "欢迎使用 LeetCode\n\n正在准备 LeetCode 工作区...",
     "capabilities.virtualWorkspaces": "LeetCode 需要在磁盘上创建题目文件。请打开本地文件夹或远程开发工作区以使用此扩展。"
 }

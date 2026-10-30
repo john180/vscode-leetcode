@@ -1,9 +1,10 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { IGraphQLRequest } from "./client";
+import { graphql, IGraphQLRequest } from "./client";
 import { send } from "./http";
 import { invalidResponse } from "./errors";
+import { ISubmissionDetail, submissionAdapter } from "./siteAdapter";
 
 export interface ISubmissionHistoryItem {
     id: string;
@@ -48,6 +49,13 @@ export function mapSubmissionDump(data: unknown): ISubmissionHistoryItem[] {
         }));
 }
 
+/** The slug of a submission's language, which leetcode.cn's history spells as it shows it, such as "Java" or "C++". */
+export function getLanguageSlug(lang: string): string {
+    const name: string = lang.trim().toLowerCase();
+    const aliases: { [name: string]: string } = { "c++": "cpp", "c#": "csharp", "go": "golang" };
+    return aliases[name] ?? name;
+}
+
 export function formatSubmissionLabel(item: ISubmissionHistoryItem): string {
     const accepted: boolean = /accepted|通过/i.test(item.status);
     const icon: string = accepted ? "$(check)" : "$(x)";
@@ -86,4 +94,17 @@ export async function fetchSubmissionHistory(
         items: mapSubmissionDump(response.data),
         hasNext: Boolean(response.data?.has_next),
     };
+}
+
+/** The code of one of the signed-in user's submissions, as it was submitted. */
+export async function fetchSubmissionCode(request: IGraphQLRequest, id: string): Promise<string> {
+    if (!request.cookie) {
+        throw new Error("Not signed in. Please sign in to LeetCode first.");
+    }
+    const adapter = submissionAdapter(request);
+    const code: string | undefined = adapter.code(await graphql<ISubmissionDetail>(request, adapter.query, adapter.variables(id)));
+    if (typeof code !== "string") {
+        throw invalidResponse(`LeetCode returned no code for submission ${id}.`);
+    }
+    return code;
 }

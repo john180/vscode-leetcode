@@ -29,7 +29,7 @@ import {
     promptForSignIn,
     promptHintMessage,
 } from "../utils/uiUtils";
-import { selectWorkspaceFolder } from "../utils/workspaceUtils";
+import { IWorkspaceFolderChoice, selectWorkspaceFolder } from "../utils/workspaceUtils";
 import { leetCodePreviewProvider } from "../webview/leetCodePreviewProvider";
 import { getProblemById, getProblemBySlug, getProblemCacheScope, getRandomProblem } from "../api/problems";
 
@@ -175,8 +175,8 @@ async function showProblemInternal(node: IProblem): Promise<void> {
         }
 
         const leetCodeConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration("leetcode");
-        const workspaceFolder: string = await selectWorkspaceFolder();
-        if (!workspaceFolder) {
+        const location: IWorkspaceFolderChoice | undefined = await selectWorkspaceFolder();
+        if (!location) {
             return;
         }
 
@@ -191,7 +191,7 @@ async function showProblemInternal(node: IProblem): Promise<void> {
             node = await getProblemBySlug(node.slug) || node;
         }
 
-        let finalPath: string = path.join(workspaceFolder, fileFolder, fileName);
+        let finalPath: string = path.join(location.folder, fileFolder, fileName);
 
         if (finalPath) {
             finalPath = await resolveRelativePath(finalPath, node, language);
@@ -217,6 +217,10 @@ async function showProblemInternal(node: IProblem): Promise<void> {
             // The folder setting may name folders that do not exist yet, such as "${difficulty}".
             await fs.mkdir(path.dirname(finalPath), { recursive: true });
             await fs.writeFile(finalPath, fileContent);
+        }
+        // Opening the folder in this window or a new one leaves the file for that window to show.
+        if (location.openFolder && !await location.openFolder()) {
+            return;
         }
 
         const promises: any[] = [

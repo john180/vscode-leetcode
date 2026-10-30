@@ -18,6 +18,13 @@ let status = 1;
 let session = new AbortController();
 let origin = "https://leetcode.com";
 let metadata = async (): Promise<any> => ({ questionId: "123", sampleTestCase: "[1,2]", exampleTestcases: "[1,2]\n[3,4]" });
+let history: unknown[] = [];
+const quickPicks: any[] = [];
+/** How the user answers the submission picker; by default Enter on the first submission. */
+let respond = (quickPick: any, listeners: Record<string, (event?: unknown) => void>): void => {
+    quickPick.selectedItems = [quickPick.items[0]];
+    listeners.accept();
+};
 const problem ={ id: "42", slug: "trapping-rain-water", name: "Trapping Rain Water" };
 const moduleLoader: any = Module;
 const originalLoad = moduleLoader._load;
@@ -25,6 +32,8 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
     if (request === "./list") { throw new Error("Commands must not load the question bank"); }
     if (request === "vscode") { return {
         l10n: { t: (text: string) => text },
+        ProgressLocation: { Window: 10 },
+        ThemeIcon: class { constructor(public readonly id: string) { } },
         window: {
             showErrorMessage: (text: string) => actions.push(text),
             showQuickPick: async (items: any[]) => {
@@ -33,9 +42,23 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
                 return items.find((item) => item.value === pick);
             },
             showInformationMessage: () => undefined,
+            withProgress: (_options: unknown, task: () => Promise<unknown>) => task(),
+            createQuickPick: () => {
+                const listeners: Record<string, (event?: unknown) => void> = {};
+                const quickPick: any = {
+                    items: [], selectedItems: [],
+                    onDidAccept: (listener: () => void) => { listeners.accept = listener; },
+                    onDidTriggerItemButton: (listener: (event?: unknown) => void) => { listeners.button = listener; },
+                    onDidHide: (listener: () => void) => { listeners.hide = listener; },
+                    hide: () => listeners.hide(),
+                    dispose: () => undefined,
+                    show: () => { quickPicks.push(quickPick); respond(quickPick, listeners); },
+                };
+                return quickPick;
+            },
         },
     }; }
-    if (request === "../shared") { return { UserStatus: { SignedOut: 2 } }; }
+    if (request === "../shared") { return { UserStatus: { SignedOut: 2 }, currentSite: () => ({ host: "leetcode.com" }) }; }
     if (request === "../leetCodeManager") { return { leetCodeManager: { getStatus: () => status, getUser: () => status === 1 ? "user" : undefined } }; }
     if (request === "../api/problems") { return {
         getProblemCacheScope: () => "account-a",
@@ -57,9 +80,20 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
         submitSolution: async (_request: unknown, target: unknown) => { actions.push(target); return { state: "SUCCESS", statusMessage: "Accepted" }; },
     }; }
     if (request === "../api/submissionHistory") { return {
-        fetchSubmissionHistory: async (_request: unknown, slug: string) => { actions.push(slug); return { items: [], hasNext: false }; },
+        fetchSubmissionHistory: async (_request: unknown, slug: string) => { actions.push(slug); return { items: history, hasNext: false }; },
+        formatSubmissionDate: () => "",
+        formatSubmissionLabel: (item: { status: string }) => item.status,
+        getLanguageSlug: (lang: string) => lang.toLowerCase(),
     }; }
-    if (request === "../utils/problemUtils") { return { getNodeIdFromText: () => "42", getNodeIdFromFile: async () => "42", getLanguageFromText: () => "python3" }; }
+    if (request === "../submissionDocument") { return {
+        compareSubmission: async (target: unknown) => actions.push({ compare: target }),
+        showSubmission: async (target: unknown) => actions.push({ show: target }),
+        parseSubmissionUri: () => undefined,
+    }; }
+    if (request === "../utils/problemUtils") { return {
+        getNodeIdFromText: () => "42", getNodeIdFromFile: async () => "42", getLanguageFromText: () => "python3",
+        genFileExt: (language: string) => { if (language !== "python3") { throw new Error(`unsupported ${language}`); } return "py"; },
+    }; }
     if (request === "../utils/workspaceUtils") { return {
         getActiveDocument: async (uri?: unknown) => { opened.push(uri); return { getText: () => "code", uri: { fsPath: "42.py" } }; },
         getActiveFilePath: async () => "42.py",
@@ -75,6 +109,7 @@ moduleLoader._load = function (request: string, parent: unknown, isMain: boolean
         DialogType: {},
         promptForOpenOutputChannel: async (_message: string, _type: unknown, error?: Error) => actions.push(`error: ${error?.message}`),
         promptForSignIn: async () => actions.push("sign in"),
+        openUrl: async (url: string) => actions.push({ url }),
     }; }
     if (request === "../explorer/explorerNodeManager") { return { explorerNodeManager: { getNodeById: () => undefined } }; }
     if (request === "../explorer/LeetCodeTreeDataProvider") { return { leetCodeTreeDataProvider: { refresh: async (force = false) => actions.push({ refresh: force }) } }; }
@@ -91,6 +126,8 @@ moduleLoader._load = originalLoad;
 beforeEach(() => {
     actions.length = 0; resolved.length = 0; judged.length = 0; pickedInputs.length = 0; failLookup = false; cancelTest = false; status = 1;
     offered.length = 0; opened.length = 0; pick = ":default"; savedCases = undefined; solutionFile = "file:///42.trapping-rain-water.py";
+    history = []; quickPicks.length = 0;
+    respond = (quickPick, listeners) => { quickPick.selectedItems = [quickPick.items[0]]; listeners.accept(); };
     session = new AbortController(); origin = "https://leetcode.com";
     metadata = async () => ({ questionId: "123", sampleTestCase: "[1,2]", exampleTestcases: "[1,2]\n[3,4]" });
 });
@@ -160,6 +197,34 @@ test("submission resolves one problem and updates local state without force refr
 test("history resolves only the active file's problem", async () => {
     await showSubmissionHistory();
     assert.deepEqual(resolved, ["42"]);
+    assert.deepEqual(actions, [problem.slug]);
+});
+
+test("choosing a submission shows its code, and the buttons of its row compare it or open it on LeetCode", async () => {
+    history = [
+        { id: "7", status: "Accepted", lang: "Python3", timestamp: "", runtime: "", memory: "" },
+        { id: "8", status: "Wrong Answer", lang: "mysql", timestamp: "", runtime: "", memory: "" },
+    ];
+    const submission = (id: string, ext: string) => ({ host: "leetcode.com", problemId: "42", slug: problem.slug, submissionId: id, ext });
+    await showSubmissionHistory();
+    assert.deepEqual(actions.at(-1), { show: submission("7", "py") });
+    assert.deepEqual(quickPicks[0].items[0].buttons.map((button: { tooltip: string }) => button.tooltip), ["Compare with your solution", "View the submission on LeetCode"]);
+
+    respond = (quickPick, listeners) => listeners.button({ item: quickPick.items[1], button: quickPick.items[1].buttons[0] });
+    await showSubmissionHistory();
+    assert.deepEqual(actions.at(-1), { compare: submission("8", "txt") }, "a language without solution files is shown as plain text");
+
+    respond = (quickPick, listeners) => listeners.button({ item: quickPick.items[0], button: quickPick.items[0].buttons[1] });
+    await showSubmissionHistory();
+    assert.deepEqual(actions.at(-1), { url: "https://leetcode.com/submissions/detail/7/" });
+});
+
+test("a submission offers no comparison before its problem's solution file is known, and dismissing the picker does nothing", async () => {
+    history = [{ id: "7", status: "Accepted", lang: "python3", timestamp: "", runtime: "", memory: "" }];
+    solutionFile = undefined;
+    respond = (_quickPick, listeners) => listeners.hide();
+    await showSubmissionHistory();
+    assert.deepEqual(quickPicks[0].items[0].buttons.map((button: { tooltip: string }) => button.tooltip), ["View the submission on LeetCode"]);
     assert.deepEqual(actions, [problem.slug]);
 });
 

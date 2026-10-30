@@ -32,6 +32,14 @@ test("only Quick Test has a default key, which works only in problem files and t
     assert.ok(manifest.activationEvents.includes("onFileSystem:leetcode-testcase"), "a restored test case editor activates the extension");
 });
 
+test("comparing a submission is offered only in its code's editor, which a restored editor can load", () => {
+    const palette = manifest.contributes.menus.commandPalette.find((item: { command: string }) => item.command === "leetcode.compareSubmission");
+    const title = manifest.contributes.menus["editor/title"].find((item: { command: string }) => item.command === "leetcode.compareSubmission");
+    assert.equal(palette?.when, "resourceScheme == leetcode-submission");
+    assert.equal(title?.when, "resourceScheme == leetcode-submission");
+    assert.ok(manifest.activationEvents.includes("onFileSystem:leetcode-submission"));
+});
+
 test("commands that need a problem from the list stay out of the command palette", () => {
     const hidden: string[] = manifest.contributes.menus.commandPalette
         .filter((item: { when?: string }) => item.when === "never")

@@ -61,6 +61,7 @@ moduleLoader._load = function (request: string, parent: { filename?: string }, i
             "./api/problemCache": { problemCache: { initialize: noop } },
             "./testCaseStore": { testCaseStore: { initialize: noop } },
             "./testCaseDocument": { registerTestCaseDocuments: noop },
+            "./submissionDocument": { registerSubmissionDocuments: noop },
             "./api/http": { setClientVersion: noop },
             "./auth/endpointResolver": { resolveEndpoint: async () => "leetcode-cn" },
             "./auth/session": { sessionEvents },

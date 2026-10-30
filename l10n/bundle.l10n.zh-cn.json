@@ -124,7 +124,6 @@
     "Loading problems...": "正在加载题目...",
     "Failed to resolve the problem for submissions.": "无法确定要查看提交历史的题目。",
     "No submissions found for this problem.": "该题目暂无提交记录。",
-    "Select a submission to open on LeetCode": "选择一条提交记录在 LeetCode 中打开",
     "Failed to load submissions. Please open the output channel for details.": "加载提交记录失败，请打开输出面板查看详情。",
     "Daily Challenge": "每日一题",
     "Diff": "差异",
@@ -185,5 +184,15 @@
     "Write test cases in an editor, one argument per line": "在编辑器中编写测试用例，每行一个参数",
     "Open the solution file of problem {0} to test these cases.": "请先打开题目 {0} 的代码文件，再测试这些用例。",
     "Add to test cases": "加入测试用例",
+    "Just open the problem file, and don't ask again": "仅打开题目文件，不再询问",
+    "Workspace folder": "工作区文件夹",
+    "Problem files are saved in {0}. You can change this with the leetcode.workspaceFolder setting.": "题目文件保存在 {0}，可通过 leetcode.workspaceFolder 设置修改。",
+    "This submission was made on {0}. Switch to that site to load it.": "该提交来自 {0}，请切换到该站点后再加载。",
+    "Open the solution file of problem {0} to compare it with this submission.": "请先打开题目 {0} 的代码文件，再与该提交比较。",
+    "Submission {0} ↔ {1}": "提交 {0} ↔ {1}",
+    "Select a submission to view its code": "选择一条提交记录查看代码",
+    "Compare with your solution": "与当前代码比较",
+    "Loading the submission...": "正在加载提交记录...",
+    "Failed to load the submission. Please open the output channel for details.": "加载提交记录失败，请打开输出面板查看详情。",
     "Press {0} in a problem file to test it right away with your test cases, or the examples until you write some. Search \"leetcode\" in Keyboard Shortcuts to change it.": "在题目代码文件中按 {0} 可直接测试：使用你编写的测试用例，尚未编写时使用题目示例。在“键盘快捷方式”中搜索 \"leetcode\" 可修改快捷键。"
 }

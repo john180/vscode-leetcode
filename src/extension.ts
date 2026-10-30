@@ -33,6 +33,7 @@ import { globalState } from "./globalState";
 import { problemCache } from "./api/problemCache";
 import { testCaseStore } from "./testCaseStore";
 import { addTestCase, ITestCaseTarget, registerTestCaseDocuments } from "./testCaseDocument";
+import { registerSubmissionDocuments } from "./submissionDocument";
 import { setClientVersion } from "./api/http";
 import { registerProblemDocumentContext } from "./utils/problemDocumentContext";
 import type { IGraphQLRequest } from "./api/client";
@@ -44,6 +45,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         markdownEngine.initialize(context.extensionUri);
         testCaseStore.initialize(context.globalState);
         registerTestCaseDocuments(context);
+        registerSubmissionDocuments(context);
         registerProblemDocumentContext(context);
         const expired = (request: IGraphQLRequest): void => {
             void auth.handleSessionExpired(request).catch((error: unknown) => leetCodeChannel.warn(`Session verification failed: ${error}`));
@@ -109,6 +111,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.commands.registerCommand("leetcode.clearSearch", () => search.clearSearch()),
             vscode.commands.registerCommand("leetcode.showSolution", (input: LeetCodeNode | vscode.Uri) => show.showSolution(input)),
             vscode.commands.registerCommand("leetcode.showSubmissions", (node: LeetCodeNode) => submissions.showSubmissionHistory(node)),
+            vscode.commands.registerCommand("leetcode.compareSubmission", (uri?: vscode.Uri) => submissions.compareWithSolution(uri)),
             vscode.commands.registerCommand("leetcode.refreshExplorer", async () => {
                 if (globalState.getCookie() && leetCodeManager.getStatus() === UserStatus.SignedOut) {
                     await leetCodeManager.getLoginStatus();

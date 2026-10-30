@@ -21,7 +21,8 @@
     },
     "activationEvents": [
         "onUri",
-        "onFileSystem:leetcode-testcase"
+        "onFileSystem:leetcode-testcase",
+        "onFileSystem:leetcode-submission"
     ],
     "main": "./dist/extension.js",
     "l10n": "./l10n",
@@ -144,6 +145,12 @@
                 "command": "leetcode.addToFavoriteList",
                 "title": "%command.addToFavoriteList%",
                 "category": "LeetCode"
+            },
+            {
+                "command": "leetcode.compareSubmission",
+                "title": "%command.compareSubmission%",
+                "category": "LeetCode",
+                "icon": "$(diff)"
             }
         ],
         "viewsContainers": {
@@ -307,6 +314,10 @@
                 {
                     "command": "leetcode.addToFavoriteList",
                     "when": "never"
+                },
+                {
+                    "command": "leetcode.compareSubmission",
+                    "when": "resourceScheme == leetcode-submission"
                 }
             ],
             "explorer/context": [
@@ -346,6 +357,11 @@
                 {
                     "command": "leetcode.rerunTest",
                     "when": "resourceScheme == leetcode-testcase",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "leetcode.compareSubmission",
+                    "when": "resourceScheme == leetcode-submission",
                     "group": "navigation@1"
                 }
             ],
@@ -461,6 +477,12 @@
                         "default": true,
                         "scope": "application",
                         "description": "%config.commandShortcut%"
+                    },
+                    "leetcode.hint.openWorkspaceFolder": {
+                        "type": "boolean",
+                        "default": true,
+                        "scope": "application",
+                        "description": "%config.openWorkspaceFolder%"
                     },
                     "leetcode.endpoint": {
                         "type": "string",

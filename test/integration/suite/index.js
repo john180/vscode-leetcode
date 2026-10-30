@@ -40,6 +40,10 @@ exports.run = async function run() {
     assert.equal(testCaseEditor.document.getText(), "[2,7,11,15]\n9");
     await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
 
+    // Submitted code comes from the extension, which needs a session to load it.
+    const submission = vscode.Uri.parse("leetcode-submission://leetcode.com/1/two-sum%20(1).py");
+    await assert.rejects(Promise.resolve(vscode.workspace.openTextDocument(submission)), /Not signed in|made on/);
+
     // Quick Test's default key must not take a key that VS Code already uses.
     await vscode.commands.executeCommand("workbench.action.openDefaultKeybindingsFile");
     const bindings = [...vscode.window.activeTextEditor.document.getText().matchAll(/"key":\s*"([^"]+)",\s*"command":\s*"([^"]+)"/g)];

@@ -20,6 +20,33 @@ const GLOBAL_SOLUTIONS = `query topSolution($questionSlug: String!, $first: Int)
     }
 }`;
 
+export interface ISubmissionDetail {
+    submissionDetail?: { code?: string } | null;
+    submissionDetails?: { code?: string } | null;
+}
+
+// leetcode.com numbers submissions with an Int and leetcode.cn with an ID, under a field named one letter apart.
+const GLOBAL_SUBMISSION = `query submissionDetails($submissionId: Int!) {
+    submissionDetails(submissionId: $submissionId) { code }
+}`;
+
+const CN_SUBMISSION = `query mySubmissionDetail($submissionId: ID!) {
+    submissionDetail(submissionId: $submissionId) { code }
+}`;
+
+export function submissionAdapter(request: IGraphQLRequest): {
+    query: string;
+    variables: (id: string) => { submissionId: string | number };
+    code: (data: ISubmissionDetail) => string | undefined;
+} {
+    const cn = isCnSite(request);
+    return {
+        query: cn ? CN_SUBMISSION : GLOBAL_SUBMISSION,
+        variables: (id) => ({ submissionId: cn ? id : Number(id) }),
+        code: (data) => (cn ? data.submissionDetail : data.submissionDetails)?.code,
+    };
+}
+
 /** Site differences stay at the API boundary, rather than in command handlers. */
 export function solutionAdapter(request: IGraphQLRequest): {
     query: string;

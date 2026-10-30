@@ -49,6 +49,7 @@ Accounts and cookies are stored separately for each site. Switching sites, inclu
    Click the search icon in the view title and type an ID, title or slug: the list keeps only matching problems, highlights the keyword and selects the best match without opening it. Enter moves to the next match, Escape closes the box but keeps the results, and ✕ restores the full list. `tag:array` or `company:google` search within that category only.
    Visited problems are cached locally across restarts, separately for each site, login session and language, and stale entries update in the background. Refresh reloads expanded categories; **Delete Cache** also clears the persistent problem cache. Testing, submitting and viewing history do not require the full question bank.
    Clicking a problem shows its description in **Problem Details** below the list; **Code Now** (or the code icon beside the problem) creates and opens the solution file in the editor. Switching to a problem file shows that problem in Problem Details, and the book icon in the editor title bar brings the description back into view.
+   The first time you code, choose where problem files are saved: the default location, an open workspace folder, or a folder you pick. The choice is kept in `leetcode.workspaceFolder`. When that folder is not in the workspace, you are asked whether to open it, and **Just open the problem file, and don't ask again** stops asking; when you open the folder, the problem file is created first.
 2. Edit the generated file and use the CodeLens **Test** or **Submit** action; results appear in the **LeetCode Results** panel below the code.
    Press `Ctrl+'` (**Quick Test**) in the file to test without choosing test cases: it uses your test cases, or the problem's examples until you write some.
    Choosing **Edit test cases...** when testing opens the problem's test case editor beside the code: one argument per line, with each line labelled with its case and parameter. It is saved on this machine, not in the workspace; press `Ctrl+'` or the run button in its title bar to test with it. Clearing and saving it makes tests use the examples again. When a submission fails, **Add to test cases** in the results panel appends the failing input to the editor so that you can change it and test again.
@@ -67,6 +68,7 @@ Accounts and cookies are stored separately for each site. Switching sites, inclu
 | `LeetCode: Quick Test` | Test with your test cases, or the examples, without asking; `Ctrl+'` by default |
 | `LeetCode: Submit to LeetCode` | Submit the current file |
 | `LeetCode: Show Top Voted Solution` | Show the top solution in the Solution tab of Problem Details |
+| `LeetCode: Show Submission History` | List the problem's submissions: Enter shows the code in a read-only editor, and the buttons of a row compare it with your solution or open it on LeetCode |
 | `LeetCode: Manage Sessions` | Manage local sessions |
 | `LeetCode: Delete Cache` | Clear the problem cache |
 

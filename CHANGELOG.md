@@ -11,9 +11,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - A test case editor replaces the one-line input box: **Edit test cases...** opens the problem's test cases beside the code, one argument per line, with each line labelled with its case and parameter. It starts with the examples and is kept in the extension's storage, not in the workspace.
 - **Quick Test** (`Ctrl+'`, `Cmd+'` on macOS) tests the problem file, or the problem of the test case editor, without asking: with your test cases, or the examples until you write some.
 - A failed submission offers **Add to test cases**, which appends its failing input to the test case editor.
+- Submission history shows a submission's code in a read-only editor in the submission's language. A row's buttons compare it with your solution file or open it on LeetCode, and **Compare with Your Solution** in the code's title bar does the same.
+- The first choice of where to save problem files also lists the open workspace folders, and says which setting keeps the choice.
 
 ### Changed
 - The test case picker lists your test cases first, so Enter tests them again. Testing with the examples, a file or a failing input no longer replaces them.
+- Choosing a submission in its history shows its code instead of opening LeetCode in the browser.
+
+### Fixed
+- **Code Now** no longer has to ask every time whether to open a folder of problem files that is not in the workspace: **Just open the problem file, and don't ask again** turns the question off (`leetcode.hint.openWorkspaceFolder`).
+- Opening that folder in the current or a new window creates the problem file first, instead of opening the folder without it.
 
 ## [0.26.0] - 2026-10-30
 ### Fixed

@@ -1,11 +1,12 @@
 // Copyright (c) jdneo. All rights reserved.
 // Licensed under the MIT license.
 
-import { l10n, window } from "vscode";
+import { l10n, ProgressLocation, QuickInputButton, ThemeIcon, Uri, window } from "vscode";
 import {
     fetchSubmissionHistory,
     formatSubmissionDate,
     formatSubmissionLabel,
+    getLanguageSlug,
     ISubmissionHistoryItem,
     ISubmissionHistoryPage,
 } from "../api/submissionHistory";
@@ -15,13 +16,23 @@ import { isCanceled } from "../api/http";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
 import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { leetCodeManager } from "../leetCodeManager";
-import { IQuickItemEx } from "../shared";
-import { getNodeIdFromFile } from "../utils/problemUtils";
+import { currentSite, IQuickItemEx } from "../shared";
+import { compareSubmission, ISubmissionTarget, parseSubmissionUri, showSubmission } from "../submissionDocument";
+import { getProblemFile } from "../utils/problemDocumentContext";
+import { genFileExt, getNodeIdFromFile } from "../utils/problemUtils";
 import { DialogType, openUrl, promptForOpenOutputChannel, promptForSignIn } from "../utils/uiUtils";
 import { getActiveFilePath } from "../utils/workspaceUtils";
 import { getProblemById } from "../api/problems";
 
 type SubmissionPick = ISubmissionHistoryItem | "load-more" | "filter";
+
+/** What to do with the chosen submission: Enter shows its code, and the buttons of its row do the rest. */
+type SubmissionAction = "code" | "compare" | "web";
+
+interface ISubmissionChoice {
+    pick: SubmissionPick;
+    action: SubmissionAction;
+}
 
 async function resolveNode(node?: LeetCodeNode): Promise<LeetCodeNode | undefined> {
     if (node) {
@@ -54,6 +65,44 @@ function formatDetail(item: ISubmissionHistoryItem): string {
     return parts.filter((part: string) => Boolean(part)).join(" · ");
 }
 
+function toTarget(problem: LeetCodeNode, item: ISubmissionHistoryItem): ISubmissionTarget {
+    let ext: string = "txt";
+    try {
+        ext = genFileExt(getLanguageSlug(item.lang));
+    } catch {
+        // A language this extension cannot create files for, such as a database dialect, is shown as plain text.
+    }
+    return { host: currentSite().host, problemId: problem.id, slug: problem.slug, submissionId: item.id, ext };
+}
+
+/** Resolves to the item and how it was chosen, or undefined when the picker is dismissed. */
+function pickSubmission(
+    picks: Array<IQuickItemEx<SubmissionPick>>,
+    buttons: Map<QuickInputButton, SubmissionAction>,
+): Promise<ISubmissionChoice | undefined> {
+    const quickPick = window.createQuickPick<IQuickItemEx<SubmissionPick>>();
+    quickPick.items = picks;
+    quickPick.matchOnDetail = true;
+    quickPick.placeholder = l10n.t("Select a submission to view its code");
+    return new Promise((resolve) => {
+        let choice: ISubmissionChoice | undefined;
+        quickPick.onDidAccept(() => {
+            const item = quickPick.selectedItems[0];
+            choice = item && { pick: item.value, action: "code" };
+            quickPick.hide();
+        });
+        quickPick.onDidTriggerItemButton((event) => {
+            choice = { pick: event.item.value, action: buttons.get(event.button) ?? "code" };
+            quickPick.hide();
+        });
+        quickPick.onDidHide(() => {
+            quickPick.dispose();
+            resolve(choice);
+        });
+        quickPick.show();
+    });
+}
+
 export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> {
     if (!leetCodeManager.getUser()) {
         await promptForSignIn();
@@ -73,6 +122,9 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
         let hasNext: boolean = true;
         let loaded: boolean = false;
         let filterStatus: string | undefined;
+        const compare: QuickInputButton = { iconPath: new ThemeIcon("diff"), tooltip: l10n.t("Compare with your solution") };
+        const web: QuickInputButton = { iconPath: new ThemeIcon("link-external"), tooltip: l10n.t("View the submission on LeetCode") };
+        const buttons = new Map<QuickInputButton, SubmissionAction>([[compare, "compare"], [web, "web"]]);
 
         while (true) {
             assertRequestActive(request);
@@ -90,11 +142,14 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
             const visible: ISubmissionHistoryItem[] = filterStatus
                 ? items.filter((item: ISubmissionHistoryItem) => item.status === filterStatus)
                 : items;
+            // Comparing needs the solution file, which may not have been opened yet.
+            const itemButtons: QuickInputButton[] = getProblemFile(target.id) ? [compare, web] : [web];
             const picks: Array<IQuickItemEx<SubmissionPick>> = visible.map((item: ISubmissionHistoryItem) => ({
                 label: formatSubmissionLabel(item),
                 description: item.status,
                 detail: formatDetail(item),
                 value: item,
+                buttons: itemButtons,
             }));
             if (hasNext) {
                 picks.push({
@@ -111,23 +166,20 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
                 value: "filter",
             });
 
-            const choice: IQuickItemEx<SubmissionPick> | undefined = await window.showQuickPick(picks, {
-                matchOnDetail: true,
-                placeHolder: l10n.t("Select a submission to open on LeetCode"),
-            });
+            const choice: ISubmissionChoice | undefined = await pickSubmission(picks, buttons);
             if (!choice) {
                 return;
             }
             assertRequestActive(request);
 
-            if (choice.value === "load-more") {
+            if (choice.pick === "load-more") {
                 const page: ISubmissionHistoryPage = await fetchSubmissionHistory(request, target.slug, items.length, 10);
                 items.push(...page.items);
                 hasNext = page.hasNext && page.items.length > 0;
                 continue;
             }
 
-            if (choice.value === "filter") {
+            if (choice.pick === "filter") {
                 const statuses: string[] = [...new Set(items.map((item: ISubmissionHistoryItem) => item.status))];
                 const statusChoice: string | undefined = await window.showQuickPick(
                     [l10n.t("All statuses"), ...statuses],
@@ -141,7 +193,12 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
                 continue;
             }
 
-            await openUrl(`${request.origin}/submissions/detail/${choice.value.id}/`);
+            if (choice.action === "web") {
+                await openUrl(`${request.origin}/submissions/detail/${choice.pick.id}/`);
+                return;
+            }
+            const submission: ISubmissionTarget = toTarget(target, choice.pick);
+            await loadSubmission(() => choice.action === "compare" ? compareSubmission(submission) : showSubmission(submission));
             return;
         }
     } catch (error) {
@@ -152,4 +209,22 @@ export async function showSubmissionHistory(node?: LeetCodeNode): Promise<void> 
             error,
         );
     }
+}
+
+/** The title bar action of a submission's code. */
+export async function compareWithSolution(uri?: Uri): Promise<void> {
+    const submission: ISubmissionTarget | undefined = parseSubmissionUri(uri ?? window.activeTextEditor?.document.uri);
+    if (!submission) {
+        return;
+    }
+    try {
+        await loadSubmission(() => compareSubmission(submission));
+    } catch (error) {
+        if (isCanceled(error)) { return; }
+        await promptForOpenOutputChannel(l10n.t("Failed to load the submission. Please open the output channel for details."), DialogType.error, error);
+    }
+}
+
+function loadSubmission(task: () => Promise<void>): Thenable<void> {
+    return window.withProgress({ location: ProgressLocation.Window, title: l10n.t("Loading the submission...") }, task);
 }
